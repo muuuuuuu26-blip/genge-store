@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genge Online Delivery | Vifurushi Bomba</title>
+    <meta name="description" content="Nunua vifurushi vya matunda, mbogamboga, nyama, na samaki mtandaoni. Kuanzia Tsh 5,000/=">
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10B981">
+    <link rel="apple-touch-icon" href="pics/12.png">
+    
+    <!-- iOS Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Genge">
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Ionicons for icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <img src="pics/12.png" alt="Genge Online Delivery Logo" class="logo-img">
+        </div>
+        <nav class="nav-links">
+            <a href="#vifurushi">Vifurushi</a>
+            <a href="#custom-builder">Tengeneza Chako</a>
+            <a href="#" id="open-orders-page" onclick="openOrdersPage(); return false;">Oda Zangu</a>
+            <a href="#kuhusu-sisi">Kuhusu Sisi</a>
+            <a href="#wasiliana-nasi">Mawasiliano</a>
+        </nav>
+        <div class="cart-icon" id="cart-icon">
+            <ion-icon name="cart-outline"></ion-icon>
+            <span class="cart-count" id="cart-count">0</span>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Kila Kitu <span class="highlight">Mlangoni Kwako</span></h2>
+            <p>Agiza mboga, matunda, nafaka, na mahitaji mengine ya kila siku. Tunakuletea haraka mpaka mlangoni kwako.</p>
+            <div class="delivery-badge">
+                <span class="delivery-icon">🛵</span> Delivery ni Saa 1 - 3
+            </div>
+            <br>
+            <a href="#vifurushi" class="cta-btn">Nunua Sasa</a>
+        </div>
+        <div class="hero-image">
+            <div class="blob"></div>
+            <img src="pics/15.png" alt="Genge Online Delivery" class="hero-logo-img">
+        </div>
+    </section>
+
+    <!-- Pre-made Packages Section -->
+    <section id="vifurushi" class="packages-section">
+        <div class="section-header">
+            <h2>Vifurushi Vilivyoandaliwa</h2>
+            <p>Chagua kifurushi kilichojaa mchanganyiko murua uliopendekezwa na wataalamu wetu.</p>
+        </div>
+        <div class="packages-grid" id="packages-grid">
+            <!-- Packages will be injected here via JS -->
+        </div>
+    </section>
+
+    <!-- Custom Package Builder -->
+    <section id="custom-builder" class="builder-section">
+        <div class="section-header">
+            <h2>Tengeneza Kifurushi Chako</h2>
+            <p>Chagua bidhaa unazohitaji. <span class="warning-text">Kima cha chini ni Tsh 5,000/=</span></p>
+        </div>
+        
+        <!-- Category Image Tiles -->
+        <div class="categories-tiles-row" id="categories-tiles">
+            <!-- Injected by JS -->
+        </div>
+
+        <!-- Shop Layout: Products + Cart Summary -->
+        <div class="shop-layout">
+            <div class="products-grid" id="products-grid">
+                <!-- Products injected here via JS -->
+            </div>
+
+            <div class="builder-summary glass-panel">
+                <h3><ion-icon name="basket-outline"></ion-icon> Kifurushi Chako</h3>
+                <div class="custom-cart-items" id="custom-cart-items">
+                    <p class="empty-msg">Hujachagua bidhaa yoyote bado.</p>
+                </div>
+                <div class="summary-footer">
+                    <div class="total-row">
+                        <span>Jumla:</span>
+                        <span id="custom-total">Tsh 0/=</span>
+                    </div>
+                    <div class="min-order-alert" id="min-order-alert">
+                        Bado Tsh <span id="amount-remaining">5,000</span>/= kufikisha kima cha chini
+                    </div>
+                    <button class="add-custom-btn" id="add-custom-btn" disabled>
+                        Weka Kifurushi Kwenye Kapu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- About Us Section -->
+    <section id="kuhusu-sisi" class="about-section">
+        <div class="section-header">
+            <h2>Kuhusu Sisi</h2>
+            <p>Fahamu zaidi kuhusu GENGE ONLINE DELIVERY na dhumuni letu.</p>
+        </div>
+        <div class="about-content glass-panel">
+            <div class="about-text">
+                <h3>Kila Kitu Mlangoni Kwako</h3>
+                <p>GENGE ONLINE DELIVERY ni suluhisho lako namba moja kwa mahitaji ya chakula na bidhaa za nyumbani. Tumejikita katika kuhakikisha unapata bidhaa safi, bora na kwa wakati muafaka bila kutoka ndani ya nyumba yako.</p>
+                <p>Tunashirikiana moja kwa moja na wakulima na wauzaji bora ili kuhakikisha matunda, mbogamboga, nyama, na nafaka tunazokuletea ni zenye kiwango cha juu kabisa. Tofauti yetu ni usafi, uharaka, na uhakika.</p>
+                
+                <div class="about-features">
+                    <div class="feat-item"><ion-icon name="time-outline"></ion-icon> <span>Ufikishaji wa Haraka</span></div>
+                    <div class="feat-item"><ion-icon name="leaf-outline"></ion-icon> <span>Bidhaa Safi Kila Siku</span></div>
+                    <div class="feat-item"><ion-icon name="shield-checkmark-outline"></ion-icon> <span>Malipo Salama & Uhakika</span></div>
+                </div>
+            </div>
+            <div class="about-img">
+                <img src="pics/genge.jpeg" alt="Kuhusu Genge" style="width: 100%; border-radius: 12px;">
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Us Section -->
+    <section id="wasiliana-nasi" class="contact-section">
+        <div class="section-header">
+            <h2>Wasiliana Nasi</h2>
+            <p>Tuko hapa kukuhudumia. Wasiliana nasi kwa njia yoyote kati ya hizi.</p>
+        </div>
+        <div class="contact-grid">
+            <a href="tel:+255799689961" class="contact-card glass-panel" style="text-decoration: none; color: inherit; display: block;">
+                <ion-icon name="call-outline"></ion-icon>
+                <h3>Piga Simu</h3>
+                <p>+255 799 689 961</p>
+                <p>Bonyeza hapa kupiga simu moja kwa moja.</p>
+            </a>
+            <a href="https://wa.me/255799689961" target="_blank" class="contact-card glass-panel" style="text-decoration: none; color: inherit; display: block;">
+                <ion-icon name="logo-whatsapp"></ion-icon>
+                <h3>WhatsApp</h3>
+                <p>+255 799 689 961</p>
+                <p>Bonyeza hapa kutuma ujumbe WhatsApp.</p>
+            </a>
+            <a href="https://www.google.com/maps/search/?api=1&query=Uwata+madale+primary+school" target="_blank" class="contact-card glass-panel" style="text-decoration: none; color: inherit; display: block;">
+                <ion-icon name="location-outline"></ion-icon>
+                <h3>Eneo Letu (Makao Makuu)</h3>
+                <p>Uwata Madale Primary School</p>
+                <p>Bonyeza hapa kuona ramani ya ofisi zetu.</p>
+            </a>
+            <a href="mailto:Gengeonlinetz@gmail.com" class="contact-card glass-panel" style="text-decoration: none; color: inherit; display: block;">
+                <ion-icon name="mail-outline"></ion-icon>
+                <h3>Barua Pepe</h3>
+                <p>Gengeonlinetz@gmail.com</p>
+                <p>Bonyeza hapa kututumia barua pepe.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="pics/12.png" alt="Genge Logo" style="height: 40px;">
+                <p>Kila Kitu Mlangoni Kwako.</p>
+            </div>
+            <div class="footer-links">
+                <a href="#vifurushi">Vifurushi</a>
+                <a href="#custom-builder">Tengeneza Chako</a>
+                <a href="#kuhusu-sisi">Kuhusu Sisi</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Genge Online Delivery. Haki zote zimehifadhiwa.</p>
+        </div>
+    </footer>
+
+    <!-- Shopping Cart Sidebar Overlay -->
+    <div class="cart-overlay" id="cart-overlay">
+        <div class="cart-sidebar glass-panel">
+            <div class="cart-header">
+                <h2>Kapu Lako</h2>
+                <button class="close-cart" id="close-cart"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="cart-items" id="cart-items">
+                <!-- Main cart items -->
+                <p class="empty-msg">Kapu lako liko wazi.</p>
+            </div>
+            <div class="cart-footer">
+                <div class="total-row">
+                    <span>Jumla Kuu:</span>
+                    <span id="main-cart-total">Tsh 0/=</span>
+                </div>
+                <button class="checkout-btn" id="checkout-btn">Endelea na Malipo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="checkout-modal-overlay" id="checkout-modal">
+        <div class="checkout-modal glass-panel">
+            <div class="modal-header">
+                <h2>Kamilisha Oda Yako</h2>
+                <button class="close-modal" id="close-checkout"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <form id="checkout-form" class="checkout-form">
+                <div class="form-group">
+                    <label for="c-name">Jina Kamili</label>
+                    <input type="text" id="c-name" required placeholder="Mf. Juma Ali">
+                </div>
+                <div class="form-group">
+                    <label for="c-phone">Namba ya Simu</label>
+                    <input type="tel" id="c-phone" required placeholder="Mf. 07XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label for="c-location">Mahali/Sehemu unapoishi</label>
+                    <input type="text" id="c-location" required placeholder="Mf. Tabata, Dar es Salaam">
+                </div>
+                <div class="form-group">
+                    <button type="button" id="btn-get-location" class="btn-location">
+                        <ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa
+                    </button>
+                    <p id="location-status" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;"></p>
+                    <input type="hidden" id="c-lat" name="lat">
+                    <input type="hidden" id="c-lng" name="lng">
+                </div>
+                <button type="submit" class="submit-order-btn">Tuma Oda Sasa</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">Item added!</div>
+
+    <!-- Floating Feedback Button -->
+    <button class="feedback-float-btn" id="open-feedback-btn">
+        <ion-icon name="chatbubbles-outline"></ion-icon>
+        <span>Tupe Maoni</span>
+    </button>
+
+    <!-- Reorder Location Modal -->
+    <div class="checkout-modal-overlay" id="reorder-modal">
+        <div class="checkout-modal glass-panel">
+            <div class="modal-header">
+                <h2><ion-icon name="location-outline"></ion-icon> Agiza Tena</h2>
+                <button class="close-modal" id="close-reorder"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Tafadhali weka mahali ulipo sasa hivi (Location yako mpya) ili tukuletee mzigo huu.</p>
+                <div class="input-group">
+                    <label>📍 Mahali ulipo (Location) *</label>
+                    <input type="text" id="r-location" placeholder="Mfano: Sinza Mori, Dar" required>
+                </div>
+                <button class="submit-order-btn" id="submit-reorder-btn">
+                    Tuma Oda Sasa <ion-icon name="checkmark-circle-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="feedback-modal-overlay" id="feedback-modal">
+        <div class="feedback-modal glass-panel">
+            <div class="modal-header">
+                <h2>Tutumie Maoni Yako</h2>
+                <button class="close-modal" id="close-feedback"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <p>Tungependa kusikia kutoka kwako ili tuboreshe huduma zetu zaidi!</p>
+            <form id="feedback-form" class="feedback-form">
+                <div class="form-group">
+                    <label for="f-name">Jina Lako (Hiari)</label>
+                    <input type="text" id="f-name" name="name" placeholder="Mf. Ali (Unaweza kuacha wazi)">
+                </div>
+                <div class="form-group">
+                    <label for="f-message">Maoni/Ushauri Wako <span style="color:red">*</span></label>
+                    <textarea id="f-message" name="message" rows="4" required placeholder="Tuandikie chochote hapa..."></textarea>
+                </div>
+                <button type="submit" class="submit-feedback-btn">Tuma Maoni</button>
+                <p id="feedback-status" style="margin-top: 10px; font-size: 0.9rem; text-align: center;"></p>
+            </form>
+        </div>
+    </div>
+
+
+
+    <!-- ============================================ -->
+    <!-- FULL-SCREEN ORDERS PAGE                     -->
+    <!-- ============================================ -->
+    <div class="orders-page-overlay" id="orders-page-overlay">
+        <!-- Orders Page Header -->
+        <div class="orders-page-header">
+            <button class="orders-back-btn" id="orders-back-btn" onclick="closeOrdersPage()">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+                <span>Rudi Menyu</span>
+            </button>
+            <h2 class="orders-page-title">
+                <ion-icon name="receipt-outline"></ion-icon>
+                Oda Zangu
+            </h2>
+            <div style="width: 110px;"></div><!-- spacer for centering -->
+        </div>
+
+        <!-- Orders Page Content -->
+        <div class="orders-page-content">
+
+            <!-- Loading State -->
+            <div class="history-loading" id="history-loading" style="display:none">
+                <div class="loading-spinner"></div>
+                <p>Inatafuta oda zako...</p>
+            </div>
+
+            <!-- Phone Lookup -->
+            <div class="history-lookup glass-panel" id="history-lookup">
+                <div class="lookup-icon">📱</div>
+                <h3>Angalia Historia Yako</h3>
+                <p>Ingiza namba yako ya simu uliyotumia kuagiza ili uone historia ya oda zako.</p>
+                <form class="lookup-form" id="lookup-form">
+                    <div class="lookup-input-group">
+                        <ion-icon name="call-outline"></ion-icon>
+                        <input type="tel" id="lookup-phone" placeholder="Mf. 0712345678" required>
+                    </div>
+                    <button type="submit" class="lookup-btn" id="lookup-btn">
+                        <ion-icon name="search-outline"></ion-icon>
+                        Tafuta Oda Zangu
+                    </button>
+                </form>
+                <p class="lookup-note">Historia yako itahifadhiwa kwenye kifaa hiki kwa matumizi ya baadaye.</p>
+            </div>
+
+            <!-- History Dashboard -->
+            <div class="history-dashboard" id="history-dashboard" style="display:none">
+
+                <!-- Greeting bar -->
+                <div class="history-greeting glass-panel" id="history-greeting">
+                    <div class="greeting-info">
+                        <span class="greeting-avatar" id="greeting-avatar">👤</span>
+                        <div>
+                            <div class="greeting-name" id="greeting-name">Karibu tena!</div>
+                            <div class="greeting-phone" id="greeting-phone"></div>
+                        </div>
+                    </div>
+                    <div class="greeting-actions">
+                        <button class="history-refresh-btn" id="history-refresh-btn" title="Oanisha upya">
+                            <ion-icon name="refresh-outline"></ion-icon>
+                        </button>
+                        <button class="history-logout-btn" id="history-logout-btn">
+                            <ion-icon name="log-out-outline"></ion-icon>
+                            Badilisha
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Last Order Spotlight -->
+                <div class="last-order-spotlight glass-panel" id="last-order-spotlight" style="display:none">
+                    <div class="spotlight-header">
+                        <div class="spotlight-label">⭐ Oda Yako ya Mwisho</div>
+                        <span class="order-status-badge" id="last-order-status"></span>
+                    </div>
+                    <div class="spotlight-meta">
+                        <span id="last-order-id"></span>
+                        <span id="last-order-date"></span>
+                    </div>
+                    <div class="spotlight-items" id="last-order-items"></div>
+                    <div class="spotlight-footer">
+                        <div class="spotlight-total">
+                            Jumla: <strong id="last-order-total"></strong>
+                        </div>
+                        <button class="reorder-btn" id="reorder-last-btn">
+                            <ion-icon name="refresh-outline"></ion-icon>
+                            Agiza Tena
+                        </button>
+                    </div>
+                </div>
+
+                <!-- All Orders List -->
+                <div class="history-list-header">
+                    <h3><ion-icon name="time-outline"></ion-icon> Oda Zilizopita</h3>
+                </div>
+                <div class="history-list" id="history-list"></div>
+
+            </div>
+
+            <!-- No Orders Found -->
+            <div class="history-empty glass-panel" id="history-empty" style="display:none">
+                <div style="font-size:3rem; margin-bottom:1rem;">🛒</div>
+                <h3>Hakuna Oda Zilizopatikana</h3>
+                <p>Namba hii ya simu haina oda yoyote. Hakikisha umeingiza namba sahihi uliyotumia kuagiza.</p>
+                <button class="lookup-btn" id="try-again-btn" style="margin-top:1.5rem">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                    Jaribu Tena
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Re-order Success Popup -->
+    <div class="reorder-popup-overlay" id="reorder-popup" style="display:none">
+        <div class="reorder-popup glass-panel">
+            <div class="reorder-popup-icon">✅</div>
+            <h3>Bidhaa Zimewekwa Kwenye Kapu!</h3>
+            <div class="reorder-popup-items" id="reorder-popup-items"></div>
+            <div class="reorder-popup-actions">
+                <button class="reorder-popup-checkout" id="reorder-popup-checkout">
+                    <ion-icon name="card-outline"></ion-icon>
+                    Endelea na Malipo
+                </button>
+                <button class="reorder-popup-close" id="reorder-popup-close">
+                    <ion-icon name="add-outline"></ion-icon>
+                    Ongeza Bidhaa Zaidi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=4"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

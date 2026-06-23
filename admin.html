@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genge Admin | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="pics/12.png" alt="Genge Logo" class="logo-img">
+            </div>
+            <nav class="admin-nav">
+                <a href="#" class="active" onclick="showSection('orders', this)"><ion-icon name="list-outline"></ion-icon> Oda Mpya</a>
+                <a href="#" onclick="showSection('upload', this)"><ion-icon name="cloud-upload-outline"></ion-icon> Pakia Bidhaa</a>
+                <a href="#" onclick="showSection('feedback', this)"><ion-icon name="chatbubbles-outline"></ion-icon> Maoni ya Wateja</a>
+                <a href="index.html" target="_blank"><ion-icon name="storefront-outline"></ion-icon> Nenda Dukani</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <h1>Oda za Wateja</h1>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3>Jumla ya Oda</h3>
+                        <p id="total-orders">0</p>
+                    </div>
+                    <div class="stat-card pending">
+                        <h3>Zinasubiri (Pending)</h3>
+                        <p id="pending-orders">0</p>
+                    </div>
+                </div>
+            </header>
+
+            <section class="orders-section" id="orders-section">
+                <div class="table-container">
+                    <table class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>Namba ya Oda</th>
+                                <th>Mteja & Mahali</th>
+                                <th>Bidhaa (Vifurushi)</th>
+                                <th>Jumla (Tsh)</th>
+                                <th>Muda</th>
+                                <th>Hadhi (Status)</th>
+                                <th>Vitendo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-tbody">
+                            <!-- Orders will be loaded here via JS -->
+                        </tbody>
+                    </table>
+                    <div id="no-orders-msg" class="no-orders-msg">Hakuna oda mpya kwa sasa.</div>
+                </div>
+            </section>
+
+            <section class="upload-section" id="upload-section" style="display: none;">
+                <h2>Pakia Bidhaa Mpya</h2>
+                <form id="upload-form" class="upload-form">
+                    <div class="form-group">
+                        <label for="product-name">Jina la Bidhaa</label>
+                        <input type="text" id="product-name" name="name" required placeholder="Mfano: Tikiti Maji">
+                    </div>
+                    <div class="form-group">
+                        <label for="product-price">Bei (Tsh)</label>
+                        <input type="number" id="product-price" name="price" required placeholder="Mfano: 4000">
+                    </div>
+                    <div class="form-group">
+                        <label for="product-category">Kundi (Category)</label>
+                        <select id="product-category" name="category" required>
+                            <option value="matunda">Matunda</option>
+                            <option value="mbogamboga">Mbogamboga</option>
+                            <option value="mafuta">Mafuta</option>
+                            <option value="nyama">Nyama na Soseji</option>
+                            <option value="samaki">Samaki</option>
+                            <option value="nafaka">Nafaka</option>
+                            <option value="vinywaji">Vinywaji</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="product-image">Picha ya Bidhaa</label>
+                        <input type="file" id="product-image" name="image" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn-submit">Pakia Bidhaa</button>
+                    <p id="upload-status"></p>
+                </form>
+            </section>
+
+            <section class="feedback-section" id="feedback-section" style="display: none;">
+                <h2>Maoni ya Wateja</h2>
+                <div class="feedback-container" id="feedback-container">
+                    <p>Inavuta maoni...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Invoice Template (Hidden, used for printing) -->
+    <div id="invoice-template" class="invoice-container">
+        <div class="invoice-header">
+            <img src="pics/12.png" alt="Genge Logo" class="invoice-logo">
+            <div class="invoice-title">
+                <h2>INVOICE</h2>
+                <p id="inv-order-id">ORD-XXXXXX</p>
+                <p id="inv-date">Tarehe: --/--/----</p>
+            </div>
+        </div>
+        
+        <div class="invoice-customer">
+            <h3>Taarifa za Mteja:</h3>
+            <p><strong id="inv-name">Jina</strong></p>
+            <p>Simu: <span id="inv-phone">07XX...</span></p>
+            <p>Mahali: <span id="inv-location">Mahali</span></p>
+        </div>
+
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>Bidhaa</th>
+                    <th style="text-align: center;">Idadi</th>
+                    <th style="text-align: right;">Kiasi (Tsh)</th>
+                </tr>
+            </thead>
+            <tbody id="inv-items-body">
+                <!-- Items injected here -->
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="2">Makato ya Usafiri</th>
+                    <th style="text-align: right;" id="inv-delivery">Tsh 0/=</th>
+                </tr>
+                <tr>
+                    <th colspan="2">Jumla Kuu</th>
+                    <th style="text-align: right;" id="inv-total">Tsh 0/=</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="invoice-payment-status">
+            <h4>Hali ya Malipo:</h4>
+            <p id="inv-payment-status" style="font-weight: bold; font-size: 1.1rem; padding: 10px; border-radius: 8px; text-align: center; background-color: #f0f0f0;">--</p>
+        </div>
+
+        <div class="invoice-footer">
+            <p>Asante kwa kufanya manunuzi na GENGE ONLINE DELIVERY.</p>
+        </div>
+    </div>
+
+    <script src="admin.js?v=4"></script>
+</body>
+</html>
