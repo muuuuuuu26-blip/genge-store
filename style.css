@@ -29,6 +29,19 @@ button, input, textarea {
     outline: none; /* Huondoa mstari unaojitokeza uki-focus */
 }
 
+/* Hide broken image borders (mistari ya kijivu) */
+img {
+    position: relative;
+}
+img::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: transparent;
+}
+
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -695,8 +708,7 @@ html {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(5px);
+    background: rgba(0,0,0,0.85);
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
@@ -852,8 +864,7 @@ footer {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(5px);
+    background: rgba(0,0,0,0.85);
     z-index: 1500;
     display: flex;
     justify-content: center;
@@ -1027,8 +1038,7 @@ footer {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(5px);
+    background: rgba(0,0,0,0.85);
     z-index: 2000;
     display: flex;
     justify-content: center;
