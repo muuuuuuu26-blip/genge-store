@@ -994,3 +994,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Toggle M-Pesa network accordion
+function toggleNetwork(network) {
+    const body = document.getElementById('body-' + network);
+    const chev = document.getElementById('chev-' + network);
+    const isOpen = body.classList.contains('open');
+    
+    // Close all
+    ['vodacom', 'tigo', 'airtel'].forEach(n => {
+        document.getElementById('body-' + n).classList.remove('open');
+        document.getElementById('chev-' + n).classList.remove('rotated');
+    });
+    
+    // Open clicked one if it was closed
+    if (!isOpen) {
+        body.classList.add('open');
+        chev.classList.add('rotated');
+    }
+}

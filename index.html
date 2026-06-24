@@ -20,7 +20,7 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -250,76 +250,103 @@
 
     <!-- M-Pesa Payment Modal -->
     <div class="checkout-modal-overlay" id="mpesa-modal">
-        <div class="checkout-modal glass-panel" style="max-width: 420px;">
-            <div class="modal-header">
-                <h2 style="color: #10B981;"><ion-icon name="phone-portrait-outline"></ion-icon> Lipa kwa Simu</h2>
-                <button class="close-modal" id="close-mpesa"><ion-icon name="close-outline"></ion-icon></button>
+        <div class="mpesa-modal-box">
+
+            <!-- Sticky Header -->
+            <div class="mpesa-modal-header">
+                <div class="mpesa-header-left">
+                    <div class="mpesa-header-icon">
+                        <ion-icon name="phone-portrait-outline"></ion-icon>
+                    </div>
+                    <div>
+                        <h2 class="mpesa-title">Lipa kwa Simu</h2>
+                        <p class="mpesa-subtitle" id="mpesa-amount">Tsh 0/=</p>
+                    </div>
+                </div>
+                <button class="mpesa-close-btn" id="close-mpesa">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
             </div>
 
-            <!-- Payment Summary -->
-            <div id="mpesa-order-summary" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 1rem; margin-bottom: 1.2rem;">
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">Jumla ya Kulipa:</p>
-                <p id="mpesa-amount" style="font-size: 1.8rem; font-weight: 800; color: #10B981; margin: 0;">Tsh 0/=</p>
+            <!-- Scrollable Content -->
+            <div class="mpesa-modal-body">
+
+                <p class="mpesa-instructions-label">Chagua mtandao wako na fuata hatua:</p>
+
+                <!-- Network: M-Pesa Vodacom -->
+                <div class="mpesa-network-tab" id="mpesa-vodacom">
+                    <div class="mpesa-tab-header" onclick="toggleNetwork('vodacom')">
+                        <div class="mpesa-tab-left">
+                            <span class="mpesa-badge mpesa-vodacom">M-Pesa</span>
+                            <span class="mpesa-carrier">Vodacom</span>
+                        </div>
+                        <ion-icon name="chevron-down-outline" class="mpesa-chevron" id="chev-vodacom"></ion-icon>
+                    </div>
+                    <div class="mpesa-tab-body" id="body-vodacom">
+                        <ol class="mpesa-steps">
+                            <li>Piga simu: <strong>*150*00#</strong></li>
+                            <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
+                            <li>Weka namba: <strong class="mpesa-number mpesa-vodacom-num">0799 689 961</strong></li>
+                            <li>Weka kiasi: <strong id="mpesa-amount-vodacom" class="mpesa-number"></strong></li>
+                            <li>Weka PIN yako na uthibitishe</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Network: Tigo Pesa -->
+                <div class="mpesa-network-tab" id="mpesa-tigo">
+                    <div class="mpesa-tab-header" onclick="toggleNetwork('tigo')">
+                        <div class="mpesa-tab-left">
+                            <span class="mpesa-badge mpesa-tigo">Tigo Pesa</span>
+                            <span class="mpesa-carrier">Tigo / Mixx</span>
+                        </div>
+                        <ion-icon name="chevron-down-outline" class="mpesa-chevron" id="chev-tigo"></ion-icon>
+                    </div>
+                    <div class="mpesa-tab-body" id="body-tigo">
+                        <ol class="mpesa-steps">
+                            <li>Piga simu: <strong>*150*01#</strong></li>
+                            <li>Chagua <strong>"Lipa Bili"</strong> → <strong>"Namba ya Simu"</strong></li>
+                            <li>Weka namba: <strong class="mpesa-number mpesa-tigo-num">0799 689 961</strong></li>
+                            <li>Weka kiasi: <strong id="mpesa-amount-tigo" class="mpesa-number"></strong></li>
+                            <li>Weka PIN yako na uthibitishe</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Network: Airtel Money -->
+                <div class="mpesa-network-tab" id="mpesa-airtel">
+                    <div class="mpesa-tab-header" onclick="toggleNetwork('airtel')">
+                        <div class="mpesa-tab-left">
+                            <span class="mpesa-badge mpesa-airtel">Airtel Money</span>
+                            <span class="mpesa-carrier">Airtel</span>
+                        </div>
+                        <ion-icon name="chevron-down-outline" class="mpesa-chevron" id="chev-airtel"></ion-icon>
+                    </div>
+                    <div class="mpesa-tab-body" id="body-airtel">
+                        <ol class="mpesa-steps">
+                            <li>Piga simu: <strong>*150*60#</strong></li>
+                            <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
+                            <li>Weka namba: <strong class="mpesa-number mpesa-airtel-num">0799 689 961</strong></li>
+                            <li>Weka kiasi: <strong id="mpesa-amount-airtel" class="mpesa-number"></strong></li>
+                            <li>Weka PIN yako na uthibitishe</li>
+                        </ol>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Steps -->
-            <div style="margin-bottom: 1.2rem;">
-                <p style="font-weight: 600; margin-bottom: 0.8rem; color: var(--text);">Hatua za Kulipa:</p>
-
-                <!-- M-Pesa -->
-                <div class="mpesa-network-card" id="mpesa-vodacom">
-                    <div class="mpesa-network-header">
-                        <span class="mpesa-network-badge" style="background:#e60000;">📱 M-Pesa</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Vodacom</span>
-                    </div>
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*00#</strong></li>
-                        <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
-                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-vodacom"></strong></li>
-                        <li>Weka PIN yako uthibitishe</li>
-                    </ol>
-                </div>
-
-                <!-- Tigo -->
-                <div class="mpesa-network-card" id="mpesa-tigo">
-                    <div class="mpesa-network-header">
-                        <span class="mpesa-network-badge" style="background:#00aaff;">📱 Tigo Pesa</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Tigo/Mixx</span>
-                    </div>
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*01#</strong></li>
-                        <li>Chagua <strong>"Lipa Bili"</strong> → <strong>"Namba ya Simu"</strong></li>
-                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-tigo"></strong></li>
-                        <li>Weka PIN yako uthibitishe</li>
-                    </ol>
-                </div>
-
-                <!-- Airtel -->
-                <div class="mpesa-network-card" id="mpesa-airtel">
-                    <div class="mpesa-network-header">
-                        <span class="mpesa-network-badge" style="background:#ff6600;">📱 Airtel Money</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Airtel</span>
-                    </div>
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*60#</strong></li>
-                        <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
-                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-airtel"></strong></li>
-                        <li>Weka PIN yako uthibitishe</li>
-                    </ol>
-                </div>
+            <!-- Sticky Footer with Confirm Button -->
+            <div class="mpesa-modal-footer">
+                <p class="mpesa-info-note">
+                    <ion-icon name="information-circle-outline"></ion-icon>
+                    Bonyeza kitufe hiki BAADA TU ya kulipa
+                </p>
+                <button id="mpesa-confirm-btn" class="mpesa-confirm-btn">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    Nimethibitisha Malipo — Tuma Oda
+                </button>
             </div>
 
-            <!-- Confirm Button -->
-            <button id="mpesa-confirm-btn" class="submit-order-btn" style="background: linear-gradient(135deg,#10B981,#059669);">
-                <ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo — Tuma Oda
-            </button>
-            <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:0.8rem;">
-                <ion-icon name="information-circle-outline"></ion-icon>
-                Bonyeza kitufe hiki BAADA TU ya kulipa ili oda yako itumwe.
-            </p>
         </div>
     </div>
 
@@ -527,7 +554,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
