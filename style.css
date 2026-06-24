@@ -2494,3 +2494,47 @@ footer {
     color: var(--text-main);
     background: rgba(255, 255, 255, 0.05);
 }
+
+/* ==========================================
+   M-PESA PAYMENT MODAL STYLES
+   ========================================== */
+.mpesa-network-card {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.8rem;
+    background: rgba(255,255,255,0.03);
+    transition: border-color 0.2s;
+}
+.mpesa-network-card:hover {
+    border-color: rgba(16,185,129,0.4);
+}
+.mpesa-network-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+}
+.mpesa-network-badge {
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+}
+.mpesa-steps {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.9;
+}
+.mpesa-steps strong {
+    color: var(--text);
+}
+.mpesa-number {
+    font-size: 1rem;
+    color: #10B981 !important;
+    letter-spacing: 0.05em;
+}

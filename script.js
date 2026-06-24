@@ -323,11 +323,28 @@ function setupEventListeners() {
     document.getElementById('close-checkout').addEventListener('click', () => {
         document.getElementById('checkout-modal').classList.remove('active');
     });
+
+    // Close M-Pesa modal (go back to checkout)
+    document.getElementById('close-mpesa').addEventListener('click', () => {
+        document.getElementById('mpesa-modal').classList.remove('active');
+        document.getElementById('checkout-modal').classList.add('active');
+    });
+
+    // M-Pesa confirm button — submit order as PAID
+    document.getElementById('mpesa-confirm-btn').addEventListener('click', () => {
+        const btn = document.getElementById('mpesa-confirm-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Oda...';
+        submitOrder('paid').finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo — Tuma Oda';
+        });
+    });
     
-    // Handle order submission
+    // Handle order submission — show M-Pesa modal first
     document.getElementById('checkout-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        submitOrder();
+        showMpesaModal();
     });
 
     // Handle Get Location
@@ -370,8 +387,26 @@ function setupEventListeners() {
     }
 }
 
+// Show M-Pesa Payment Modal
+function showMpesaModal() {
+    // Calculate total from mainCart
+    let totalAmount = 0;
+    mainCart.forEach(item => totalAmount += item.price);
+    const formatted = formatCurrency(totalAmount);
+
+    // Update amount displays
+    document.getElementById('mpesa-amount').innerText = formatted;
+    document.getElementById('mpesa-amount-vodacom').innerText = formatted;
+    document.getElementById('mpesa-amount-tigo').innerText = formatted;
+    document.getElementById('mpesa-amount-airtel').innerText = formatted;
+
+    // Close checkout, open mpesa
+    document.getElementById('checkout-modal').classList.remove('active');
+    document.getElementById('mpesa-modal').classList.add('active');
+}
+
 // Submit Order to Server
-async function submitOrder() {
+async function submitOrder(paymentStatus = 'pending') {
     const name = document.getElementById('c-name').value;
     const phone = document.getElementById('c-phone').value;
     const location = document.getElementById('c-location').value;
@@ -392,7 +427,7 @@ async function submitOrder() {
         },
         items: mainCart,
         deliveryCharge: 0,
-        paymentStatus: 'pending',
+        paymentStatus: paymentStatus,
         total: totalAmount,
         status: 'pending' // pending, accepted, rejected
     };
@@ -430,10 +465,15 @@ async function submitOrder() {
                 btnLocation.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
             }
 
+            document.getElementById('mpesa-modal').classList.remove('active');
             document.getElementById('checkout-modal').classList.remove('active');
             document.getElementById('cart-overlay').classList.remove('active');
             
-            showToast('Oda yako imetumwa kikamilifu!');
+            if (paymentStatus === 'paid') {
+                showToast('✅ Asante! Oda yako imetumwa. Tutakufikia hivi karibuni!');
+            } else {
+                showToast('Oda yako imetumwa kikamilifu!');
+            }
         } else {
             const result = await response.json();
             showToast('Kosa: ' + result.message);

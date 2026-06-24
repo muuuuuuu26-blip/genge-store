@@ -236,8 +236,85 @@
                     <input type="hidden" id="c-lat" name="lat">
                     <input type="hidden" id="c-lng" name="lng">
                 </div>
-                <button type="submit" class="submit-order-btn">Tuma Oda Sasa</button>
+                <button type="submit" class="submit-order-btn">
+                    <ion-icon name="card-outline"></ion-icon> Endelea na Malipo
+                </button>
             </form>
+        </div>
+    </div>
+
+    <!-- M-Pesa Payment Modal -->
+    <div class="checkout-modal-overlay" id="mpesa-modal">
+        <div class="checkout-modal glass-panel" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2 style="color: #10B981;"><ion-icon name="phone-portrait-outline"></ion-icon> Lipa kwa Simu</h2>
+                <button class="close-modal" id="close-mpesa"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+
+            <!-- Payment Summary -->
+            <div id="mpesa-order-summary" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 1rem; margin-bottom: 1.2rem;">
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">Jumla ya Kulipa:</p>
+                <p id="mpesa-amount" style="font-size: 1.8rem; font-weight: 800; color: #10B981; margin: 0;">Tsh 0/=</p>
+            </div>
+
+            <!-- Steps -->
+            <div style="margin-bottom: 1.2rem;">
+                <p style="font-weight: 600; margin-bottom: 0.8rem; color: var(--text);">Hatua za Kulipa:</p>
+
+                <!-- M-Pesa -->
+                <div class="mpesa-network-card" id="mpesa-vodacom">
+                    <div class="mpesa-network-header">
+                        <span class="mpesa-network-badge" style="background:#e60000;">📱 M-Pesa</span>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Vodacom</span>
+                    </div>
+                    <ol class="mpesa-steps">
+                        <li>Piga simu: <strong>*150*00#</strong></li>
+                        <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
+                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
+                        <li>Weka kiasi: <strong id="mpesa-amount-vodacom"></strong></li>
+                        <li>Weka PIN yako uthibitishe</li>
+                    </ol>
+                </div>
+
+                <!-- Tigo -->
+                <div class="mpesa-network-card" id="mpesa-tigo">
+                    <div class="mpesa-network-header">
+                        <span class="mpesa-network-badge" style="background:#00aaff;">📱 Tigo Pesa</span>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Tigo/Mixx</span>
+                    </div>
+                    <ol class="mpesa-steps">
+                        <li>Piga simu: <strong>*150*01#</strong></li>
+                        <li>Chagua <strong>"Lipa Bili"</strong> → <strong>"Namba ya Simu"</strong></li>
+                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
+                        <li>Weka kiasi: <strong id="mpesa-amount-tigo"></strong></li>
+                        <li>Weka PIN yako uthibitishe</li>
+                    </ol>
+                </div>
+
+                <!-- Airtel -->
+                <div class="mpesa-network-card" id="mpesa-airtel">
+                    <div class="mpesa-network-header">
+                        <span class="mpesa-network-badge" style="background:#ff6600;">📱 Airtel Money</span>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Airtel</span>
+                    </div>
+                    <ol class="mpesa-steps">
+                        <li>Piga simu: <strong>*150*60#</strong></li>
+                        <li>Chagua <strong>"Lipa"</strong> → <strong>"Namba ya Simu"</strong></li>
+                        <li>Weka namba: <strong class="mpesa-number">0799 689 961</strong></li>
+                        <li>Weka kiasi: <strong id="mpesa-amount-airtel"></strong></li>
+                        <li>Weka PIN yako uthibitishe</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Confirm Button -->
+            <button id="mpesa-confirm-btn" class="submit-order-btn" style="background: linear-gradient(135deg,#10B981,#059669);">
+                <ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo — Tuma Oda
+            </button>
+            <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:0.8rem;">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                Bonyeza kitufe hiki BAADA TU ya kulipa ili oda yako itumwe.
+            </p>
         </div>
     </div>
 
