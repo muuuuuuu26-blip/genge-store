@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
@@ -43,6 +44,37 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage: storage });
 
+// Admin Auth Middleware & Login Endpoint
+const JWT_SECRET = process.env.JWT_SECRET || 'genge_secret_key';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'genge_admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+
+app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, message: 'Umefanikiwa kuingia!' });
+    } else {
+        res.status(401).json({ message: 'Jina au nywila (password) sio sahihi!' });
+    }
+});
+
+const verifyAdmin = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+                return res.status(403).json({ message: 'Muda wa kikao umeisha (Token expired), tafadhali ingia upya.' });
+            }
+            req.user = user;
+            next();
+        });
+    } else {
+        res.status(401).json({ message: 'Huna ruhusa ya kufikia huduma hii! (Unauthorized)' });
+    }
+};
+
 // API Routes
 // 1. Get all products
 app.get('/api/products', async (req, res) => {
@@ -55,7 +87,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // 2. Add a new product
-app.post('/api/products', upload.single('image'), async (req, res) => {
+app.post('/api/products', verifyAdmin, upload.single('image'), async (req, res) => {
     try {
         const { name, price, category } = req.body;
         
@@ -112,7 +144,7 @@ app.post('/api/feedback', async (req, res) => {
 });
 
 // 4. Get all feedback
-app.get('/api/feedback', async (req, res) => {
+app.get('/api/feedback', verifyAdmin, async (req, res) => {
     try {
         const feedbacks = await Feedback.find().sort({ date: -1 });
         res.json(feedbacks);
@@ -135,7 +167,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // 6. Get all orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', verifyAdmin, async (req, res) => {
     try {
         const orders = await Order.find().sort({ _id: -1 }); // Sort by creation time descending
         res.json(orders);
@@ -166,7 +198,7 @@ app.get('/api/orders/customer/:phone', async (req, res) => {
 });
 
 // 7. Update order status
-app.patch('/api/orders/:id/status', async (req, res) => {
+app.patch('/api/orders/:id/status', verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
@@ -202,7 +234,7 @@ app.patch('/api/orders/:id/status', async (req, res) => {
 });
 
 // 8. Delete order
-app.delete('/api/orders/:id', async (req, res) => {
+app.delete('/api/orders/:id', verifyAdmin, async (req, res) => {
     try {
         const orderId = req.params.id;
         const result = await Order.findOneAndDelete({ id: orderId });

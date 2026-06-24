@@ -1,16 +1,85 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
+function getAuthHeaders() {
+    const token = localStorage.getItem('adminToken');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function checkAuth() {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('admin-main-container').style.display = 'none';
+        return false;
+    }
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('admin-main-container').style.display = 'block';
+    return true;
+}
+
+window.adminLogout = function() {
+    localStorage.removeItem('adminToken');
+    checkAuth();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    loadOrders();
-    // Optional: Refresh orders every 10 seconds automatically to simulate real-time
-    setInterval(loadOrders, 10000);
+    // Login form logic
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            
+            errorEl.style.display = 'none';
+            errorEl.innerText = '';
+            
+            try {
+                const response = await fetch(API_URL + '/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    localStorage.setItem('adminToken', data.token);
+                    checkAuth();
+                    loadOrders();
+                } else {
+                    errorEl.innerText = data.message;
+                    errorEl.style.display = 'block';
+                }
+            } catch (err) {
+                errorEl.innerText = 'Tatizo la mtandao, jaribu tena.';
+                errorEl.style.display = 'block';
+            }
+        });
+    }
+
+    if (checkAuth()) {
+        loadOrders();
+        // Optional: Refresh orders every 10 seconds automatically to simulate real-time
+        setInterval(() => {
+            if (checkAuth()) loadOrders();
+        }, 10000);
+    }
 });
 
 let currentOrders = [];
 
 async function loadOrders() {
     try {
-        const response = await fetch(API_URL + '/api/orders');
+        const response = await fetch(API_URL + '/api/orders', {
+            headers: getAuthHeaders()
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+            adminLogout();
+            return;
+        }
+
         const orders = await response.json();
         
         console.log('Fetched orders from server:', orders);
@@ -142,7 +211,8 @@ window.updateOrderStatus = async function(orderId, newStatus) {
         const response = await fetch(API_URL + `/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
             },
             body: JSON.stringify({ status: newStatus })
         });
@@ -169,7 +239,8 @@ window.deleteOrder = async function(orderId) {
     
     try {
         const response = await fetch(API_URL + `/api/orders/${orderId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
 
         if (response.ok) {
@@ -223,8 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(uploadForm);
 
             try {
+                const headers = getAuthHeaders();
+                // When uploading files, do not set Content-Type header manually
                 const response = await fetch(API_URL + '/api/products', {
                     method: 'POST',
+                    headers: headers,
                     body: formData
                 });
 
@@ -251,7 +325,15 @@ async function loadFeedbacks() {
     const container = document.getElementById('feedback-container');
     container.innerHTML = '<p>Inavuta maoni...</p>';
     try {
-        const response = await fetch(API_URL + '/api/feedback');
+        const response = await fetch(API_URL + '/api/feedback', {
+            headers: getAuthHeaders()
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+            adminLogout();
+            return;
+        }
+
         const feedbacks = await response.json();
 
         if (feedbacks.length === 0) {
