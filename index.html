@@ -20,7 +20,7 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 
@@ -317,6 +317,26 @@
             </p>
         </div>
     </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="#vifurushi" class="bottom-nav-item">
+            <ion-icon name="cube-outline"></ion-icon>
+            <span>Vifurushi</span>
+        </a>
+        <a href="#custom-builder" class="bottom-nav-item">
+            <ion-icon name="construct-outline"></ion-icon>
+            <span>Tengeneza</span>
+        </a>
+        <a href="#" class="bottom-nav-item" onclick="openOrdersPage(); return false;">
+            <ion-icon name="receipt-outline"></ion-icon>
+            <span>Oda Zangu</span>
+        </a>
+        <a href="#wasiliana-nasi" class="bottom-nav-item">
+            <ion-icon name="call-outline"></ion-icon>
+            <span>Mawasiliano</span>
+        </a>
+    </nav>
 
     <!-- Notification Toast -->
     <div class="toast" id="toast">Item added!</div>
