@@ -427,6 +427,7 @@ function showMpesaModal() {
 
     // Close checkout, open mpesa
     document.getElementById('checkout-modal').classList.remove('active');
+    resetMpesaModal();
     document.getElementById('mpesa-modal').classList.add('active');
 }
 
@@ -995,21 +996,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Toggle M-Pesa network accordion
-function toggleNetwork(network) {
-    const body = document.getElementById('body-' + network);
-    const chev = document.getElementById('chev-' + network);
-    const isOpen = body.classList.contains('open');
-    
-    // Close all
-    ['vodacom', 'tigo', 'airtel'].forEach(n => {
-        document.getElementById('body-' + n).classList.remove('open');
-        document.getElementById('chev-' + n).classList.remove('rotated');
+
+// =============================================
+// M-PESA 2-STEP FLOW
+// =============================================
+const networkConfig = {
+    vodacom: { label: 'M-Pesa',      color: '#e60000', bgClass: 'selected-vodacom', badgeStyle: 'background:#e60000;' },
+    tigo:    { label: 'Tigo Pesa',   color: '#00aaff', bgClass: 'selected-tigo',    badgeStyle: 'background:#00aaff;' },
+    airtel:  { label: 'Airtel Money',color: '#ff6600', bgClass: 'selected-airtel',  badgeStyle: 'background:#ff6600;' }
+};
+
+function selectNetwork(network) {
+    const cfg = networkConfig[network];
+
+    // Hide step 1, show step 2 and footer
+    document.getElementById('mpesa-step-1').style.display = 'none';
+    document.getElementById('mpesa-step-2').style.display = 'block';
+    document.getElementById('mpesa-footer').style.display = 'block';
+
+    // Show correct steps, hide others
+    ['vodacom','tigo','airtel'].forEach(n => {
+        document.getElementById('steps-' + n).style.display = (n === network) ? 'block' : 'none';
     });
-    
-    // Open clicked one if it was closed
-    if (!isOpen) {
-        body.classList.add('open');
-        chev.classList.add('rotated');
-    }
+
+    // Update selected badge
+    const badge = document.getElementById('mpesa-selected-badge');
+    badge.textContent = cfg.label;
+    badge.style.cssText = cfg.badgeStyle + 'color:white;';
+}
+
+function goBackToNetworks() {
+    document.getElementById('mpesa-step-1').style.display = 'block';
+    document.getElementById('mpesa-step-2').style.display = 'none';
+    document.getElementById('mpesa-footer').style.display = 'none';
+}
+
+// Reset mpesa modal to step 1 when opened
+function resetMpesaModal() {
+    document.getElementById('mpesa-step-1').style.display = 'block';
+    document.getElementById('mpesa-step-2').style.display = 'none';
+    document.getElementById('mpesa-footer').style.display = 'none';
 }
