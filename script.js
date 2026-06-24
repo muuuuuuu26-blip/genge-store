@@ -278,6 +278,31 @@ function renderCustomProducts(category) {
 
 // Setup Event Listeners
 function setupEventListeners() {
+    
+    // Mobile Menu Toggle
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const navLinks = document.querySelector('.nav-links');
+    if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = mobileMenuBtn.querySelector('ion-icon');
+            if (navLinks.classList.contains('active')) {
+                icon.setAttribute('name', 'close-outline');
+            } else {
+                icon.setAttribute('name', 'grid-outline');
+            }
+        });
+
+        // Close menu when a link is clicked
+        const links = navLinks.querySelectorAll('a');
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                mobileMenuBtn.querySelector('ion-icon').setAttribute('name', 'grid-outline');
+            });
+        });
+    }
+
     // Cart Sidebar toggle
     document.getElementById('cart-icon').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.add('active');

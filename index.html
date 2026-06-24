@@ -20,7 +20,7 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -36,9 +36,14 @@
             <a href="#kuhusu-sisi">Kuhusu Sisi</a>
             <a href="#wasiliana-nasi">Mawasiliano</a>
         </nav>
-        <div class="cart-icon" id="cart-icon">
-            <ion-icon name="cart-outline"></ion-icon>
-            <span class="cart-count" id="cart-count">0</span>
+        <div class="header-actions">
+            <div class="cart-icon" id="cart-icon">
+                <ion-icon name="cart-outline"></ion-icon>
+                <span class="cart-count" id="cart-count">0</span>
+            </div>
+            <div class="mobile-menu-btn" id="mobile-menu-btn">
+                <ion-icon name="grid-outline"></ion-icon>
+            </div>
         </div>
     </header>
 
@@ -522,7 +527,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
