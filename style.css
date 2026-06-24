@@ -63,8 +63,6 @@ html {
 /* Glassmorphism Utilities */
 .glass-panel {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     border-radius: 20px;
@@ -89,7 +87,6 @@ html {
     top: 0;
     z-index: 100;
     background: #C9DB88;
-    backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(201, 219, 136, 0.65);
 }
 
@@ -133,7 +130,6 @@ html {
     transition: var(--transition);
     position: relative;
     letter-spacing: 0.01em;
-    backdrop-filter: blur(4px);
 }
 
 .nav-links a::after {
@@ -1135,7 +1131,6 @@ footer {
     cursor: pointer;
     transition: var(--transition);
     text-align: center;
-    backdrop-filter: blur(8px);
 }
 
 @media (hover: hover) {
@@ -2278,7 +2273,6 @@ footer {
     justify-content: space-between;
     padding: 1rem 1.5rem;
     background: rgba(15, 23, 42, 0.9);
-    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--glass-border);
     position: sticky;
     top: 0;
@@ -2375,7 +2369,6 @@ footer {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(6px);
     z-index: 3000;
     display: flex;
     align-items: center;
