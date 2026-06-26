@@ -935,6 +935,9 @@ window.reorderOrder = function(order) {
         return;
     }
 
+    // Hifadhi oda ya sasa ili tujaze taarifa za mteja baadaye
+    window.currentReorder = order;
+
     // Add items to main cart
     order.items.forEach(item => {
         mainCart.push({
@@ -971,11 +974,35 @@ window.reorderOrder = function(order) {
 
 // Reorder Popup Buttons
 document.addEventListener('DOMContentLoaded', () => {
-    // "Endelea na Malipo" — open checkout directly
+    // "Endelea na Malipo" — fungua fomu ya malipo moja kwa moja badala ya kikapu tu
     document.getElementById('reorder-popup-checkout')?.addEventListener('click', () => {
         document.getElementById('reorder-popup').style.display = 'none';
+        
+        // Funga ukurasa wa historia ya oda ili aone fomu ya malipo
+        if (typeof closeOrdersPage === 'function') {
+            closeOrdersPage();
+        }
+
         if (mainCart.length > 0) {
-            document.getElementById('cart-overlay').classList.add('active');
+            // Auto-fill inputs if data exists
+            const savedName = localStorage.getItem('genge_customer_name') || '';
+            const savedPhone = localStorage.getItem('genge_customer_phone') || '';
+            const savedLocation = localStorage.getItem('genge_customer_location') || '';
+            
+            // Prioritize current reorder if available, otherwise use localStorage
+            if (window.currentReorder && window.currentReorder.customer) {
+                document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
+                document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
+                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
+            } else {
+                document.getElementById('c-name').value = savedName;
+                document.getElementById('c-phone').value = savedPhone;
+                document.getElementById('c-location').value = savedLocation;
+            }
+
+            document.getElementById('checkout-modal').classList.add('active');
+        } else {
+            showToast('Kapu lako liko wazi!');
         }
     });
 

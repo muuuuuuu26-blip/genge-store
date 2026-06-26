@@ -1,4 +1,4 @@
-const CACHE_NAME = 'genge-cache-v16'; // bump version kila unapobadilisha files
+const CACHE_NAME = 'genge-cache-v17'; // bump version kila unapobadilisha files
 
 const urlsToCache = [
   '/',
