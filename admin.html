@@ -63,6 +63,7 @@
             <nav class="admin-nav">
                 <a href="#" class="active" onclick="showSection('orders', this)"><ion-icon name="list-outline"></ion-icon> Oda Mpya</a>
                 <a href="#" onclick="showSection('upload', this)"><ion-icon name="cloud-upload-outline"></ion-icon> Pakia Bidhaa</a>
+                <a href="#" onclick="showSection('products', this)"><ion-icon name="pricetag-outline"></ion-icon> Simamia Bidhaa</a>
                 <a href="#" onclick="showSection('feedback', this)"><ion-icon name="chatbubbles-outline"></ion-icon> Maoni ya Wateja</a>
                 <a href="index.html" target="_blank"><ion-icon name="storefront-outline"></ion-icon> Nenda Dukani</a>
                 <a href="#" onclick="adminLogout()" class="nav-logout"><ion-icon name="log-out-outline"></ion-icon> Toka (Logout)</a>
@@ -189,12 +190,61 @@
                 </div>
             </section>
 
+            <!-- Products Management Section -->
+            <section class="upload-section" id="products-section" style="display: none;">
+                <div class="form-container-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
+                        <h2 style="margin:0;">Bidhaa Zilizopo</h2>
+                        <button onclick="loadProductsList()" class="btn-submit" style="padding:8px 18px; font-size:0.9rem;">
+                            <ion-icon name="refresh-outline"></ion-icon> Sasisha Orodha
+                        </button>
+                    </div>
+                    <p id="products-list-status" style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;"></p>
+                    <div id="products-list-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1rem;">
+                        <!-- Cards loaded by JS -->
+                    </div>
+                </div>
+            </section>
+
             <section class="feedback-section" id="feedback-section" style="display: none;">
                 <h2>Maoni ya Wateja</h2>
                 <div class="feedback-container" id="feedback-container">
                     <p>Inavuta maoni...</p>
                 </div>
             </section>
+
+            <!-- Edit Product Modal -->
+            <div id="edit-product-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+                <div style="background:var(--card-bg, #fff); border-radius:16px; padding:2rem; width:90%; max-width:420px; box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+                    <h3 style="margin-top:0; margin-bottom:1.2rem;"><ion-icon name="create-outline"></ion-icon> Hariri Bidhaa</h3>
+                    <input type="hidden" id="edit-product-id">
+                    <div style="margin-bottom:1rem;">
+                        <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Jina la Bidhaa</label>
+                        <input type="text" id="edit-product-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;" placeholder="Jina la bidhaa">
+                    </div>
+                    <div style="margin-bottom:1rem;">
+                        <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Bei Mpya (Tsh)</label>
+                        <input type="number" id="edit-product-price" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;" placeholder="Mfano: 5000">
+                    </div>
+                    <div style="margin-bottom:1.5rem;">
+                        <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Kundi (Category)</label>
+                        <select id="edit-product-category" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+                            <option value="matunda">Matunda</option>
+                            <option value="mbogamboga">Mbogamboga</option>
+                            <option value="mafuta">Mafuta</option>
+                            <option value="nyama">Nyama na Soseji</option>
+                            <option value="samaki">Samaki</option>
+                            <option value="nafaka">Nafaka</option>
+                            <option value="vinywaji">Vinywaji</option>
+                        </select>
+                    </div>
+                    <p id="edit-product-status" style="font-size:0.85rem; min-height:20px; margin-bottom:10px;"></p>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="saveProductEdit()" class="btn-submit" style="flex:1; padding:10px;"><ion-icon name="checkmark-circle-outline"></ion-icon> Hifadhi</button>
+                        <button onclick="closeEditProductModal()" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:transparent; cursor:pointer; font-size:0.95rem;">Ghairi</button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -249,6 +299,6 @@
         </div>
     </div>
 
-    <script src="admin.js?v=4"></script>
+    <script src="admin.js?v=5"></script>
 </body>
 </html>

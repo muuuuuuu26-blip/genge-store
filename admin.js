@@ -419,19 +419,23 @@ window.showSection = function(section, anchor) {
 
     const pageTitle = document.getElementById('page-title');
 
+    // Hide all sections first
+    ['orders-section', 'upload-section', 'products-section', 'feedback-section'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
     if (section === 'orders') {
         document.getElementById('orders-section').style.display = 'block';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'none';
         if (pageTitle) pageTitle.innerText = 'Oda za Wateja';
     } else if (section === 'upload') {
-        document.getElementById('orders-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'block';
-        document.getElementById('feedback-section').style.display = 'none';
         if (pageTitle) pageTitle.innerText = 'Pakia Bidhaa Mpya';
+    } else if (section === 'products') {
+        document.getElementById('products-section').style.display = 'block';
+        if (pageTitle) pageTitle.innerText = 'Simamia Bidhaa';
+        loadProductsList();
     } else if (section === 'feedback') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'none';
         document.getElementById('feedback-section').style.display = 'block';
         if (pageTitle) pageTitle.innerText = 'Maoni ya Wateja';
         loadFeedbacks();
@@ -574,4 +578,118 @@ window.printInvoice = function(orderId) {
 
     // Trigger Print
     window.print();
+};
+
+// --- Product Management ---
+window.loadProductsList = async function() {
+    const grid = document.getElementById('products-list-grid');
+    const statusEl = document.getElementById('products-list-status');
+    grid.innerHTML = '<p style="color:var(--text-muted)">Inapakia bidhaa...</p>';
+    statusEl.innerText = '';
+
+    try {
+        const response = await fetch(API_URL + '/api/products');
+        const products = await response.json();
+
+        if (!products.length) {
+            grid.innerHTML = '<p>Hakuna bidhaa zozote kwenye mfumo sasa hivi.</p>';
+            return;
+        }
+
+        statusEl.innerText = `Jumla: bidhaa ${products.length}`;
+        grid.innerHTML = '';
+        products.forEach(prod => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background:var(--card-bg,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+            card.innerHTML = `
+                <img src="${prod.icon}" alt="${prod.name}" style="width:100%; height:120px; object-fit:cover; border-radius:10px; background:#f3f4f6;" onerror="this.src='pics/15.png'">
+                <div style="font-weight:700; font-size:0.9rem; line-height:1.3;">${prod.name}</div>
+                <div style="font-size:0.85rem; color:var(--text-muted,#666);">${prod.category || ''}</div>
+                <div style="font-weight:700; color:var(--primary,#e84393); font-size:1rem;">${formatCurrency(prod.price)}</div>
+                <div style="display:flex; gap:6px; margin-top:4px;">
+                    <button onclick="openEditProductModal('${prod.id}', '${prod.name.replace(/'/g, '\\&apos;')}', ${prod.price}, '${prod.category}')" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
+                        <ion-icon name="create-outline"></ion-icon> Hariri
+                    </button>
+                    <button onclick="deleteProduct('${prod.id}')" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = '<p style="color:red;">Imeshindwa kupakia bidhaa. Angalia mtandao.</p>';
+    }
+};
+
+window.openEditProductModal = function(id, name, price, category) {
+    document.getElementById('edit-product-id').value = id;
+    document.getElementById('edit-product-name').value = name;
+    document.getElementById('edit-product-price').value = price;
+    document.getElementById('edit-product-category').value = category || 'matunda';
+    document.getElementById('edit-product-status').innerText = '';
+    const modal = document.getElementById('edit-product-modal');
+    modal.style.display = 'flex';
+};
+
+window.closeEditProductModal = function() {
+    document.getElementById('edit-product-modal').style.display = 'none';
+};
+
+window.saveProductEdit = async function() {
+    const id = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('edit-product-name').value.trim();
+    const price = document.getElementById('edit-product-price').value;
+    const category = document.getElementById('edit-product-category').value;
+    const statusEl = document.getElementById('edit-product-status');
+
+    if (!name || !price) {
+        statusEl.innerText = '⚠️ Tafadhali jaza jina na bei.';
+        statusEl.style.color = 'orange';
+        return;
+    }
+
+    statusEl.innerText = 'Inasasisha...';
+    statusEl.style.color = 'var(--text-muted)';
+
+    try {
+        const response = await fetch(API_URL + `/api/products/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ name, price: Number(price), category })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            statusEl.innerText = '✅ Imesasishwa kikamilifu!';
+            statusEl.style.color = 'green';
+            setTimeout(() => {
+                closeEditProductModal();
+                loadProductsList();
+            }, 900);
+        } else {
+            statusEl.innerText = '❌ ' + result.message;
+            statusEl.style.color = 'red';
+        }
+    } catch (err) {
+        statusEl.innerText = '❌ Tatizo la mtandao.';
+        statusEl.style.color = 'red';
+    }
+};
+
+window.deleteProduct = async function(id) {
+    if (!confirm('Je, una uhakika unataka kufuta bidhaa hii kabisa? Huwezi kuirudisha.')) return;
+    try {
+        const response = await fetch(API_URL + `/api/products/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (response.ok) {
+            loadProductsList();
+        } else {
+            const result = await response.json();
+            alert('Kosa: ' + result.message);
+        }
+    } catch (err) {
+        alert('Tatizo la mtandao.');
+    }
 };

@@ -247,6 +247,40 @@ app.delete('/api/orders/:id', verifyAdmin, async (req, res) => {
     }
 });
 
+// 9. Update product price / name / category
+app.patch('/api/products/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price, name, category } = req.body;
+        const updateData = {};
+        if (price !== undefined) updateData.price = Number(price);
+        if (name !== undefined) updateData.name = name;
+        if (category !== undefined) updateData.category = category;
+
+        const product = await Product.findOneAndUpdate({ id: id }, updateData, { new: true });
+        if (!product) {
+            return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        }
+        res.json({ message: 'Bidhaa imesasishwa kikamilifu!', product });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 10. Delete product
+app.delete('/api/products/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Product.findOneAndDelete({ id: id });
+        if (!result) {
+            return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        }
+        res.json({ message: 'Bidhaa imefutwa kikamilifu.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
