@@ -20,7 +20,7 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 
@@ -231,32 +231,13 @@
                 </div>
                 <div class="form-group">
                     <label for="c-location">Mahali/Sehemu unapoishi</label>
-                    
-                    <!-- Location Confirmation Block (shown only on reorder) -->
-                    <div id="location-confirm-block" style="display:none; margin-bottom: 12px;">
-                        <div class="location-confirm-card">
-                            <div class="location-confirm-header">
-                                <ion-icon name="location-outline"></ion-icon>
-                                <span>Mahali ulipopelekewa mara ya mwisho:</span>
-                            </div>
-                            <div class="location-confirm-address" id="location-confirm-address">—</div>
-                            <div class="location-confirm-choices">
-                                <button type="button" class="loc-choice-btn loc-same-btn" id="loc-same-btn">
-                                    <ion-icon name="checkmark-circle-outline"></ion-icon>
-                                    Niko Hapa Hapa
-                                </button>
-                                <button type="button" class="loc-choice-btn loc-change-btn" id="loc-change-btn">
-                                    <ion-icon name="create-outline"></ion-icon>
-                                    Niko Mahali Pengine
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- The actual location text input (initially visible always, hidden on reorder until "change" is chosen) -->
-                    <div id="location-input-wrapper">
-                        <input type="text" id="c-location" required placeholder="Mf. Tabata, Dar es Salaam">
-                    </div>
+                    <input type="text" id="c-location" required placeholder="Mf. Tabata, Dar es Salaam">
+                </div>
+                <div class="form-group" id="reorder-location-toggle-group" style="display: none;">
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal; font-size: 0.95rem; margin-top: -5px; margin-bottom: 5px;">
+                        <input type="checkbox" id="c-same-location" checked style="width: auto; height: auto; transform: scale(1.1); cursor: pointer;">
+                        <span>Gonga hapa kama ni sehemu ileile ya oda iliyopita</span>
+                    </label>
                 </div>
                 <div class="form-group">
                     <button type="button" id="btn-get-location" class="btn-location">

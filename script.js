@@ -276,6 +276,73 @@ function renderCustomProducts(category) {
     });
 }
 
+// Prepare checkout modal fields, handling normal and reorder checkouts
+function prepareCheckoutFields() {
+    const savedName = localStorage.getItem('genge_customer_name') || '';
+    const savedPhone = localStorage.getItem('genge_customer_phone') || '';
+    const savedLocation = localStorage.getItem('genge_customer_location') || '';
+    
+    const reorderLocGroup = document.getElementById('reorder-location-toggle-group');
+    const sameLocCheckbox = document.getElementById('c-same-location');
+    const locInput = document.getElementById('c-location');
+    const latInput = document.getElementById('c-lat');
+    const lngInput = document.getElementById('c-lng');
+    const locStatus = document.getElementById('location-status');
+    const btnLocation = document.getElementById('btn-get-location');
+
+    // Reset location status and button appearance
+    if (locStatus) locStatus.innerText = '';
+    if (btnLocation) {
+        btnLocation.style.borderColor = "var(--border)";
+        btnLocation.style.color = "var(--text)";
+        btnLocation.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
+    }
+
+    if (window.currentReorder && window.currentReorder.customer) {
+        document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
+        document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
+        locInput.value = window.currentReorder.customer.location || savedLocation;
+        
+        // Show same-location checkbox option for reorders
+        if (reorderLocGroup) reorderLocGroup.style.display = 'block';
+        if (sameLocCheckbox) sameLocCheckbox.checked = true;
+        
+        // Lock location field by default for reorders using previous location
+        locInput.readOnly = true;
+        locInput.style.backgroundColor = '#f3f4f6';
+        locInput.style.cursor = 'not-allowed';
+        
+        // Set previous GPS coordinates if they exist
+        if (window.currentReorder.customer.gps && window.currentReorder.customer.gps.lat && window.currentReorder.customer.gps.lng) {
+            latInput.value = window.currentReorder.customer.gps.lat;
+            lngInput.value = window.currentReorder.customer.gps.lng;
+            if (locStatus) {
+                locStatus.innerText = "✅ Itatumia location/GPS ya oda ya mwanzo.";
+                locStatus.style.color = "green";
+            }
+        } else {
+            latInput.value = '';
+            lngInput.value = '';
+            if (locStatus) {
+                locStatus.innerText = "Oda ya mwanzo haina ramani (GPS). Unaweza kuchukua upya.";
+                locStatus.style.color = "var(--text-muted)";
+            }
+        }
+    } else {
+        document.getElementById('c-name').value = savedName;
+        document.getElementById('c-phone').value = savedPhone;
+        locInput.value = savedLocation;
+        locInput.readOnly = false;
+        locInput.style.backgroundColor = '';
+        locInput.style.cursor = '';
+        
+        if (reorderLocGroup) reorderLocGroup.style.display = 'none';
+        if (sameLocCheckbox) sameLocCheckbox.checked = false;
+        latInput.value = '';
+        lngInput.value = '';
+    }
+}
+
 // Setup Event Listeners
 function setupEventListeners() {
     
@@ -319,32 +386,21 @@ function setupEventListeners() {
         }
     });
 
-    // Checkout button (normal flow - no reorder)
+    // Checkout button
     document.getElementById('checkout-btn').addEventListener('click', () => {
         if (mainCart.length > 0) {
-            // Reset location confirm block (hidden for normal checkout)
-            _hideLocationConfirm();
-
-            // Auto-fill inputs if data exists
-            const savedName = localStorage.getItem('genge_customer_name') || '';
-            const savedPhone = localStorage.getItem('genge_customer_phone') || '';
-            const savedLocation = localStorage.getItem('genge_customer_location') || '';
-
-            document.getElementById('c-name').value = savedName;
-            document.getElementById('c-phone').value = savedPhone;
-            document.getElementById('c-location').value = savedLocation;
-
+            prepareCheckoutFields();
             document.getElementById('checkout-modal').classList.add('active');
         } else {
             showToast('Kapu lako liko wazi!');
         }
     });
     
-    // Close checkout modal — also reset location confirm block
+    // Close checkout modal
     document.getElementById('close-checkout').addEventListener('click', () => {
         document.getElementById('checkout-modal').classList.remove('active');
-        _hideLocationConfirm();
         window.currentReorder = null;
+        prepareCheckoutFields();
     });
 
     // Close M-Pesa modal (go back to checkout)
@@ -370,6 +426,52 @@ function setupEventListeners() {
         showMpesaModal();
     });
 
+    // Handle Same Location Checkbox
+    const sameLocCheckbox = document.getElementById('c-same-location');
+    if (sameLocCheckbox) {
+        sameLocCheckbox.addEventListener('change', () => {
+            const locInput = document.getElementById('c-location');
+            const latInput = document.getElementById('c-lat');
+            const lngInput = document.getElementById('c-lng');
+            const locStatus = document.getElementById('location-status');
+            const btnLoc = document.getElementById('btn-get-location');
+
+            if (sameLocCheckbox.checked) {
+                if (window.currentReorder && window.currentReorder.customer) {
+                    locInput.value = window.currentReorder.customer.location || '';
+                    locInput.readOnly = true;
+                    locInput.style.backgroundColor = '#f3f4f6';
+                    locInput.style.cursor = 'not-allowed';
+
+                    if (window.currentReorder.customer.gps && window.currentReorder.customer.gps.lat && window.currentReorder.customer.gps.lng) {
+                        latInput.value = window.currentReorder.customer.gps.lat;
+                        lngInput.value = window.currentReorder.customer.gps.lng;
+                        locStatus.innerText = "✅ Itatumia location/GPS ya oda ya mwanzo.";
+                        locStatus.style.color = "green";
+                    } else {
+                        latInput.value = '';
+                        lngInput.value = '';
+                        locStatus.innerText = "Oda ya mwanzo haina ramani (GPS). Unaweza kuchukua upya.";
+                        locStatus.style.color = "var(--text-muted)";
+                    }
+                }
+            } else {
+                locInput.readOnly = false;
+                locInput.style.backgroundColor = '';
+                locInput.style.cursor = '';
+                latInput.value = '';
+                lngInput.value = '';
+                locStatus.innerText = '';
+
+                if (btnLoc) {
+                    btnLoc.style.borderColor = "var(--border)";
+                    btnLoc.style.color = "var(--text)";
+                    btnLoc.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
+                }
+            }
+        });
+    }
+
     // Handle Get Location
     const btnLocation = document.getElementById('btn-get-location');
     const locStatus = document.getElementById('location-status');
@@ -378,6 +480,15 @@ function setupEventListeners() {
 
     if (btnLocation) {
         btnLocation.addEventListener('click', () => {
+            // If they click to get current location, they are choosing a new/current spot
+            if (sameLocCheckbox && sameLocCheckbox.checked) {
+                sameLocCheckbox.checked = false;
+                const locInput = document.getElementById('c-location');
+                locInput.readOnly = false;
+                locInput.style.backgroundColor = '';
+                locInput.style.cursor = '';
+            }
+
             if (!navigator.geolocation) {
                 locStatus.innerText = "Kivinjari chako hakikubali kuchukua location.";
                 locStatus.style.color = "red";
@@ -440,13 +551,24 @@ async function submitOrder(paymentStatus = 'pending') {
     let totalAmount = 0;
     mainCart.forEach(item => totalAmount += item.price);
     
+    // Check same location checkbox
+    const sameLocCheckbox = document.getElementById('c-same-location');
+    const sameLocGroup = document.getElementById('reorder-location-toggle-group');
+    let finalLocation = location;
+    
+    if (sameLocCheckbox && sameLocCheckbox.checked && sameLocGroup && sameLocGroup.style.display !== 'none') {
+        if (!finalLocation.startsWith('[Sehemu ileile]')) {
+            finalLocation = '[Sehemu ileile] ' + finalLocation;
+        }
+    }
+    
     const newOrder = {
         id: 'ORD-' + Date.now(),
         date: new Date().toLocaleString('sw-TZ'),
         customer: { 
             name, 
             phone, 
-            location,
+            location: finalLocation,
             gps: (lat && lng) ? { lat, lng } : null
         },
         items: mainCart,
@@ -466,7 +588,7 @@ async function submitOrder(paymentStatus = 'pending') {
         });
 
         if (response.ok) {
-            // Save customer info to localStorage for history feature
+            // Save customer info to localStorage for history feature (save original location text without badge)
             localStorage.setItem('genge_customer_name', name);
             localStorage.setItem('genge_customer_phone', phone);
             localStorage.setItem('genge_customer_location', location);
@@ -475,6 +597,8 @@ async function submitOrder(paymentStatus = 'pending') {
             mainCart = [];
             updateMainCartUI();
             document.getElementById('checkout-form').reset();
+            window.currentReorder = null;
+            prepareCheckoutFields();
             
             // EXPLICITLY clear hidden GPS inputs
             document.getElementById('c-lat').value = '';
@@ -980,22 +1104,20 @@ document.addEventListener('DOMContentLoaded', () => {
         closeOrdersPage(); // Close the orders history overlay
 
         if (mainCart.length > 0) {
-            // Pre-fill name & phone from saved customer data or current reorder
+            // Pre-fill checkout fields from saved customer data or current reorder
             const savedName     = localStorage.getItem('genge_customer_name')     || '';
             const savedPhone    = localStorage.getItem('genge_customer_phone')    || '';
             const savedLocation = localStorage.getItem('genge_customer_location') || '';
 
-            const previousLocation = (window.currentReorder && window.currentReorder.customer)
-                ? (window.currentReorder.customer.location || savedLocation)
-                : savedLocation;
-
-            document.getElementById('c-name').value  = (window.currentReorder && window.currentReorder.customer)
-                ? (window.currentReorder.customer.name  || savedName)  : savedName;
-            document.getElementById('c-phone').value = (window.currentReorder && window.currentReorder.customer)
-                ? (window.currentReorder.customer.phone || savedPhone) : savedPhone;
-
-            // Show the location confirmation card (customer chooses "same" or "new")
-            _showLocationConfirm(previousLocation);
+            if (window.currentReorder && window.currentReorder.customer) {
+                document.getElementById('c-name').value     = window.currentReorder.customer.name     || savedName;
+                document.getElementById('c-phone').value    = window.currentReorder.customer.phone    || savedPhone;
+                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
+            } else {
+                document.getElementById('c-name').value     = savedName;
+                document.getElementById('c-phone').value    = savedPhone;
+                document.getElementById('c-location').value = savedLocation;
+            }
 
             // Open checkout modal directly (bypass cart sidebar)
             document.getElementById('checkout-modal').classList.add('active');
@@ -1021,67 +1143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-// ============================================
-// LOCATION CONFIRM CARD HELPERS
-// ============================================
-function _hideLocationConfirm() {
-    const block = document.getElementById('location-confirm-block');
-    const wrapper = document.getElementById('location-input-wrapper');
-    if (block)   block.style.display = 'none';
-    if (wrapper) wrapper.classList.remove('hidden-on-reorder');
-
-    // Reset button selected states
-    const sameBtn   = document.getElementById('loc-same-btn');
-    const changeBtn = document.getElementById('loc-change-btn');
-    if (sameBtn)   sameBtn.classList.remove('selected');
-    if (changeBtn) changeBtn.classList.remove('selected');
-}
-
-function _showLocationConfirm(previousLocation) {
-    const block   = document.getElementById('location-confirm-block');
-    const wrapper = document.getElementById('location-input-wrapper');
-    const addrEl  = document.getElementById('location-confirm-address');
-
-    if (addrEl)  addrEl.textContent = previousLocation || '—';
-    if (block)   block.style.display = 'block';
-    // Hide the free-text input until customer says "different location"
-    if (wrapper) wrapper.classList.add('hidden-on-reorder');
-
-    // Make c-location not required while hidden (we'll set it via button)
-    const locInput = document.getElementById('c-location');
-    if (locInput) locInput.removeAttribute('required');
-
-    // Wire up choice buttons
-    const sameBtn   = document.getElementById('loc-same-btn');
-    const changeBtn = document.getElementById('loc-change-btn');
-
-    if (sameBtn) {
-        sameBtn.onclick = () => {
-            // Keep previous location
-            if (locInput) locInput.value = previousLocation;
-            if (locInput) locInput.setAttribute('required', '');
-            // Show that this was chosen
-            sameBtn.classList.add('selected');
-            changeBtn.classList.remove('selected');
-            // Keep input hidden — location is confirmed
-            if (wrapper) wrapper.classList.add('hidden-on-reorder');
-        };
-    }
-
-    if (changeBtn) {
-        changeBtn.onclick = () => {
-            // Clear old value, show the input field so user types new one
-            if (locInput) { locInput.value = ''; locInput.setAttribute('required', ''); }
-            changeBtn.classList.add('selected');
-            sameBtn.classList.remove('selected');
-            // Show text input
-            if (wrapper) wrapper.classList.remove('hidden-on-reorder');
-            // Focus input
-            setTimeout(() => locInput && locInput.focus(), 100);
-        };
-    }
-}
 
 // =============================================
 // M-PESA 2-STEP FLOW
