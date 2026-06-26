@@ -1,5 +1,9 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
+let currentOrders = [];
+let currentFilterStatus = 'all';
+let currentSearchText = '';
+
 function getAuthHeaders() {
     const token = localStorage.getItem('adminToken');
     return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -13,7 +17,7 @@ function checkAuth() {
         return false;
     }
     document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('admin-main-container').style.display = 'block';
+    document.getElementById('admin-main-container').style.display = 'flex';
     return true;
 }
 
@@ -58,16 +62,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Sidebar Mobile Controls
+    const menuToggle = document.getElementById('menu-toggle');
+    const closeSidebar = document.getElementById('close-sidebar');
+    const sidebar = document.getElementById('admin-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (menuToggle && closeSidebar && sidebar && overlay) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+        });
+
+        const closeMenu = () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        };
+
+        closeSidebar.addEventListener('click', closeMenu);
+        overlay.addEventListener('click', closeMenu);
+    }
+
+    // Search and Filter Controls
+    const searchInput = document.getElementById('search-orders');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearchText = e.target.value;
+            renderOrdersTable(currentOrders);
+        });
+    }
+
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentFilterStatus = tab.getAttribute('data-status');
+            renderOrdersTable(currentOrders);
+        });
+    });
+
+    // Image Upload Preview Logic
+    const fileInput = document.getElementById('product-image');
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('image-preview');
+    const removePreviewBtn = document.getElementById('remove-preview-btn');
+
+    if (fileInput && previewContainer && previewImage && removePreviewBtn) {
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removePreviewBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            previewImage.src = '';
+            previewContainer.style.display = 'none';
+        });
+    }
+
     if (checkAuth()) {
         loadOrders();
-        // Optional: Refresh orders every 10 seconds automatically to simulate real-time
+        // Refresh orders every 10 seconds automatically to simulate real-time
         setInterval(() => {
             if (checkAuth()) loadOrders();
         }, 10000);
     }
 });
-
-let currentOrders = [];
 
 async function loadOrders() {
     try {
@@ -84,7 +152,7 @@ async function loadOrders() {
         
         console.log('Fetched orders from server:', orders);
         
-        currentOrders = orders; // Save for printInvoice
+        currentOrders = orders; // Save for filtering & printing
         updateStats(orders);
         renderOrdersTable(orders);
     } catch (err) {
@@ -99,26 +167,50 @@ function updateStats(orders) {
     document.getElementById('pending-orders').innerText = pendingCount;
 }
 
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+};
+
 function renderOrdersTable(orders) {
     const tbody = document.getElementById('orders-tbody');
+    const mobileList = document.getElementById('orders-mobile-list');
     const noOrdersMsg = document.getElementById('no-orders-msg');
     
-    if (orders.length === 0) {
+    // Apply filters
+    let filtered = orders;
+    if (currentFilterStatus !== 'all') {
+        filtered = filtered.filter(o => o.status === currentFilterStatus);
+    }
+    if (currentSearchText.trim() !== '') {
+        const query = currentSearchText.toLowerCase().trim();
+        filtered = filtered.filter(o => {
+            const idMatch = o.id.toLowerCase().includes(query);
+            const nameMatch = o.customer.name.toLowerCase().includes(query);
+            const phoneMatch = o.customer.phone.toLowerCase().includes(query);
+            const locMatch = o.customer.location.toLowerCase().includes(query);
+            return idMatch || nameMatch || phoneMatch || locMatch;
+        });
+    }
+    
+    if (filtered.length === 0) {
         tbody.innerHTML = '';
+        mobileList.innerHTML = '';
         noOrdersMsg.style.display = 'block';
         return;
     }
     
     noOrdersMsg.style.display = 'none';
     tbody.innerHTML = '';
+    mobileList.innerHTML = '';
     
-    orders.forEach(order => {
+    filtered.forEach(order => {
+        // --- 1. DESKTOP RENDER (Table Rows) ---
         const tr = document.createElement('tr');
         
         // Format Items
         let itemsHtml = '<div class="order-items">';
         order.items.forEach(item => {
-            itemsHtml += `<div>- ${item.title}</div>`;
+            itemsHtml += `<div>- ${item.title} x${item.quantity || 1}</div>`;
         });
         itemsHtml += '</div>';
         
@@ -129,7 +221,6 @@ function renderOrdersTable(orders) {
         
         // Payment Status Badge
         const paymentStatus = order.paymentStatus || 'pending';
-        console.log(`Order ${order.id} - Payment Status: ${paymentStatus}, Order Status: ${order.status}`);
         if (paymentStatus === 'paid') {
             paymentBadge = '<span class="badge payment-paid">💳 Ililipwa</span>';
         } else if (paymentStatus === 'failed') {
@@ -144,43 +235,38 @@ function renderOrdersTable(orders) {
                 <div class="actions">
                     <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
                     <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
             `;
         } else if (order.status === 'accepted') {
             statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
             actionButtons = `
                 <div class="actions">
-                    <em>Imekamilika</em>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                    <span style="font-size:0.8rem; font-weight:600; color:var(--success); margin-right:4px;">Imekamilika</span>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
             `;
         } else if (order.status === 'rejected') {
             statusBadge = '<span class="badge rejected">Imekataliwa</span>';
             actionButtons = `
                 <div class="actions">
-                    <em>Imekataliwa</em>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                    <span style="font-size:0.8rem; font-weight:600; color:var(--danger); margin-right:4px;">Imekataliwa</span>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
             `;
         }
         
-        const formatCurrency = (amount) => {
-            return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
-        };
-
         let gpsLink = '';
         if (order.customer.gps && order.customer.gps.lat && order.customer.gps.lng) {
-            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${order.customer.gps.lat},${order.customer.gps.lng}" target="_blank" class="map-link" style="color: #10B981; text-decoration: none; font-size: 0.85rem; display: block; margin-top: 5px;">📍 Pata Direction (Kutoka kwenye GPS)</a>`;
+            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${order.customer.gps.lat},${order.customer.gps.lng}" target="_blank" class="map-link" style="color: var(--primary); text-decoration: none; font-size: 0.8rem; display: block; margin-top: 5px; font-weight:600;">📍 Pata Ramani (GPS)</a>`;
         }
         if (order.customer.location) {
-            // Append city context so Google Maps finds the right location in Tanzania
             const locationWithContext = order.customer.location + ', Dar es Salaam, Tanzania';
             const encodedLoc = encodeURIComponent(locationWithContext);
-            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${encodedLoc}" target="_blank" class="map-link" style="color: #F59E0B; text-decoration: none; font-size: 0.85rem; display: block; margin-top: 5px;">🛣️ Pata Direction (Kutoka kwenye Jina aliloandika)</a>`;
+            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${encodedLoc}" target="_blank" class="map-link" style="color: var(--secondary); text-decoration: none; font-size: 0.8rem; display: block; margin-top: 5px; font-weight:600;">🛣️ Pata Ramani (Jina)</a>`;
         }
 
         tr.innerHTML = `
@@ -195,13 +281,74 @@ function renderOrdersTable(orders) {
             <td><strong>${formatCurrency(order.total)}</strong></td>
             <td>${order.date}</td>
             <td>
-                <div>${statusBadge}</div>
-                <div style="margin-top: 5px;">${paymentBadge}</div>
+                <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                    ${statusBadge}
+                    ${paymentBadge}
+                </div>
             </td>
             <td>${actionButtons}</td>
         `;
-        
         tbody.appendChild(tr);
+
+        // --- 2. MOBILE RENDER (Cards Layout) ---
+        const card = document.createElement('div');
+        card.className = 'order-mobile-card';
+        
+        let mobileItemsHtml = '';
+        order.items.forEach(item => {
+            mobileItemsHtml += `<div>- ${item.title} x${item.quantity || 1}</div>`;
+        });
+
+        let mobileActions = '';
+        if (order.status === 'pending') {
+            mobileActions = `
+                <div class="actions">
+                    <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
+                    <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
+                </div>
+            `;
+        } else {
+            const statusLabel = order.status === 'accepted' ? 
+                `<span style="font-size:0.8rem; font-weight:600; color:var(--success);">Imekamilika</span>` : 
+                `<span style="font-size:0.8rem; font-weight:600; color:var(--danger);">Imekataliwa</span>`;
+            mobileActions = `
+                <div class="actions">
+                    ${statusLabel}
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="order-card-header">
+                <span class="order-number">Oda: ${order.id}</span>
+                <div style="display: flex; gap: 4px;">
+                    ${statusBadge}
+                    ${paymentBadge}
+                </div>
+            </div>
+            <div class="order-card-customer">
+                <span class="customer-name">${order.customer.name}</span>
+                <span class="customer-detail">📞 ${order.customer.phone}</span>
+                <span class="customer-detail">📍 ${order.customer.location}</span>
+                ${gpsLink}
+            </div>
+            <div class="order-card-items">
+                ${mobileItemsHtml}
+            </div>
+            <div class="order-card-summary">
+                <span class="price-label">Jumla Kuu:</span>
+                <span class="price-value">${formatCurrency(order.total)}</span>
+            </div>
+            <div class="order-card-footer">
+                <span class="order-card-date">${order.date}</span>
+                ${mobileActions}
+            </div>
+        `;
+        mobileList.appendChild(card);
     });
 }
 
@@ -256,27 +403,37 @@ window.deleteOrder = async function(orderId) {
 
 // --- Tab Switching Logic ---
 window.showSection = function(section, anchor) {
+    // Close mobile menu if open
+    const sidebar = document.getElementById('admin-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar && overlay) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    }
+
     // Update nav active state
     document.querySelectorAll('.admin-nav a').forEach(el => el.classList.remove('active'));
     if (anchor) {
         anchor.classList.add('active');
     }
 
+    const pageTitle = document.getElementById('page-title');
+
     if (section === 'orders') {
         document.getElementById('orders-section').style.display = 'block';
         document.getElementById('upload-section').style.display = 'none';
         document.getElementById('feedback-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Oda za Wateja';
+        if (pageTitle) pageTitle.innerText = 'Oda za Wateja';
     } else if (section === 'upload') {
         document.getElementById('orders-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'block';
         document.getElementById('feedback-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Pakia Bidhaa Mpya';
+        if (pageTitle) pageTitle.innerText = 'Pakia Bidhaa Mpya';
     } else if (section === 'feedback') {
         document.getElementById('orders-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'none';
         document.getElementById('feedback-section').style.display = 'block';
-        document.querySelector('.top-header h1').innerText = 'Maoni ya Wateja';
+        if (pageTitle) pageTitle.innerText = 'Maoni ya Wateja';
         loadFeedbacks();
     }
 };
@@ -295,7 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const headers = getAuthHeaders();
-                // When uploading files, do not set Content-Type header manually
                 const response = await fetch(API_URL + '/api/products', {
                     method: 'POST',
                     headers: headers,
@@ -308,6 +464,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusEl.innerText = '✅ Bidhaa imepakiwa kikamilifu!';
                     statusEl.style.color = 'green';
                     uploadForm.reset();
+                    
+                    // Clear image preview
+                    const previewContainer = document.getElementById('image-preview-container');
+                    const previewImage = document.getElementById('image-preview');
+                    if (previewContainer && previewImage) {
+                        previewImage.src = '';
+                        previewContainer.style.display = 'none';
+                    }
                 } else {
                     statusEl.innerText = '❌ Kosa: ' + result.message;
                     statusEl.style.color = 'red';
@@ -368,10 +532,6 @@ window.printInvoice = function(orderId) {
     const order = currentOrders.find(o => o.id === orderId);
     
     if (!order) return;
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
-    };
 
     document.getElementById('inv-order-id').innerText = order.id;
     document.getElementById('inv-date').innerText = `Tarehe: ${order.date}`;
