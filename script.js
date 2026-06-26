@@ -935,9 +935,6 @@ window.reorderOrder = function(order) {
         return;
     }
 
-    // Hifadhi oda ya sasa ili tujaze taarifa za mteja baadaye
-    window.currentReorder = order;
-
     // Add items to main cart
     order.items.forEach(item => {
         mainCart.push({
@@ -950,6 +947,11 @@ window.reorderOrder = function(order) {
         });
     });
     updateMainCartUI();
+
+    // Save customer info from this order so checkout can pre-fill it
+    if (order.customer) {
+        window.currentReorder = order;
+    }
 
     // Fill popup with item list
     const popupItems = document.getElementById('reorder-popup-items');
@@ -974,32 +976,28 @@ window.reorderOrder = function(order) {
 
 // Reorder Popup Buttons
 document.addEventListener('DOMContentLoaded', () => {
-    // "Endelea na Malipo" — fungua fomu ya malipo moja kwa moja badala ya kikapu tu
+    // "Endelea na Malipo" — skip cart sidebar, open checkout modal directly with pre-filled data
     document.getElementById('reorder-popup-checkout')?.addEventListener('click', () => {
         document.getElementById('reorder-popup').style.display = 'none';
-        
-        // Funga ukurasa wa historia ya oda ili aone fomu ya malipo
-        if (typeof closeOrdersPage === 'function') {
-            closeOrdersPage();
-        }
+        closeOrdersPage(); // Close the orders history overlay
 
         if (mainCart.length > 0) {
-            // Auto-fill inputs if data exists
-            const savedName = localStorage.getItem('genge_customer_name') || '';
-            const savedPhone = localStorage.getItem('genge_customer_phone') || '';
+            // Pre-fill checkout fields from saved customer data or current reorder
+            const savedName     = localStorage.getItem('genge_customer_name')     || '';
+            const savedPhone    = localStorage.getItem('genge_customer_phone')    || '';
             const savedLocation = localStorage.getItem('genge_customer_location') || '';
-            
-            // Prioritize current reorder if available, otherwise use localStorage
+
             if (window.currentReorder && window.currentReorder.customer) {
-                document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
-                document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
+                document.getElementById('c-name').value     = window.currentReorder.customer.name     || savedName;
+                document.getElementById('c-phone').value    = window.currentReorder.customer.phone    || savedPhone;
                 document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
             } else {
-                document.getElementById('c-name').value = savedName;
-                document.getElementById('c-phone').value = savedPhone;
+                document.getElementById('c-name').value     = savedName;
+                document.getElementById('c-phone').value    = savedPhone;
                 document.getElementById('c-location').value = savedLocation;
             }
 
+            // Open checkout modal directly (bypass cart sidebar)
             document.getElementById('checkout-modal').classList.add('active');
         } else {
             showToast('Kapu lako liko wazi!');
