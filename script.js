@@ -319,24 +319,20 @@ function setupEventListeners() {
         }
     });
 
-    // Checkout button
+    // Checkout button (normal flow - no reorder)
     document.getElementById('checkout-btn').addEventListener('click', () => {
         if (mainCart.length > 0) {
+            // Reset location confirm block (hidden for normal checkout)
+            _hideLocationConfirm();
+
             // Auto-fill inputs if data exists
             const savedName = localStorage.getItem('genge_customer_name') || '';
             const savedPhone = localStorage.getItem('genge_customer_phone') || '';
             const savedLocation = localStorage.getItem('genge_customer_location') || '';
-            
-            // Prioritize current reorder if available, otherwise use localStorage
-            if (window.currentReorder && window.currentReorder.customer) {
-                document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
-                document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
-                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
-            } else {
-                document.getElementById('c-name').value = savedName;
-                document.getElementById('c-phone').value = savedPhone;
-                document.getElementById('c-location').value = savedLocation;
-            }
+
+            document.getElementById('c-name').value = savedName;
+            document.getElementById('c-phone').value = savedPhone;
+            document.getElementById('c-location').value = savedLocation;
 
             document.getElementById('checkout-modal').classList.add('active');
         } else {
@@ -344,9 +340,11 @@ function setupEventListeners() {
         }
     });
     
-    // Close checkout modal
+    // Close checkout modal — also reset location confirm block
     document.getElementById('close-checkout').addEventListener('click', () => {
         document.getElementById('checkout-modal').classList.remove('active');
+        _hideLocationConfirm();
+        window.currentReorder = null;
     });
 
     // Close M-Pesa modal (go back to checkout)
@@ -982,20 +980,22 @@ document.addEventListener('DOMContentLoaded', () => {
         closeOrdersPage(); // Close the orders history overlay
 
         if (mainCart.length > 0) {
-            // Pre-fill checkout fields from saved customer data or current reorder
+            // Pre-fill name & phone from saved customer data or current reorder
             const savedName     = localStorage.getItem('genge_customer_name')     || '';
             const savedPhone    = localStorage.getItem('genge_customer_phone')    || '';
             const savedLocation = localStorage.getItem('genge_customer_location') || '';
 
-            if (window.currentReorder && window.currentReorder.customer) {
-                document.getElementById('c-name').value     = window.currentReorder.customer.name     || savedName;
-                document.getElementById('c-phone').value    = window.currentReorder.customer.phone    || savedPhone;
-                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
-            } else {
-                document.getElementById('c-name').value     = savedName;
-                document.getElementById('c-phone').value    = savedPhone;
-                document.getElementById('c-location').value = savedLocation;
-            }
+            const previousLocation = (window.currentReorder && window.currentReorder.customer)
+                ? (window.currentReorder.customer.location || savedLocation)
+                : savedLocation;
+
+            document.getElementById('c-name').value  = (window.currentReorder && window.currentReorder.customer)
+                ? (window.currentReorder.customer.name  || savedName)  : savedName;
+            document.getElementById('c-phone').value = (window.currentReorder && window.currentReorder.customer)
+                ? (window.currentReorder.customer.phone || savedPhone) : savedPhone;
+
+            // Show the location confirmation card (customer chooses "same" or "new")
+            _showLocationConfirm(previousLocation);
 
             // Open checkout modal directly (bypass cart sidebar)
             document.getElementById('checkout-modal').classList.add('active');
@@ -1021,6 +1021,67 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+// ============================================
+// LOCATION CONFIRM CARD HELPERS
+// ============================================
+function _hideLocationConfirm() {
+    const block = document.getElementById('location-confirm-block');
+    const wrapper = document.getElementById('location-input-wrapper');
+    if (block)   block.style.display = 'none';
+    if (wrapper) wrapper.classList.remove('hidden-on-reorder');
+
+    // Reset button selected states
+    const sameBtn   = document.getElementById('loc-same-btn');
+    const changeBtn = document.getElementById('loc-change-btn');
+    if (sameBtn)   sameBtn.classList.remove('selected');
+    if (changeBtn) changeBtn.classList.remove('selected');
+}
+
+function _showLocationConfirm(previousLocation) {
+    const block   = document.getElementById('location-confirm-block');
+    const wrapper = document.getElementById('location-input-wrapper');
+    const addrEl  = document.getElementById('location-confirm-address');
+
+    if (addrEl)  addrEl.textContent = previousLocation || '—';
+    if (block)   block.style.display = 'block';
+    // Hide the free-text input until customer says "different location"
+    if (wrapper) wrapper.classList.add('hidden-on-reorder');
+
+    // Make c-location not required while hidden (we'll set it via button)
+    const locInput = document.getElementById('c-location');
+    if (locInput) locInput.removeAttribute('required');
+
+    // Wire up choice buttons
+    const sameBtn   = document.getElementById('loc-same-btn');
+    const changeBtn = document.getElementById('loc-change-btn');
+
+    if (sameBtn) {
+        sameBtn.onclick = () => {
+            // Keep previous location
+            if (locInput) locInput.value = previousLocation;
+            if (locInput) locInput.setAttribute('required', '');
+            // Show that this was chosen
+            sameBtn.classList.add('selected');
+            changeBtn.classList.remove('selected');
+            // Keep input hidden — location is confirmed
+            if (wrapper) wrapper.classList.add('hidden-on-reorder');
+        };
+    }
+
+    if (changeBtn) {
+        changeBtn.onclick = () => {
+            // Clear old value, show the input field so user types new one
+            if (locInput) { locInput.value = ''; locInput.setAttribute('required', ''); }
+            changeBtn.classList.add('selected');
+            sameBtn.classList.remove('selected');
+            // Show text input
+            if (wrapper) wrapper.classList.remove('hidden-on-reorder');
+            // Focus input
+            setTimeout(() => locInput && locInput.focus(), 100);
+        };
+    }
+}
 
 // =============================================
 // M-PESA 2-STEP FLOW
