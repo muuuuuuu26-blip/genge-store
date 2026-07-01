@@ -2,100 +2,7 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
 // Data
-const preMadePackages = [
-    {
-        id: 'pkg-1',
-        title: 'Starter Pack',
-        price: 55000, // Bei ya makadirio, utabadilisha
-        icon: 'images/namba1.png',
-        isImage: true,
-        features: [
-            'Mchele Kg 5',
-            'Unga wa Sembe Kg 5',
-            'Mafuta Lita 3',
-            'Sukari Kg 2',
-            'Maharage Kg 2',
-            'Vitunguu Kg 1',
-            'Nyanya Kg 2',
-            '<i>Motto: Mahitaji muhimu kwa wiki nzima.</i>'
-        ]
-    },
-    {
-        id: 'pkg-2',
-        title: 'Family Essentials Pack',
-        price: 110000, // Bei ya makadirio
-        icon: 'images/namba2.png',
-        isImage: true,
-        features: [
-            'Mchele Kg 10',
-            'Unga wa Sembe Kg 10',
-            'Mafuta Lita 5',
-            'Sukari Kg 5',
-            'Maharage Kg 5',
-            'Vitunguu Kg 2',
-            'Nyanya Kg 3',
-            'Karoti Kg 2',
-            '<i>Motto: Kila kitu muhimu kwa familia yako.</i>'
-        ]
-    },
-    {
-        id: 'pkg-3',
-        title: 'Family Value Pack',
-        price: 200000, // Bei ya makadirio
-        icon: 'images/namba3.png',
-        isImage: true,
-        features: [
-            'Mchele Kg 15',
-            'Unga (Sembe + Dona) Kg 15',
-            'Mafuta Lita 10',
-            'Sukari Kg 5',
-            'Maharage Kg 5',
-            'Ngano Kg 5',
-            'Nyama ya Ng\'ombe Kg 3',
-            'Kuku Fresh 3',
-            '<i>Motto: Thamani kubwa kwa matumizi makubwa.</i>'
-        ]
-    },
-    {
-        id: 'pkg-4',
-        title: 'Premium Family Pack',
-        price: 320000, // Bei ya makadirio
-        icon: 'images/namba4.png',
-        isImage: true,
-        features: [
-            'Mchele Kg 25',
-            'Unga (Sembe + Dona) Kg 20',
-            'Mafuta Lita 15',
-            'Sukari Kg 10',
-            'Maharage Kg 10',
-            'Ngano Kg 10',
-            'Nyama ya Ng\'ombe Kg 5',
-            'Kuku Fresh 5',
-            'Mayai Tray 2',
-            '<i>Motto: Familia kubwa, mahitaji yote yamekamilika.</i>'
-        ]
-    },
-    {
-        id: 'pkg-5',
-        title: 'Genge Royal Pack',
-        price: 600000, // Bei ya makadirio
-        icon: 'images/namba5.png',
-        isImage: true,
-        features: [
-            'Mchele Kg 50',
-            'Unga (Sembe + Dona) Kg 25',
-            'Mafuta Lita 20',
-            'Sukari Kg 15',
-            'Maharage Kg 15',
-            'Ngano Kg 15',
-            'Nyama ya Ng\'ombe Kg 10',
-            'Kuku Fresh 10',
-            'Mayai Tray 5',
-            'Chumvi Kg 2',
-            '<i>Motto: Mwezi mzima bila wasiwasi wa sokoni.</i>'
-        ]
-    }
-];
+let preMadePackages = [];
 
 // Shop Categories with representative images
 const shopCategories = [
@@ -123,7 +30,7 @@ const formatCurrency = (amount) => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    renderPreMadePackages();
+    await loadPackagesFromAPI();
     renderCategoryTiles('all');
     await loadProductsFromAPI();
     setupEventListeners();
@@ -186,6 +93,20 @@ async function loadProductsFromAPI() {
     } catch (error) {
         console.error('Error fetching products from server:', error);
         // Fallback or show error
+    }
+}
+
+async function loadPackagesFromAPI() {
+    try {
+        const res = await fetch(API_URL + '/api/packages');
+        if (res.ok) {
+            preMadePackages = await res.json();
+            renderPreMadePackages();
+        } else {
+            console.error('Failed to fetch packages');
+        }
+    } catch (error) {
+        console.error('Error fetching packages from server:', error);
     }
 }
 

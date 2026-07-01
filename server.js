@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
+const Package = require('./models/Package');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -123,6 +124,106 @@ app.post('/api/seed', async (req, res) => {
         const products = req.body.products;
         await Product.insertMany(products);
         res.status(201).json({ message: 'Bidhaa za mwanzo zimewekwa kikamilifu!' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// ==========================================
+// PACKAGES API ROUTES
+// ==========================================
+
+// Get all packages
+app.get('/api/packages', async (req, res) => {
+    try {
+        const packages = await Package.find();
+        res.json(packages);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Add a new package
+app.post('/api/packages', verifyAdmin, upload.single('image'), async (req, res) => {
+    try {
+        const { title, price, features } = req.body;
+        
+        let iconPath = 'pics/15.png'; // Default image if none uploaded
+        if (req.file) {
+            iconPath = req.file.path;
+        }
+
+        const id = 'pkg_' + Date.now();
+
+        // Features can be passed as JSON string or array, parse if string
+        let parsedFeatures = [];
+        if (features) {
+            try {
+                parsedFeatures = JSON.parse(features);
+            } catch (e) {
+                parsedFeatures = Array.isArray(features) ? features : [features];
+            }
+        }
+
+        const newPackage = new Package({
+            id: id,
+            title: title,
+            price: Number(price),
+            icon: iconPath,
+            isImage: true,
+            features: parsedFeatures
+        });
+
+        await newPackage.save();
+        res.status(201).json({ message: 'Kifurushi kimeongezwa kikamilifu!', package: newPackage });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Kuna tatizo wakati wa kuongeza kifurushi.', error: err.message });
+    }
+});
+
+// Update package
+app.patch('/api/packages/:id', verifyAdmin, upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, price, features } = req.body;
+        
+        const updateData = {};
+        if (title !== undefined) updateData.title = title;
+        if (price !== undefined) updateData.price = Number(price);
+        
+        if (features !== undefined) {
+            try {
+                updateData.features = JSON.parse(features);
+            } catch (e) {
+                updateData.features = Array.isArray(features) ? features : [features];
+            }
+        }
+
+        if (req.file) {
+            updateData.icon = req.file.path;
+            updateData.isImage = true;
+        }
+
+        const updatedPackage = await Package.findOneAndUpdate({ id: id }, updateData, { new: true });
+        if (!updatedPackage) {
+            return res.status(404).json({ message: 'Kifurushi hakijapatikana.' });
+        }
+        res.json({ message: 'Kifurushi kimesasishwa kikamilifu!', package: updatedPackage });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Delete package
+app.delete('/api/packages/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Package.findOneAndDelete({ id: id });
+        if (!result) {
+            return res.status(404).json({ message: 'Kifurushi hakijapatikana.' });
+        }
+        res.json({ message: 'Kifurushi kimefutwa kikamilifu.' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

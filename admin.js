@@ -420,7 +420,7 @@ window.showSection = function(section, anchor) {
     const pageTitle = document.getElementById('page-title');
 
     // Hide all sections first
-    ['orders-section', 'upload-section', 'products-section', 'feedback-section'].forEach(id => {
+    ['orders-section', 'upload-section', 'products-section', 'packages-section', 'feedback-section'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -435,6 +435,10 @@ window.showSection = function(section, anchor) {
         document.getElementById('products-section').style.display = 'block';
         if (pageTitle) pageTitle.innerText = 'Simamia Bidhaa';
         loadProductsList();
+    } else if (section === 'packages') {
+        document.getElementById('packages-section').style.display = 'block';
+        if (pageTitle) pageTitle.innerText = 'Simamia Vifurushi';
+        loadPackagesList();
     } else if (section === 'feedback') {
         document.getElementById('feedback-section').style.display = 'block';
         if (pageTitle) pageTitle.innerText = 'Maoni ya Wateja';
@@ -693,3 +697,161 @@ window.deleteProduct = async function(id) {
         alert('Tatizo la mtandao.');
     }
 };
+
+// --- Package Management ---
+window.loadPackagesList = async function() {
+    const grid = document.getElementById('packages-list-grid');
+    const statusEl = document.getElementById('packages-list-status');
+    grid.innerHTML = '<p style="color:var(--text-muted)">Inapakia vifurushi...</p>';
+    statusEl.innerText = '';
+
+    try {
+        const response = await fetch(API_URL + '/api/packages', {
+            headers: getAuthHeaders()
+        });
+        const packages = await response.json();
+
+        if (!packages || !packages.length) {
+            grid.innerHTML = '<p>Hakuna vifurushi vyovyote. Bonyeza "Ongeza Kifurushi" kuanza.</p>';
+            return;
+        }
+
+        statusEl.innerText = `Jumla: vifurushi ${packages.length}`;
+        grid.innerHTML = '';
+        packages.forEach(pkg => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background:var(--card-bg,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+            const imgHtml = pkg.isImage 
+                ? `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%; height:120px; object-fit:cover; border-radius:10px; background:#f3f4f6;" onerror="this.src='pics/15.png'">`
+                : `<div style="font-size: 3rem; text-align: center;">${pkg.icon}</div>`;
+                
+            let featuresStr = (pkg.features || []).join('\n').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            let titleEsc = pkg.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            card.innerHTML = `
+                ${imgHtml}
+                <div style="font-weight:700; font-size:1rem; line-height:1.3;">${pkg.title}</div>
+                <div style="font-weight:700; color:var(--primary,#e84393); font-size:1.1rem;">${formatCurrency(pkg.price)}</div>
+                <div style="font-size:0.85rem; color:var(--text-muted,#666); flex-grow:1;">${pkg.features ? pkg.features.length : 0} bidhaa ndani</div>
+                <div style="display:flex; gap:6px; margin-top:4px;">
+                    <button onclick="openEditPackageModal('${pkg.id}', '${titleEsc}', ${pkg.price}, '${featuresStr}')" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
+                        <ion-icon name="create-outline"></ion-icon> Hariri
+                    </button>
+                    <button onclick="deletePackage('${pkg.id}')" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = '<p style="color:red;">Imeshindwa kupakia vifurushi. Angalia mtandao.</p>';
+    }
+};
+
+window.openAddPackageModal = function() {
+    document.getElementById('package-modal-title').innerHTML = '<ion-icon name="add-circle-outline"></ion-icon> Ongeza Kifurushi';
+    document.getElementById('pkg-id').value = '';
+    document.getElementById('pkg-title').value = '';
+    document.getElementById('pkg-price').value = '';
+    document.getElementById('pkg-image').value = '';
+    document.getElementById('pkg-features').value = '';
+    document.getElementById('pkg-status').innerText = '';
+    
+    document.getElementById('package-modal').style.display = 'flex';
+};
+
+window.openEditPackageModal = function(id, title, price, features) {
+    document.getElementById('package-modal-title').innerHTML = '<ion-icon name="create-outline"></ion-icon> Hariri Kifurushi';
+    document.getElementById('pkg-id').value = id;
+    document.getElementById('pkg-title').value = title;
+    document.getElementById('pkg-price').value = price;
+    document.getElementById('pkg-image').value = '';
+    document.getElementById('pkg-features').value = features || '';
+    document.getElementById('pkg-status').innerText = '';
+    
+    document.getElementById('package-modal').style.display = 'flex';
+};
+
+window.closePackageModal = function() {
+    document.getElementById('package-modal').style.display = 'none';
+};
+
+window.savePackage = async function() {
+    const id = document.getElementById('pkg-id').value;
+    const title = document.getElementById('pkg-title').value.trim();
+    const price = document.getElementById('pkg-price').value;
+    const featuresText = document.getElementById('pkg-features').value.trim();
+    const fileInput = document.getElementById('pkg-image');
+    const statusEl = document.getElementById('pkg-status');
+
+    if (!title || !price) {
+        statusEl.innerText = '⚠️ Tafadhali jaza jina na bei.';
+        statusEl.style.color = 'orange';
+        return;
+    }
+
+    const featuresArray = featuresText.split('\\n').map(f => f.trim()).filter(f => f.length > 0);
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('price', price);
+    formData.append('features', JSON.stringify(featuresArray));
+    
+    if (fileInput.files[0]) {
+        formData.append('image', fileInput.files[0]);
+    } else if (!id) { // Adding new requires image
+        statusEl.innerText = '⚠️ Tafadhali pakia picha ya kifurushi.';
+        statusEl.style.color = 'orange';
+        return;
+    }
+
+    statusEl.innerText = 'Inahifadhi... tafadhali subiri.';
+    statusEl.style.color = 'var(--text-muted)';
+
+    const url = id ? API_URL + '/api/packages/' + id : API_URL + '/api/packages';
+    const method = id ? 'PATCH' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: getAuthHeaders(), // Don't set Content-Type, let browser handle FormData
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            statusEl.innerText = '✅ ' + result.message;
+            statusEl.style.color = 'green';
+            setTimeout(() => {
+                closePackageModal();
+                loadPackagesList();
+            }, 900);
+        } else {
+            statusEl.innerText = '❌ ' + result.message;
+            statusEl.style.color = 'red';
+        }
+    } catch (err) {
+        statusEl.innerText = '❌ Tatizo la mtandao.';
+        statusEl.style.color = 'red';
+    }
+};
+
+window.deletePackage = async function(id) {
+    if (!confirm('Je, una uhakika unataka kufuta kifurushi hiki? Huwezi kukirudisha.')) return;
+    try {
+        const response = await fetch(API_URL + '/api/packages/' + id, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (response.ok) {
+            loadPackagesList();
+        } else {
+            const result = await response.json();
+            alert('Kosa: ' + result.message);
+        }
+    } catch (err) {
+        alert('Tatizo la mtandao.');
+    }
+};
+
