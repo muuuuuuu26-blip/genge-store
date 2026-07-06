@@ -348,6 +348,37 @@ app.delete('/api/orders/:id', verifyAdmin, async (req, res) => {
     }
 });
 
+// 8b. Update delivery charge & recalculate total
+app.patch('/api/orders/:id/delivery', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { deliveryCharge } = req.body;
+
+        const order = await Order.findOne({ id: id });
+        if (!order) {
+            return res.status(404).json({ message: 'Oda haijapatikana.' });
+        }
+
+        const newDeliveryCharge = Number(deliveryCharge) || 0;
+        // Recalculate: itemsTotal = current total minus old deliveryCharge
+        const itemsTotal = order.total - (order.deliveryCharge || 0);
+        const newTotal = itemsTotal + newDeliveryCharge;
+
+        const updatedOrder = await Order.findOneAndUpdate(
+            { id: id },
+            { deliveryCharge: newDeliveryCharge, total: newTotal },
+            { new: true }
+        );
+
+        console.log(`[PATCH] Delivery charge set to ${newDeliveryCharge} for order ${id}. New total: ${newTotal}`);
+        res.json({ message: 'Ada ya usafiri imesasishwa.', order: updatedOrder });
+    } catch (err) {
+        console.error('[PATCH] Delivery charge error:', err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
 // 9. Update product price / name / category
 app.patch('/api/products/:id', verifyAdmin, async (req, res) => {
     try {

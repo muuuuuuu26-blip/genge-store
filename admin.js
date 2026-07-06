@@ -271,6 +271,7 @@ function renderOrdersTable(orders) {
                 <div class="actions">
                     <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
                     <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
+                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
                     <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
                     <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
@@ -280,6 +281,7 @@ function renderOrdersTable(orders) {
             actionButtons = `
                 <div class="actions">
                     <span style="font-size:0.8rem; font-weight:600; color:var(--success); margin-right:4px;">Imekamilika</span>
+                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
                     <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
                     <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
@@ -289,6 +291,7 @@ function renderOrdersTable(orders) {
             actionButtons = `
                 <div class="actions">
                     <span style="font-size:0.8rem; font-weight:600; color:var(--danger); margin-right:4px;">Imekataliwa</span>
+                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
                     <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
                     <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
@@ -341,6 +344,7 @@ function renderOrdersTable(orders) {
                 <div class="actions">
                     <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
                     <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
+                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
                     <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
                     <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
@@ -352,6 +356,7 @@ function renderOrdersTable(orders) {
             mobileActions = `
                 <div class="actions">
                     ${statusLabel}
+                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
                     <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
                     <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
                 </div>
@@ -433,6 +438,43 @@ window.deleteOrder = async function(orderId) {
         }
     } catch (error) {
         console.error('Error deleting order:', error);
+        alert('Tatizo la mtandao.');
+    }
+};
+
+window.setDeliveryCharge = async function(orderId) {
+    const order = currentOrders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const currentCharge = order.deliveryCharge || 0;
+    const inputStr = prompt(
+        `🚚 Weka Ada ya Usafiri (Tsh)\n` +
+        `Oda: ${orderId}\n` +
+        `Mteja: ${order.customer.name}\n` +
+        `Ada ya sasa: ${formatCurrency(currentCharge)}\n\n` +
+        `Ingiza 0 au acha wazi kama hakuna ada ya usafiri.`,
+        currentCharge > 0 ? currentCharge : ''
+    );
+
+    if (inputStr === null) return; // Mtumiaji alibonyeza Ghairi
+
+    const amount = Number(inputStr) || 0;
+
+    try {
+        const response = await fetch(API_URL + `/api/orders/${orderId}/delivery`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ deliveryCharge: amount })
+        });
+
+        if (response.ok) {
+            setTimeout(() => loadOrders(), 500);
+        } else {
+            const result = await response.json();
+            alert('Kosa: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error setting delivery charge:', error);
         alert('Tatizo la mtandao.');
     }
 };
@@ -585,6 +627,9 @@ window.printInvoice = function(orderId) {
     
     const tbody = document.getElementById('inv-items-body');
     tbody.innerHTML = '';
+    // Compute items subtotal (total minus delivery charge)
+    const deliveryCharge = order.deliveryCharge || 0;
+    const itemsSubtotal = order.total - deliveryCharge;
     order.items.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -594,9 +639,21 @@ window.printInvoice = function(orderId) {
         `;
         tbody.appendChild(tr);
     });
-    
-    const deliveryCharge = order.deliveryCharge || 0;
-    document.getElementById('inv-delivery').innerText = formatCurrency(deliveryCharge);
+
+    // Subtotal row
+    document.getElementById('inv-subtotal').innerText = formatCurrency(itemsSubtotal);
+
+    // Delivery charge row
+    const deliveryEl = document.getElementById('inv-delivery');
+    const deliveryLabelEl = document.getElementById('inv-delivery-label');
+    if (deliveryCharge > 0) {
+        deliveryEl.innerText = formatCurrency(deliveryCharge);
+        if (deliveryLabelEl) deliveryLabelEl.innerText = 'Ada ya Usafiri';
+    } else {
+        deliveryEl.innerText = 'Huduma Hii Haifanywa';
+        if (deliveryLabelEl) deliveryLabelEl.innerText = 'Ada ya Usafiri';
+    }
+
     document.getElementById('inv-total').innerText = formatCurrency(order.total);
     
     // Set payment status
