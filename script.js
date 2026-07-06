@@ -22,6 +22,7 @@ let customProducts = [];
 let mainCart = [];
 let customBuilderCart = [];
 let customBuilderTotal = 0;
+let currentCategory = 'all';
 
 // Format Currency
 const formatCurrency = (amount) => {
@@ -155,6 +156,7 @@ function renderCategoryTiles(activeId) {
         tile.addEventListener('click', () => {
             document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
             tile.classList.add('active');
+            currentCategory = cat.id;
             renderCustomProducts(cat.id);
         });
         container.appendChild(tile);
@@ -181,15 +183,44 @@ function renderCustomProducts(category) {
         const imgHtml = prod.isImage
             ? `<img src="${prod.icon}" alt="${prod.name}" class="prod-card-img" onerror="this.src='pics/15.png'">`
             : `<div class="prod-card-emoji">${prod.icon}</div>`;
+            
+        // Check if item is already in cart/builder depending on screen size
+        let existingItem;
+        if (window.innerWidth <= 768) {
+            existingItem = mainCart.find(item => item.productId === prod.id && item.type === 'product');
+        } else {
+            existingItem = customBuilderCart.find(item => item.id === prod.id);
+        }
+        
+        let actionBtnHtml = '';
+        
+        if (existingItem && existingItem.quantity > 0) {
+            actionBtnHtml = `
+                <div class="prod-qty-controls">
+                    <button class="prod-qty-btn" onclick="removeFromCustomBuilder('${prod.id}')" title="Punguza">
+                        <ion-icon name="remove-outline"></ion-icon>
+                    </button>
+                    <span class="prod-qty-val">${existingItem.quantity}</span>
+                    <button class="prod-qty-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
+                        <ion-icon name="add-outline"></ion-icon>
+                    </button>
+                </div>
+            `;
+        } else {
+            actionBtnHtml = `
+                <button class="prod-add-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
+            `;
+        }
+
         card.innerHTML = `
             <div class="prod-card-img-wrap">${imgHtml}</div>
             <div class="prod-card-body">
                 <div class="prod-card-name">${prod.name}</div>
                 <div class="prod-card-footer">
                     <span class="prod-card-price">${formatCurrency(prod.price)}</span>
-                    <button class="prod-add-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
-                        <ion-icon name="add-outline"></ion-icon>
-                    </button>
+                    ${actionBtnHtml}
                 </div>
             </div>
         `;
@@ -300,11 +331,9 @@ function setupEventListeners() {
         document.getElementById('cart-overlay').classList.remove('active');
     });
 
-    // Custom Builder Add to Main Cart
+    // Custom Builder Add to Main Cart (now opens the main cart overlay)
     document.getElementById('add-custom-btn').addEventListener('click', () => {
-        if (customBuilderTotal >= 5000) {
-            addCustomBundleToMainCart();
-        }
+        document.getElementById('cart-overlay').classList.add('active');
     });
 
     // Checkout button
@@ -516,10 +545,12 @@ async function submitOrder(paymentStatus = 'pending') {
 
             // Clear cart and close modals
             mainCart = [];
+            customBuilderCart = [];
             updateMainCartUI();
             document.getElementById('checkout-form').reset();
             window.currentReorder = null;
             prepareCheckoutFields();
+            renderCustomProducts(currentCategory);
             
             // EXPLICITLY clear hidden GPS inputs
             document.getElementById('c-lat').value = '';
@@ -558,6 +589,30 @@ window.addToCustomBuilder = function(productId) {
     const product = customProducts.find(p => p.id === productId);
     if (!product) return;
 
+    if (window.innerWidth <= 768) {
+        // Mobile behavior: add directly to mainCart
+        const existingItem = mainCart.find(item => item.productId === productId && item.type === 'product');
+        if (existingItem) {
+            existingItem.quantity += 1;
+            existingItem.price = product.price * existingItem.quantity;
+        } else {
+            mainCart.push({
+                cartId: Date.now().toString() + '_' + productId,
+                type: 'product',
+                productId: productId,
+                title: product.name,
+                price: product.price,
+                details: 'Bidhaa',
+                quantity: 1
+            });
+        }
+        updateMainCartUI();
+        renderCustomProducts(currentCategory);
+        showToast(`${product.name} imeongezwa kwenye kapu!`);
+        return;
+    }
+
+    // Desktop behavior (existing custom builder flow)
     const existingItem = customBuilderCart.find(item => item.id === productId);
     if (existingItem) {
         existingItem.quantity += 1;
@@ -566,11 +621,30 @@ window.addToCustomBuilder = function(productId) {
     }
 
     updateCustomBuilderUI();
+    renderCustomProducts(currentCategory);
     showToast(`${product.name} imeongezwa!`);
 };
 
 // Remove/Decrease from Custom Builder
 window.removeFromCustomBuilder = function(productId) {
+    if (window.innerWidth <= 768) {
+        // Mobile behavior: remove/decrease directly in mainCart
+        const existingItem = mainCart.find(item => item.productId === productId && item.type === 'product');
+        if (existingItem) {
+            const product = customProducts.find(p => p.id === productId);
+            if (existingItem.quantity > 1) {
+                existingItem.quantity -= 1;
+                existingItem.price = product.price * existingItem.quantity;
+            } else {
+                mainCart = mainCart.filter(item => !(item.productId === productId && item.type === 'product'));
+            }
+        }
+        updateMainCartUI();
+        renderCustomProducts(currentCategory);
+        return;
+    }
+
+    // Desktop behavior (existing custom builder flow)
     const itemIndex = customBuilderCart.findIndex(item => item.id === productId);
     if (itemIndex > -1) {
         if (customBuilderCart[itemIndex].quantity > 1) {
@@ -580,6 +654,7 @@ window.removeFromCustomBuilder = function(productId) {
         }
     }
     updateCustomBuilderUI();
+    renderCustomProducts(currentCategory);
 };
 
 // Update Custom Builder UI
@@ -624,15 +699,55 @@ function updateCustomBuilderUI() {
     const alert = document.getElementById('min-order-alert');
     
     if (customBuilderTotal >= 5000) {
+        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
         btn.disabled = false;
         alert.className = 'min-order-alert success';
-        alert.innerHTML = 'Kiwango kimefikiwa! Unaweza kuongeza kwenye kapu.';
-    } else {
-        btn.disabled = true;
+        alert.innerHTML = 'Kiwango kimefikiwa! Kifurushi kipo tayari kwenye kapu.';
+    } else if (customBuilderTotal > 0) {
+        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
+        btn.disabled = false;
         alert.className = 'min-order-alert';
         const remaining = 5000 - customBuilderTotal;
         alert.innerHTML = `Bado ${formatCurrency(remaining)} kufikisha kima cha chini (Tsh 5,000)`;
+    } else {
+        btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
+        btn.disabled = true;
+        alert.className = 'min-order-alert';
+        alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
     }
+
+    // Automatically sync to main cart
+    syncCustomBuilderToMainCart();
+}
+
+function syncCustomBuilderToMainCart() {
+    customBuilderTotal = customBuilderCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const customItemIndex = mainCart.findIndex(item => item.type === 'custom');
+
+    if (customBuilderCart.length === 0) {
+        if (customItemIndex > -1) {
+            mainCart.splice(customItemIndex, 1);
+        }
+    } else {
+        const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
+        
+        const updatedItem = {
+            cartId: customItemIndex > -1 ? mainCart[customItemIndex].cartId : Date.now().toString(),
+            type: 'custom',
+            title: 'Kifurushi Binafsi',
+            price: customBuilderTotal,
+            details: details,
+            quantity: 1
+        };
+
+        if (customItemIndex > -1) {
+            mainCart[customItemIndex] = updatedItem;
+        } else {
+            mainCart.push(updatedItem);
+        }
+    }
+
+    updateMainCartUI();
 }
 
 // Add Pre-made package to Main Cart
@@ -654,39 +769,32 @@ window.addPreMadeToCart = function(pkgId) {
     showToast(`${pkg.title} imeongezwa kwenye kapu!`);
 };
 
-// Add Custom Bundle to Main Cart
-function addCustomBundleToMainCart() {
-    if (customBuilderTotal < 5000) return;
-
-    // Create a string of items
-    const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
-
-    const cartItem = {
-        cartId: Date.now().toString(),
-        type: 'custom',
-        title: 'Kifurushi Binafsi',
-        price: customBuilderTotal,
-        details: details,
-        quantity: 1
-    };
-
-    mainCart.push(cartItem);
-    
-    // Clear builder
-    customBuilderCart = [];
-    updateCustomBuilderUI();
-    
-    updateMainCartUI();
-    showToast('Kifurushi chako kimeongezwa kwenye kapu!');
-    
-    // Open sidebar
-    document.getElementById('cart-overlay').classList.add('active');
-}
-
 // Remove from Main Cart
 window.removeFromMainCart = function(cartId) {
+    const item = mainCart.find(i => i.cartId === cartId);
+    if (item && item.type === 'custom') {
+        customBuilderCart = [];
+        // Update total and elements
+        customBuilderTotal = 0;
+        document.getElementById('custom-total').innerText = formatCurrency(0);
+        
+        const container = document.getElementById('custom-cart-items');
+        if (container) container.innerHTML = '<p class="empty-msg">Hujachagua bidhaa yoyote bado.</p>';
+        
+        const btn = document.getElementById('add-custom-btn');
+        const alert = document.getElementById('min-order-alert');
+        if (btn) {
+            btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
+            btn.disabled = true;
+        }
+        if (alert) {
+            alert.className = 'min-order-alert';
+            alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
+        }
+    }
     mainCart = mainCart.filter(item => item.cartId !== cartId);
     updateMainCartUI();
+    renderCustomProducts(currentCategory);
 };
 
 // Update Main Cart UI
@@ -697,17 +805,29 @@ function updateMainCartUI() {
 
     countEl.innerText = mainCart.length;
 
+    const warningEl = document.getElementById('cart-min-warning');
+    const checkoutBtn = document.getElementById('checkout-btn');
+
     if (mainCart.length === 0) {
         container.innerHTML = '<p class="empty-msg">Kapu lako liko wazi.</p>';
         totalEl.innerText = formatCurrency(0);
+        if (warningEl) warningEl.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.disabled = false;
         return;
     }
 
     container.innerHTML = '';
     let total = 0;
+    let hasCustomItems = false;
+    let customTotal = 0;
 
     mainCart.forEach(item => {
         total += item.price;
+        if (item.type === 'custom' || item.type === 'product') {
+            hasCustomItems = true;
+            customTotal += item.price;
+        }
+        
         const el = document.createElement('div');
         el.className = 'cart-package';
         el.innerHTML = `
@@ -722,6 +842,23 @@ function updateMainCartUI() {
     });
 
     totalEl.innerText = formatCurrency(total);
+
+    // Validation warning and button state
+    if (hasCustomItems && customTotal < 5000) {
+        const remaining = 5000 - customTotal;
+        if (warningEl) {
+            if (window.innerWidth <= 768) {
+                warningEl.innerHTML = `⚠️ Kima cha chini cha agizo ni Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
+            } else {
+                warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
+            }
+            warningEl.style.display = 'block';
+        }
+        if (checkoutBtn) checkoutBtn.disabled = true;
+    } else {
+        if (warningEl) warningEl.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.disabled = false;
+    }
 }
 
 // Toast Notification
@@ -988,8 +1125,33 @@ window.reorderOrder = function(order) {
             details:  item.details || '',
             quantity: item.quantity || 1
         });
+
+        // Restore customBuilderCart from the order if type is custom
+        if (item.type === 'custom') {
+            customBuilderCart = [];
+            const parts = item.details.split(', ');
+            parts.forEach(part => {
+                const match = part.match(/^(\d+)x\s+(.+)$/);
+                if (match) {
+                    const qty = parseInt(match[1], 10);
+                    const name = match[2].trim();
+                    const prod = customProducts.find(p => p.name === name);
+                    if (prod) {
+                        customBuilderCart.push({ ...prod, quantity: qty });
+                    }
+                }
+            });
+            customBuilderTotal = customBuilderCart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        }
     });
-    updateMainCartUI();
+
+    // If custom items were restored, update the builder UI and product cards
+    if (customBuilderCart.length > 0) {
+        updateCustomBuilderUI();
+        renderCustomProducts(currentCategory);
+    } else {
+        updateMainCartUI();
+    }
 
     // Save customer info from this order so checkout can pre-fill it
     if (order.customer) {

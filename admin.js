@@ -128,6 +128,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Refresh products list
+    const refreshProductsBtn = document.getElementById('refresh-products-btn');
+    if (refreshProductsBtn) {
+        refreshProductsBtn.addEventListener('click', loadProductsList);
+    }
+
+    // Open add package modal
+    const openAddPkgBtn = document.getElementById('open-add-pkg-btn');
+    if (openAddPkgBtn) {
+        openAddPkgBtn.addEventListener('click', openAddPackageModal);
+    }
+
+    // Save product edit
+    const saveProductEditBtn = document.getElementById('save-product-edit-btn');
+    if (saveProductEditBtn) {
+        saveProductEditBtn.addEventListener('click', saveProductEdit);
+    }
+
+    // Close product edit modal
+    const closeProductEditBtn = document.getElementById('close-product-edit-btn');
+    if (closeProductEditBtn) {
+        closeProductEditBtn.addEventListener('click', closeEditProductModal);
+    }
+
+    // Save package
+    const savePackageBtn = document.getElementById('save-package-btn');
+    if (savePackageBtn) {
+        savePackageBtn.addEventListener('click', savePackage);
+    }
+
+    // Close package modal
+    const closePackageModalBtn = document.getElementById('close-package-modal-btn');
+    if (closePackageModalBtn) {
+        closePackageModalBtn.addEventListener('click', closePackageModal);
+    }
+
     if (checkAuth()) {
         loadOrders();
         // Refresh orders every 10 seconds automatically to simulate real-time
@@ -611,14 +647,22 @@ window.loadProductsList = async function() {
                 <div style="font-size:0.85rem; color:var(--text-muted,#666);">${prod.category || ''}</div>
                 <div style="font-weight:700; color:var(--primary,#e84393); font-size:1rem;">${formatCurrency(prod.price)}</div>
                 <div style="display:flex; gap:6px; margin-top:4px;">
-                    <button onclick="openEditProductModal('${prod.id}', '${prod.name.replace(/'/g, '\\&apos;')}', ${prod.price}, '${prod.category}')" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
+                    <button class="edit-prod-btn" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
                         <ion-icon name="create-outline"></ion-icon> Hariri
                     </button>
-                    <button onclick="deleteProduct('${prod.id}')" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
+                    <button class="delete-prod-btn" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
                         <ion-icon name="trash-outline"></ion-icon>
                     </button>
                 </div>
             `;
+            
+            card.querySelector('.edit-prod-btn').addEventListener('click', () => {
+                openEditProductModal(prod.id, prod.name, prod.price, prod.category);
+            });
+            card.querySelector('.delete-prod-btn').addEventListener('click', () => {
+                deleteProduct(prod.id);
+            });
+            
             grid.appendChild(card);
         });
     } catch (err) {
@@ -725,23 +769,28 @@ window.loadPackagesList = async function() {
                 ? `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%; height:120px; object-fit:cover; border-radius:10px; background:#f3f4f6;" onerror="this.src='pics/15.png'">`
                 : `<div style="font-size: 3rem; text-align: center;">${pkg.icon}</div>`;
                 
-            let featuresStr = (pkg.features || []).join('\n').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            let titleEsc = pkg.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
             card.innerHTML = `
                 ${imgHtml}
                 <div style="font-weight:700; font-size:1rem; line-height:1.3;">${pkg.title}</div>
                 <div style="font-weight:700; color:var(--primary,#e84393); font-size:1.1rem;">${formatCurrency(pkg.price)}</div>
                 <div style="font-size:0.85rem; color:var(--text-muted,#666); flex-grow:1;">${pkg.features ? pkg.features.length : 0} bidhaa ndani</div>
                 <div style="display:flex; gap:6px; margin-top:4px;">
-                    <button onclick="openEditPackageModal('${pkg.id}', '${titleEsc}', ${pkg.price}, '${featuresStr}')" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
+                    <button class="edit-pkg-btn" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
                         <ion-icon name="create-outline"></ion-icon> Hariri
                     </button>
-                    <button onclick="deletePackage('${pkg.id}')" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
+                    <button class="delete-pkg-btn" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
                         <ion-icon name="trash-outline"></ion-icon>
                     </button>
                 </div>
             `;
+            
+            card.querySelector('.edit-pkg-btn').addEventListener('click', () => {
+                openEditPackageModal(pkg.id, pkg.title, pkg.price, (pkg.features || []).join('\n'));
+            });
+            card.querySelector('.delete-pkg-btn').addEventListener('click', () => {
+                deletePackage(pkg.id);
+            });
+            
             grid.appendChild(card);
         });
     } catch (err) {
@@ -791,7 +840,7 @@ window.savePackage = async function() {
         return;
     }
 
-    const featuresArray = featuresText.split('\\n').map(f => f.trim()).filter(f => f.length > 0);
+    const featuresArray = featuresText.split(/\r?\n/).map(f => f.trim()).filter(f => f.length > 0);
 
     const formData = new FormData();
     formData.append('title', title);

@@ -195,7 +195,7 @@
                 <div class="form-container-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
                         <h2 style="margin:0;">Bidhaa Zilizopo</h2>
-                        <button onclick="loadProductsList()" class="btn-submit" style="padding:8px 18px; font-size:0.9rem;">
+                        <button id="refresh-products-btn" class="btn-submit" style="padding:8px 18px; font-size:0.9rem;">
                             <ion-icon name="refresh-outline"></ion-icon> Sasisha Orodha
                         </button>
                     </div>
@@ -211,7 +211,7 @@
                 <div class="form-container-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
                         <h2 style="margin:0;">Simamia Vifurushi</h2>
-                        <button onclick="openAddPackageModal()" class="btn-submit" style="padding:8px 18px; font-size:0.9rem;">
+                        <button id="open-add-pkg-btn" class="btn-submit" style="padding:8px 18px; font-size:0.9rem;">
                             <ion-icon name="add-outline"></ion-icon> Ongeza Kifurushi
                         </button>
                     </div>
@@ -256,8 +256,8 @@
                     </div>
                     <p id="edit-product-status" style="font-size:0.85rem; min-height:20px; margin-bottom:10px;"></p>
                     <div style="display:flex; gap:10px;">
-                        <button onclick="saveProductEdit()" class="btn-submit" style="flex:1; padding:10px;"><ion-icon name="checkmark-circle-outline"></ion-icon> Hifadhi</button>
-                        <button onclick="closeEditProductModal()" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:transparent; cursor:pointer; font-size:0.95rem;">Ghairi</button>
+                        <button id="save-product-edit-btn" class="btn-submit" style="flex:1; padding:10px;"><ion-icon name="checkmark-circle-outline"></ion-icon> Hifadhi</button>
+                        <button id="close-product-edit-btn" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:transparent; cursor:pointer; font-size:0.95rem;">Ghairi</button>
                     </div>
                 </div>
             </div>
@@ -285,8 +285,8 @@
                     </div>
                     <p id="pkg-status" style="font-size:0.85rem; min-height:20px; margin-bottom:10px;"></p>
                     <div style="display:flex; gap:10px;">
-                        <button onclick="savePackage()" class="btn-submit" style="flex:1; padding:10px;"><ion-icon name="checkmark-circle-outline"></ion-icon> Hifadhi</button>
-                        <button onclick="closePackageModal()" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:transparent; cursor:pointer; font-size:0.95rem;">Ghairi</button>
+                        <button id="save-package-btn" class="btn-submit" style="flex:1; padding:10px;"><ion-icon name="checkmark-circle-outline"></ion-icon> Hifadhi</button>
+                        <button id="close-package-modal-btn" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:transparent; cursor:pointer; font-size:0.95rem;">Ghairi</button>
                     </div>
                 </div>
             </div>
