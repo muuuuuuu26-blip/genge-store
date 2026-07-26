@@ -1040,8 +1040,81 @@ async function fetchOrderHistory(phone) {
 
 function statusLabel(status) {
     if (status === 'accepted') return { text: '✅ Imekubaliwa', cls: 'badge-accepted' };
+    if (status === 'processing') return { text: '📦 Inaandaliwa', cls: 'badge-processing' };
+    if (status === 'shipped') return { text: '🛵 Iko Njiani', cls: 'badge-shipped' };
+    if (status === 'delivered') return { text: '🎉 Imewasilishwa', cls: 'badge-delivered' };
     if (status === 'rejected') return { text: '❌ Imekataliwa', cls: 'badge-rejected' };
     return { text: '⏳ Inasubiri', cls: 'badge-pending' };
+}
+
+// Visual Order Tracking Timeline Generator
+function getTrackingTimelineHtml(order) {
+    const status = order.status || 'pending';
+    
+    if (status === 'rejected') {
+        return `
+            <div class="tracking-timeline rejected-timeline">
+                <div class="timeline-step completed">
+                    <div class="step-icon">🛒</div>
+                    <div class="step-title">Imepokelewa</div>
+                </div>
+                <div class="timeline-line completed-danger"></div>
+                <div class="timeline-step active-danger">
+                    <div class="step-icon">❌</div>
+                    <div class="step-title">Imekataliwa</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    const steps = [
+        { id: 'pending', title: 'Imepokelewa', icon: '🛒' },
+        { id: 'accepted', title: 'Imekubaliwa', icon: '✅' },
+        { id: 'processing', title: 'Inaandaliwa', icon: '📦' },
+        { id: 'shipped', title: 'Iko Njiani', icon: '🛵' },
+        { id: 'delivered', title: 'Imewasilishwa', icon: '🎉' }
+    ];
+    
+    let currentStatusIndex = 0;
+    if (status === 'accepted') currentStatusIndex = 1;
+    else if (status === 'processing') currentStatusIndex = 2;
+    else if (status === 'shipped') currentStatusIndex = 3;
+    else if (status === 'delivered') currentStatusIndex = 4;
+    
+    let html = '<div class="tracking-timeline-wrapper">';
+    html += '<div class="tracking-timeline">';
+    
+    steps.forEach((step, idx) => {
+        let stepClass = '';
+        if (idx < currentStatusIndex) {
+            stepClass = 'completed';
+        } else if (idx === currentStatusIndex) {
+            stepClass = 'active';
+        } else {
+            stepClass = 'upcoming';
+        }
+        
+        html += `
+            <div class="timeline-step ${stepClass}">
+                <div class="step-circle">${step.icon}</div>
+                <div class="step-title">${step.title}</div>
+            </div>
+        `;
+        
+        if (idx < steps.length - 1) {
+            let lineClass = '';
+            if (idx < currentStatusIndex) {
+                lineClass = 'completed';
+            } else {
+                lineClass = 'upcoming';
+            }
+            html += `<div class="timeline-line ${lineClass}"></div>`;
+        }
+    });
+    
+    html += '</div>';
+    html += '</div>';
+    return html;
 }
 
 function renderOrderHistory(orders) {
@@ -1067,6 +1140,12 @@ function renderOrderHistory(orders) {
         document.getElementById('last-order-id').textContent   = last.id;
         document.getElementById('last-order-date').textContent  = '🗓 ' + last.date;
         document.getElementById('last-order-total').textContent = formatCurrency(last.total);
+
+        // Inject tracking timeline
+        const trackingEl = document.getElementById('last-order-tracking');
+        if (trackingEl) {
+            trackingEl.innerHTML = getTrackingTimelineHtml(last);
+        }
 
         const itemsEl = document.getElementById('last-order-items');
         itemsEl.innerHTML = last.items.map(i =>
@@ -1095,6 +1174,12 @@ function renderOrderHistory(orders) {
                 </div>
                 <span class="order-status-badge ${sl.cls}">${sl.text}</span>
             </div>
+            
+            <!-- Past Order Tracking Timeline -->
+            <div class="history-card-tracking-container" style="margin: 15px 0;">
+                ${getTrackingTimelineHtml(order)}
+            </div>
+
             <div class="history-card-items">
                 ${order.items.map(i => `<span class="history-item-chip">${i.title}</span>`).join('')}
             </div>

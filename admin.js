@@ -253,7 +253,20 @@ function renderOrdersTable(orders) {
         // Status Badge
         let statusBadge = '';
         let paymentBadge = '';
-        let actionButtons = '';
+        
+        if (order.status === 'pending') {
+            statusBadge = '<span class="badge pending">Nasubiri</span>';
+        } else if (order.status === 'accepted') {
+            statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
+        } else if (order.status === 'processing') {
+            statusBadge = '<span class="badge processing">Inaandaliwa</span>';
+        } else if (order.status === 'shipped') {
+            statusBadge = '<span class="badge shipped">Iko Njiani</span>';
+        } else if (order.status === 'delivered') {
+            statusBadge = '<span class="badge delivered">Imewasilishwa</span>';
+        } else if (order.status === 'rejected') {
+            statusBadge = '<span class="badge rejected">Imekataliwa</span>';
+        }
         
         // Payment Status Badge
         const paymentStatus = order.paymentStatus || 'pending';
@@ -265,38 +278,26 @@ function renderOrdersTable(orders) {
             paymentBadge = '<span class="badge payment-pending">⏳ Inasubiri</span>';
         }
         
-        if (order.status === 'pending') {
-            statusBadge = '<span class="badge pending">Nasubiri</span>';
-            actionButtons = `
-                <div class="actions">
-                    <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
-                    <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
-                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
-                </div>
-            `;
-        } else if (order.status === 'accepted') {
-            statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
-            actionButtons = `
-                <div class="actions">
-                    <span style="font-size:0.8rem; font-weight:600; color:var(--success); margin-right:4px;">Imekamilika</span>
-                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
-                </div>
-            `;
-        } else if (order.status === 'rejected') {
-            statusBadge = '<span class="badge rejected">Imekataliwa</span>';
-            actionButtons = `
-                <div class="actions">
-                    <span style="font-size:0.8rem; font-weight:600; color:var(--danger); margin-right:4px;">Imekataliwa</span>
-                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
-                </div>
-            `;
-        }
+        // Status Dropdown Select for Admin Control
+        const statusSelectHtml = `
+            <select class="status-select" onchange="updateOrderStatus('${order.id}', this.value)">
+                <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ Nasubiri</option>
+                <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>✅ Imekubaliwa</option>
+                <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>📦 Inaandaliwa</option>
+                <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🛵 Iko Njiani</option>
+                <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>🎉 Imewasilishwa</option>
+                <option value="rejected" ${order.status === 'rejected' ? 'selected' : ''}>❌ Imekataliwa</option>
+            </select>
+        `;
+
+        const actionButtons = `
+            <div class="actions">
+                ${statusSelectHtml}
+                <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
+                <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
+                <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
+            </div>
+        `;
         
         let gpsLink = '';
         if (order.customer.gps && order.customer.gps.lat && order.customer.gps.lng) {
@@ -338,30 +339,21 @@ function renderOrdersTable(orders) {
             mobileItemsHtml += `<div>- ${item.title} x${item.quantity || 1}</div>`;
         });
 
-        let mobileActions = '';
-        if (order.status === 'pending') {
-            mobileActions = `
-                <div class="actions">
-                    <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
-                    <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
-                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
-                </div>
-            `;
-        } else {
-            const statusLabel = order.status === 'accepted' ? 
-                `<span style="font-size:0.8rem; font-weight:600; color:var(--success);">Imekamilika</span>` : 
-                `<span style="font-size:0.8rem; font-weight:600; color:var(--danger);">Imekataliwa</span>`;
-            mobileActions = `
-                <div class="actions">
-                    ${statusLabel}
-                    <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
-                </div>
-            `;
-        }
+        const mobileActions = `
+            <div class="actions" style="margin-top: 8px; flex-wrap: wrap; width: 100%;">
+                <select class="status-select" onchange="updateOrderStatus('${order.id}', this.value)" style="flex: 1; min-width: 140px;">
+                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ Nasubiri</option>
+                    <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>✅ Imekubaliwa</option>
+                    <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>📦 Inaandaliwa</option>
+                    <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🛵 Iko Njiani</option>
+                    <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>🎉 Imewasilishwa</option>
+                    <option value="rejected" ${order.status === 'rejected' ? 'selected' : ''}>❌ Imekataliwa</option>
+                </select>
+                <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
+                <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
+                <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
+            </div>
+        `;
 
         card.innerHTML = `
             <div class="order-card-header">

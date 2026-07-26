@@ -309,13 +309,16 @@ app.patch('/api/orders/:id/status', verifyAdmin, async (req, res) => {
         // Prepare update object
         const updateData = { status: status };
         
-        // If status is 'accepted', mark payment as 'paid'
-        if (status === 'accepted') {
+        // Handle paymentStatus auto-update based on tracking status
+        if (['accepted', 'processing', 'shipped', 'delivered'].includes(status)) {
             updateData.paymentStatus = 'paid';
-            console.log(`[PATCH] Setting paymentStatus to 'paid' for order ${id}`);
+            console.log(`[PATCH] Setting paymentStatus to 'paid' for order ${id} due to status: ${status}`);
         } else if (status === 'rejected') {
             updateData.paymentStatus = 'failed';
             console.log(`[PATCH] Setting paymentStatus to 'failed' for order ${id}`);
+        } else if (status === 'pending') {
+            updateData.paymentStatus = 'pending';
+            console.log(`[PATCH] Setting paymentStatus to 'pending' for order ${id}`);
         }
         
         console.log(`[PATCH] Update data:`, updateData);
