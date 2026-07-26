@@ -311,6 +311,12 @@ function updateStats(orders) {
     
     const pendingCount = orders.filter(o => o.status === 'pending').length;
     document.getElementById('pending-orders').innerText = pendingCount;
+
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const revenueEl = document.getElementById('total-revenue');
+    if (revenueEl) {
+        revenueEl.innerText = formatCurrency(totalRevenue);
+    }
 }
 
 const formatCurrency = (amount) => {
