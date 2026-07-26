@@ -1,44 +1,30 @@
-const CACHE_NAME = 'genge-cache-v20'; // bump version kila unapobadilisha files
+const CACHE_NAME = 'genge-cache-v21';
 
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/pics/12.png',
-  '/pics/15.png'
-];
-
-// Install - cache msingi tu
+// Install - activate immediately
 self.addEventListener('install', event => {
-  self.skipWaiting(); // activate mara moja bila kusubiri
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
+  self.skipWaiting();
 });
 
-// Activate - futa cache za zamani
+// Activate - delete ALL old caches and take control of all clients
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
+      Promise.all(keys.map(key => caches.delete(key)))
     ).then(() => self.clients.claim())
   );
 });
 
-// Fetch - Network first kwa HTML, CSS na JS, cache first kwa picha
+// Fetch - Network first (no-cache) for HTML/CSS/JS, cache for images
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
-  // API requests: hata usiguse cache
+  // API requests: don't touch cache
   if (url.includes('/api/')) return;
 
-  // HTML, CSS na JS: tafuta mtandaoni kwanza (fresh), cache kama backup tu
-  if (event.request.mode === 'navigate' || url.endsWith('/') || url.endsWith('.html') || url.endsWith('.css') || url.includes('.js')) {
+  // HTML, CSS, JS and Navigation: ALWAYS fetch fresh from server
+  if (event.request.mode === 'navigate' || url.includes('.html') || url.includes('.css') || url.includes('.js') || url.endsWith('/')) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-cache' })
         .then(response => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
@@ -49,7 +35,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Vingine (picha): cache kwanza, mtandao kama backup
+  // Images and icons: Cache first with network fallback
   event.respondWith(
     caches.match(event.request).then(response => response || fetch(event.request))
   );
