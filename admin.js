@@ -3,6 +3,100 @@ const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' :
 let currentOrders = [];
 let currentFilterStatus = 'all';
 let currentSearchText = '';
+let knownOrderIds = null;
+let soundEnabled = true;
+
+// Sound generator using Web Audio API (Chime sound for new orders)
+function playOrderAlertSound() {
+    if (!soundEnabled) return;
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Chime 1
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start();
+        osc1.stop(audioCtx.currentTime + 0.3);
+
+        // Chime 2
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+        gain2.gain.setValueAtTime(0.4, audioCtx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(audioCtx.currentTime + 0.15);
+        osc2.stop(audioCtx.currentTime + 0.6);
+    } catch (e) {
+        console.error('Audio play error:', e);
+    }
+}
+
+// Request Browser Notifications Permission
+function requestDesktopNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+// Trigger Desktop Notification
+function triggerDesktopNotification(order) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const title = `🛍️ ODA MPYA YA GENGE (${order.id})`;
+        const options = {
+            body: `Mteja: ${order.customer?.name || 'Bila Jina'}\nSimu: ${order.customer?.phone || ''}\nJumla: ${formatCurrency(order.total)}`,
+            icon: 'pics/12.png',
+            tag: order.id
+        };
+        new Notification(title, options);
+    }
+}
+
+// Show Banner Notification in Admin UI
+function showAdminOrderBanner(order) {
+    let banner = document.getElementById('admin-order-alert-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'admin-order-alert-banner';
+        banner.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            animation: slideInBanner 0.4s ease;
+        `;
+        document.body.appendChild(banner);
+    }
+    banner.innerHTML = `
+        <span style="font-size: 1.6rem;">🔔</span>
+        <div>
+            <div style="font-size: 1rem; font-weight: 700;">ODA MPYA IMEINGIA!</div>
+            <div style="font-size: 0.85rem; opacity: 0.95;">${order.customer?.name || 'Mteja'} (${order.id}) — ${formatCurrency(order.total)}</div>
+        </div>
+        <button onclick="document.getElementById('admin-order-alert-banner').remove()" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-left: 10px; font-weight: 600;">Funga</button>
+    `;
+    setTimeout(() => {
+        if (banner && banner.parentNode) banner.remove();
+    }, 10000);
+}
 
 function getAuthHeaders() {
     const token = localStorage.getItem('adminToken');
@@ -165,11 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (checkAuth()) {
+        requestDesktopNotificationPermission();
         loadOrders();
-        // Refresh orders every 10 seconds automatically to simulate real-time
+        // Refresh orders every 6 seconds automatically for real-time notification
         setInterval(() => {
             if (checkAuth()) loadOrders();
-        }, 10000);
+        }, 6000);
     }
 });
 
@@ -188,6 +283,21 @@ async function loadOrders() {
         
         console.log('Fetched orders from server:', orders);
         
+        // Detect new incoming orders for notifications
+        if (knownOrderIds === null) {
+            knownOrderIds = new Set(orders.map(o => o.id));
+        } else {
+            const newOrders = orders.filter(o => !knownOrderIds.has(o.id));
+            if (newOrders.length > 0) {
+                newOrders.forEach(newOrder => {
+                    knownOrderIds.add(newOrder.id);
+                    playOrderAlertSound();
+                    triggerDesktopNotification(newOrder);
+                    showAdminOrderBanner(newOrder);
+                });
+            }
+        }
+
         currentOrders = orders; // Save for filtering & printing
         updateStats(orders);
         renderOrdersTable(orders);

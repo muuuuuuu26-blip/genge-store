@@ -4,11 +4,66 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const https = require('https');
 const jwt = require('jsonwebtoken');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
 const Package = require('./models/Package');
+
+// Helper function to send Telegram notification to Admin when an order is created
+function sendTelegramNotification(order) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!token || !chatId) {
+        return; // Telegram notification is optional if env vars are not set
+    }
+
+    try {
+        const itemsList = (order.items || []).map(i => `• *${i.title}* (${i.details || 'Bidhaa'}) x${i.quantity || 1} - Tsh ${(i.price || 0).toLocaleString()}`).join('\n');
+        
+        let gpsText = '';
+        if (order.customer && order.customer.gps && order.customer.gps.lat && order.customer.gps.lng) {
+            gpsText = `\n📍 *GPS Map:* https://www.google.com/maps?q=${order.customer.gps.lat},${order.customer.gps.lng}`;
+        }
+
+        const message = 
+            `🔔 *ODA MPYA YA GENGE!* 🛍️\n\n` +
+            `🆔 *Oda ID:* \`${order.id}\`\n` +
+            `👤 *Mteja:* ${order.customer?.name || 'Bila Jina'}\n` +
+            `📞 *Simu:* ${order.customer?.phone || '-'}\n` +
+            `📍 *Mahali:* ${order.customer?.location || '-'}${gpsText}\n\n` +
+            `🛒 *Bidhaa Zilizowekwa:*\n${itemsList}\n\n` +
+            `💰 *Jumla Kuu:* *Tsh ${(order.total || 0).toLocaleString()}/=*\n` +
+            `🗓️ *Tarehe:* ${order.date || new Date().toLocaleString()}`;
+
+        const postData = JSON.stringify({
+            chat_id: chatId,
+            text: message,
+            parse_mode: 'Markdown'
+        });
+
+        const req = https.request(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        }, (res) => {
+            res.on('data', () => {});
+        });
+
+        req.on('error', (e) => {
+            console.error('[NOTIFICATION] Telegram Error:', e.message);
+        });
+
+        req.write(postData);
+        req.end();
+    } catch (err) {
+        console.error('[NOTIFICATION] Error preparing Telegram alert:', err.message);
+    }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -260,6 +315,10 @@ app.post('/api/orders', async (req, res) => {
         const orderData = req.body;
         const newOrder = new Order(orderData);
         await newOrder.save();
+
+        // Send Telegram Notification to Admin if configured
+        sendTelegramNotification(newOrder);
+
         res.status(201).json({ message: 'Oda imetumwa kikamilifu!', order: newOrder });
     } catch (err) {
         console.error('Error creating order:', err);
