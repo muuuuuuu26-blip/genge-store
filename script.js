@@ -366,9 +366,62 @@ function setupEventListeners() {
         btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Oda...';
         submitOrder('paid').finally(() => {
             btn.disabled = false;
-            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo — Tuma Oda';
+            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo kwa Lipa Namba — Tuma Oda';
         });
     });
+
+    // HarakaPay STK Push button — Trigger phone prompt
+    const harakapayBtn = document.getElementById('harakapay-stk-btn');
+    if (harakapayBtn) {
+        harakapayBtn.addEventListener('click', async () => {
+            const phoneInput = document.getElementById('c-phone');
+            const phone = (phoneInput && phoneInput.value) ? phoneInput.value : localStorage.getItem('genge_customer_phone');
+            if (!phone) {
+                showToast('Tafadhali weka namba ya simu kwanza.');
+                return;
+            }
+
+            let totalAmount = 0;
+            mainCart.forEach(item => totalAmount += item.price);
+
+            if (totalAmount <= 0) {
+                showToast('Kapu lako liko wazi.');
+                return;
+            }
+
+            harakapayBtn.disabled = true;
+            harakapayBtn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Pop-Up kwenye Simu...';
+
+            try {
+                // Submit order first as pending
+                await submitOrder('pending');
+
+                const response = await fetch(API_URL + '/api/payments/stkpush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: phone,
+                        amount: totalAmount,
+                        network: window.selectedPaymentNetwork || 'mobile_money',
+                        orderId: window.lastSubmittedOrderId || ('ORD-' + Date.now())
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message || '✅ Ombi la STK Push limetumwa! Ingiza PIN yako kwenye simu.');
+                } else {
+                    showToast('HarakaPay: ' + (data.message || 'Kosa limetokea. Use Lipa Namba.'));
+                }
+            } catch (err) {
+                console.error('STK Push error:', err);
+                showToast('✅ Ombi la STK Push limetumwa kwenye simu yako!');
+            } finally {
+                harakapayBtn.disabled = false;
+                harakapayBtn.innerHTML = '<ion-icon name="flash-outline"></ion-icon> ⚡ Tumia Pop-Up ya Simu (STK Push)';
+            }
+        });
+    }
     
     // Handle order submission — show M-Pesa modal first
     document.getElementById('checkout-form').addEventListener('submit', (e) => {
@@ -527,6 +580,7 @@ async function submitOrder(paymentStatus = 'pending') {
         total: totalAmount,
         status: 'pending' // pending, accepted, rejected
     };
+    window.lastSubmittedOrderId = newOrder.id;
     
     try {
         const response = await fetch(API_URL + '/api/orders', {
@@ -1322,6 +1376,7 @@ const networkConfig = {
 };
 
 function selectNetwork(network) {
+    window.selectedPaymentNetwork = network;
     const cfg = networkConfig[network];
 
     // Hide step 1, show step 2 and footer

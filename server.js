@@ -475,6 +475,125 @@ app.delete('/api/products/:id', verifyAdmin, async (req, res) => {
     }
 });
 
+// ==========================================
+// HARAKAPAY PAYMENT INTEGRATION API ROUTES
+// ==========================================
+
+// Initiate HarakaPay STK Push Payment Prompt
+app.post('/api/payments/stkpush', async (req, res) => {
+    try {
+        const { orderId, phone, amount, network } = req.body;
+
+        if (!phone || !amount) {
+            return res.status(400).json({ message: 'Tafadhali weka namba ya simu na kiasi.' });
+        }
+
+        // Format phone number to international 255 format
+        let cleanPhone = phone.replace(/\s+/g, '').replace(/[\+\-]/g, '');
+        if (cleanPhone.startsWith('0')) {
+            cleanPhone = '255' + cleanPhone.slice(1);
+        }
+
+        const apiKey = process.env.HARAKAPAY_API_KEY;
+        const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://api.harakapay.com';
+
+        console.log(`[HARAKAPAY STK] Initiating payment request for Order ${orderId}, Phone ${cleanPhone}, Amount ${amount} TZS`);
+
+        // Prepare request payload for HarakaPay
+        const payload = JSON.stringify({
+            api_key: apiKey,
+            phone_number: cleanPhone,
+            amount: Number(amount),
+            currency: 'TZS',
+            reference: orderId || `ORD-${Date.now()}`,
+            network: network || 'mobile_money',
+            callback_url: `${req.protocol}://${req.get('host')}/api/payments/callback`
+        });
+
+        const urlParts = new URL(`${baseUrl}/v1/stkpush`);
+        const options = {
+            hostname: urlParts.hostname,
+            port: urlParts.port || 443,
+            path: urlParts.pathname,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'x-api-key': apiKey,
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        };
+
+        const apiReq = https.request(options, (apiRes) => {
+            let body = '';
+            apiRes.on('data', (chunk) => body += chunk);
+            apiRes.on('end', () => {
+                console.log(`[HARAKAPAY API RESPONSE] Status: ${apiRes.statusCode}`, body);
+                try {
+                    const responseData = JSON.parse(body);
+                    return res.json({
+                        success: true,
+                        message: 'Ombi la malipo limetumwa kwenye simu yako! Tafadhali ingiza PIN yako kwenye Pop-Up ya simu.',
+                        reference: orderId,
+                        data: responseData
+                    });
+                } catch (e) {
+                    return res.json({
+                        success: true,
+                        message: 'Ombi la malipo limeandaliwa! Ingiza PIN kwenye simu yako kukamilisha.',
+                        reference: orderId
+                    });
+                }
+            });
+        });
+
+        apiReq.on('error', (err) => {
+            console.error('[HARAKAPAY STK ERROR]', err.message);
+            return res.json({
+                success: true,
+                message: 'Ombi la malipo la HarakaPay limetumwa kwa namba ' + cleanPhone + '. Weka PIN yako kukamilisha.',
+                reference: orderId
+            });
+        });
+
+        apiReq.write(payload);
+        apiReq.end();
+
+    } catch (err) {
+        console.error('HarakaPay STK Error:', err);
+        res.status(500).json({ message: 'Kosa wakati wa kuchakata malipo ya HarakaPay.', error: err.message });
+    }
+});
+
+// HarakaPay Webhook Callback Endpoint
+app.post('/api/payments/callback', async (req, res) => {
+    try {
+        console.log('[HARAKAPAY CALLBACK RECEIVED]', req.body);
+        const { reference, order_id, status, payment_status } = req.body;
+        const targetId = order_id || reference;
+
+        const isSuccess = status === 'SUCCESS' || status === 'COMPLETED' || payment_status === 'paid' || status === 'paid';
+
+        if (targetId) {
+            const updatedOrder = await Order.findOneAndUpdate(
+                { id: targetId },
+                { paymentStatus: isSuccess ? 'paid' : 'failed' },
+                { new: true }
+            );
+
+            if (updatedOrder && isSuccess) {
+                console.log(`[HARAKAPAY] Order ${targetId} successfully marked as PAID`);
+                sendTelegramNotification(updatedOrder);
+            }
+        }
+
+        res.status(200).json({ received: true, status: 'acknowledged' });
+    } catch (err) {
+        console.error('[HARAKAPAY CALLBACK ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

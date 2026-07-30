@@ -368,15 +368,20 @@
                 </div>
             </div>
 
-            <!-- Footer: Confirm button (only visible on step 2) -->
+            <!-- Footer: Actions (visible on step 2) -->
             <div class="mpesa-modal-footer" id="mpesa-footer" style="display:none;">
-                <p class="mpesa-info-note">
+                <button id="harakapay-stk-btn" class="mpesa-confirm-btn" style="background: linear-gradient(135deg, #10B981, #059669); margin-bottom: 10px;">
+                    <ion-icon name="flash-outline"></ion-icon>
+                    ⚡ Tumia Pop-Up ya Simu (STK Push)
+                </button>
+
+                <p class="mpesa-info-note" style="margin-top: 5px;">
                     <ion-icon name="information-circle-outline"></ion-icon>
-                    Bonyeza BAADA TU ya kukamilisha malipo
+                    Kama umelipa kwa USSD Lipa Namba, thibitisha hapa chini:
                 </p>
-                <button id="mpesa-confirm-btn" class="mpesa-confirm-btn">
+                <button id="mpesa-confirm-btn" class="mpesa-confirm-btn" style="background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border);">
                     <ion-icon name="checkmark-circle-outline"></ion-icon>
-                    Nimethibitisha Malipo — Tuma Oda
+                    Nimethibitisha Malipo kwa Lipa Namba — Tuma Oda
                 </button>
             </div>
 
