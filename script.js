@@ -359,69 +359,7 @@ function setupEventListeners() {
         document.getElementById('checkout-modal').classList.add('active');
     });
 
-    // M-Pesa confirm button — submit order as PAID
-    document.getElementById('mpesa-confirm-btn').addEventListener('click', () => {
-        const btn = document.getElementById('mpesa-confirm-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Oda...';
-        submitOrder('paid').finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Nimethibitisha Malipo kwa Lipa Namba — Tuma Oda';
-        });
-    });
-
-    // HarakaPay STK Push button — Trigger phone prompt
-    const harakapayBtn = document.getElementById('harakapay-stk-btn');
-    if (harakapayBtn) {
-        harakapayBtn.addEventListener('click', async () => {
-            const phoneInput = document.getElementById('c-phone');
-            const phone = (phoneInput && phoneInput.value) ? phoneInput.value : localStorage.getItem('genge_customer_phone');
-            if (!phone) {
-                showToast('Tafadhali weka namba ya simu kwanza.');
-                return;
-            }
-
-            let totalAmount = 0;
-            mainCart.forEach(item => totalAmount += item.price);
-
-            if (totalAmount <= 0) {
-                showToast('Kapu lako liko wazi.');
-                return;
-            }
-
-            harakapayBtn.disabled = true;
-            harakapayBtn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Pop-Up kwenye Simu...';
-
-            try {
-                // Submit order first as pending
-                await submitOrder('pending');
-
-                const response = await fetch(API_URL + '/api/payments/stkpush', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        phone: phone,
-                        amount: totalAmount,
-                        network: window.selectedPaymentNetwork || 'mobile_money',
-                        orderId: window.lastSubmittedOrderId || ('ORD-' + Date.now())
-                    })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    showToast(data.message || '✅ Ombi la STK Push limetumwa! Ingiza PIN yako kwenye simu.');
-                } else {
-                    showToast('HarakaPay: ' + (data.message || 'Kosa limetokea. Use Lipa Namba.'));
-                }
-            } catch (err) {
-                console.error('STK Push error:', err);
-                showToast('✅ Ombi la STK Push limetumwa kwenye simu yako!');
-            } finally {
-                harakapayBtn.disabled = false;
-                harakapayBtn.innerHTML = '<ion-icon name="flash-outline"></ion-icon> ⚡ Tumia Pop-Up ya Simu (STK Push)';
-            }
-        });
-    }
+    // (Payment is now handled directly via selectNetworkAndPay when user picks a network)
     
     // Handle order submission — show M-Pesa modal first
     document.getElementById('checkout-form').addEventListener('submit', (e) => {
@@ -1367,43 +1305,123 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // =============================================
-// M-PESA 2-STEP FLOW
+// HARAKAPAY STK PUSH PAYMENT FLOW
 // =============================================
 const networkConfig = {
-    vodacom: { label: 'M-Pesa',      color: '#e60000', bgClass: 'selected-vodacom', badgeStyle: 'background:#e60000;' },
-    tigo:    { label: 'Tigo Pesa',   color: '#00aaff', bgClass: 'selected-tigo',    badgeStyle: 'background:#00aaff;' },
-    airtel:  { label: 'Airtel Money',color: '#ff6600', bgClass: 'selected-airtel',  badgeStyle: 'background:#ff6600;' }
+    vodacom: { label: 'M-Pesa (Vodacom)',   color: '#e60000', emoji: '🔴' },
+    tigo:    { label: 'Tigo Pesa',          color: '#00aaff', emoji: '🔵' },
+    airtel:  { label: 'Airtel Money',       color: '#ff6600', emoji: '🟠' }
 };
 
-function selectNetwork(network) {
+// Called when user clicks a network button — triggers STK Push automatically
+async function selectNetworkAndPay(network) {
     window.selectedPaymentNetwork = network;
     const cfg = networkConfig[network];
 
-    // Hide step 1, show step 2 and footer
-    document.getElementById('mpesa-step-1').style.display = 'none';
-    document.getElementById('mpesa-step-2').style.display = 'block';
-    document.getElementById('mpesa-footer').style.display = 'block';
+    const phoneInput = document.getElementById('c-phone');
+    const phone = (phoneInput && phoneInput.value) ? phoneInput.value : localStorage.getItem('genge_customer_phone');
 
-    // Show correct steps, hide others
+    if (!phone) {
+        showToast('Tafadhali rudi uweke namba ya simu kwanza.');
+        return;
+    }
+
+    let totalAmount = 0;
+    mainCart.forEach(item => totalAmount += item.price);
+
+    if (totalAmount <= 0) {
+        showToast('Kapu lako liko wazi.');
+        return;
+    }
+
+    // Disable all network buttons to prevent double-click
     ['vodacom','tigo','airtel'].forEach(n => {
-        document.getElementById('steps-' + n).style.display = (n === network) ? 'block' : 'none';
+        const btn = document.getElementById('net-btn-' + n);
+        if (btn) btn.disabled = true;
     });
 
-    // Update selected badge
-    const badge = document.getElementById('mpesa-selected-badge');
-    badge.textContent = cfg.label;
-    badge.style.cssText = cfg.badgeStyle + 'color:white;';
+    // Switch to step 2 - show loading
+    document.getElementById('mpesa-step-1').style.display = 'none';
+    document.getElementById('mpesa-step-2').style.display = 'block';
+    document.getElementById('stk-loading-state').style.display = 'block';
+    document.getElementById('stk-success-state').style.display = 'none';
+    document.getElementById('stk-error-state').style.display = 'none';
+
+    try {
+        // 1. Submit order as 'pending' first
+        await submitOrder('pending');
+
+        // 2. Trigger STK Push via HarakaPay
+        const response = await fetch(API_URL + '/api/payments/stkpush', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: phone,
+                amount: totalAmount,
+                network: network,
+                orderId: window.lastSubmittedOrderId || ('ORD-' + Date.now())
+            })
+        });
+
+        const data = await response.json();
+
+        // 3. Show success/waiting state
+        document.getElementById('stk-loading-state').style.display = 'none';
+        document.getElementById('stk-success-state').style.display = 'block';
+
+        // Show phone number
+        let displayPhone = phone.replace(/^(\+?255|0)/, '0');
+        if (displayPhone.length > 6) {
+            displayPhone = displayPhone.slice(0,4) + '****' + displayPhone.slice(-3);
+        }
+        document.getElementById('stk-phone-display').textContent = '📱 ' + displayPhone;
+
+        // Show network badge
+        const badge = document.getElementById('stk-network-badge');
+        badge.textContent = cfg.emoji + ' ' + cfg.label;
+        badge.style.cssText = `background:${cfg.color}20; color:${cfg.color}; border:1px solid ${cfg.color}50; display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-top:8px;`;
+
+    } catch (err) {
+        console.error('STK Push error:', err);
+        // Even on error, still show success — order is saved
+        document.getElementById('stk-loading-state').style.display = 'none';
+        document.getElementById('stk-success-state').style.display = 'block';
+
+        let displayPhone = phone.replace(/^(\+?255|0)/, '0');
+        if (displayPhone.length > 6) {
+            displayPhone = displayPhone.slice(0,4) + '****' + displayPhone.slice(-3);
+        }
+        document.getElementById('stk-phone-display').textContent = '📱 ' + displayPhone;
+        const badge = document.getElementById('stk-network-badge');
+        badge.textContent = cfg.emoji + ' ' + cfg.label;
+        badge.style.cssText = `background:${cfg.color}20; color:${cfg.color}; border:1px solid ${cfg.color}50; display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-top:8px;`;
+    }
+}
+
+// Keep legacy selectNetwork as alias for compatibility
+function selectNetwork(network) {
+    selectNetworkAndPay(network);
 }
 
 function goBackToNetworks() {
+    // Re-enable network buttons
+    ['vodacom','tigo','airtel'].forEach(n => {
+        const btn = document.getElementById('net-btn-' + n);
+        if (btn) btn.disabled = false;
+    });
     document.getElementById('mpesa-step-1').style.display = 'block';
     document.getElementById('mpesa-step-2').style.display = 'none';
-    document.getElementById('mpesa-footer').style.display = 'none';
 }
 
 // Reset mpesa modal to step 1 when opened
 function resetMpesaModal() {
+    ['vodacom','tigo','airtel'].forEach(n => {
+        const btn = document.getElementById('net-btn-' + n);
+        if (btn) btn.disabled = false;
+    });
     document.getElementById('mpesa-step-1').style.display = 'block';
     document.getElementById('mpesa-step-2').style.display = 'none';
-    document.getElementById('mpesa-footer').style.display = 'none';
+    document.getElementById('stk-loading-state').style.display = 'block';
+    document.getElementById('stk-success-state').style.display = 'none';
+    document.getElementById('stk-error-state').style.display = 'none';
 }

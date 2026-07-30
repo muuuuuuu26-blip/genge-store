@@ -274,7 +274,7 @@
         </div>
     </div>
 
-    <!-- M-Pesa Payment Modal -->
+    <!-- HarakaPay STK Push Payment Modal -->
     <div class="checkout-modal-overlay" id="mpesa-modal">
         <div class="mpesa-modal-box">
 
@@ -298,95 +298,79 @@
             <div class="mpesa-step" id="mpesa-step-1">
                 <p class="mpesa-step-label">
                     <ion-icon name="wifi-outline"></ion-icon>
-                    Hatua ya 1/2 — Chagua mtandao wako wa malipo:
+                    Chagua mtandao wako wa simu ili ulipie oda yako:
                 </p>
                 <div class="mpesa-network-grid">
-                    <button class="mpesa-network-btn" onclick="selectNetwork('vodacom')">
+                    <button class="mpesa-network-btn" id="net-btn-vodacom" onclick="selectNetworkAndPay('vodacom')">
                         <span class="net-icon net-vodacom">📱</span>
                         <span class="net-name">M-Pesa</span>
                         <span class="net-carrier">Vodacom</span>
                     </button>
-                    <button class="mpesa-network-btn" onclick="selectNetwork('tigo')">
+                    <button class="mpesa-network-btn" id="net-btn-tigo" onclick="selectNetworkAndPay('tigo')">
                         <span class="net-icon net-tigo">📱</span>
                         <span class="net-name">Tigo Pesa</span>
                         <span class="net-carrier">Tigo / Mixx</span>
                     </button>
-                    <button class="mpesa-network-btn" onclick="selectNetwork('airtel')">
+                    <button class="mpesa-network-btn" id="net-btn-airtel" onclick="selectNetworkAndPay('airtel')">
                         <span class="net-icon net-airtel">📱</span>
                         <span class="net-name">Airtel Money</span>
                         <span class="net-carrier">Airtel</span>
                     </button>
                 </div>
+                <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:12px;">
+                    <ion-icon name="lock-closed-outline" style="font-size:0.85rem; vertical-align:middle;"></ion-icon>
+                    Malipo salama kupitia HarakaPay
+                </p>
             </div>
 
-            <!-- STEP 2: Payment Instructions (shown after network selected) -->
+            <!-- STEP 2: STK Push Loading State -->
             <div class="mpesa-step" id="mpesa-step-2" style="display:none;">
-                <div class="mpesa-step-2-header">
-                    <button class="mpesa-back-btn" onclick="goBackToNetworks()">
+                <!-- Loading State -->
+                <div id="stk-loading-state" style="text-align:center; padding: 20px 10px;">
+                    <div class="stk-spinner"></div>
+                    <h3 style="margin: 16px 0 8px; font-size:1.1rem; color: var(--text);">Inatuma ombi kwenye simu yako...</h3>
+                    <p style="color:var(--text-muted); font-size:0.9rem;">Tafadhali subiri kidogo</p>
+                </div>
+
+                <!-- Success/Waiting for PIN State -->
+                <div id="stk-success-state" style="display:none; text-align:center; padding: 10px;">
+                    <div style="font-size: 3.5rem; margin-bottom: 12px; animation: pulse 1.5s infinite;">📲</div>
+                    <h3 style="font-size:1.15rem; color: var(--primary); margin-bottom:8px;">Ombi Limetumwa!</h3>
+                    <p style="color:var(--text); font-size:0.95rem; line-height:1.5; margin-bottom:16px;">
+                        Simu yako inapiga kelele sasa hivi.<br>
+                        <strong>Ingiza PIN yako kukamilisha malipo.</strong>
+                    </p>
+                    <div class="stk-phone-display" id="stk-phone-display"></div>
+                    <div class="stk-network-badge" id="stk-network-badge"></div>
+
+                    <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 12px; margin: 16px 0; font-size: 0.85rem; color: var(--text-muted);">
+                        <ion-icon name="information-circle-outline" style="vertical-align:middle; margin-right:4px;"></ion-icon>
+                        Ukishaingiza PIN yako kwenye simu, oda yako itatumwa kwa Admin moja kwa moja.
+                    </div>
+
+                    <button class="mpesa-back-btn" onclick="goBackToNetworks()" style="margin-top:4px;">
                         <ion-icon name="arrow-back-outline"></ion-icon>
                         Badilisha Mtandao
                     </button>
-                    <span class="mpesa-selected-badge" id="mpesa-selected-badge"></span>
                 </div>
 
-                <p class="mpesa-step-label">
-                    <ion-icon name="list-outline"></ion-icon>
-                    Hatua ya 2/2 — Fuata hatua hizi kulipa:
-                </p>
-
-                <!-- Vodacom Steps -->
-                <div class="mpesa-instructions" id="steps-vodacom" style="display:none;">
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*00#</strong></li>
-                        <li>Chagua <strong>"Lipa kwa M-Pesa"</strong> → <strong>"Lipa Namba"</strong></li>
-                        <li>Weka Lipa Namba: <strong class="mpesa-number vodacom-color">43372850</strong> (Jina: <strong>MWAKIBAMBO</strong>)</li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-vodacom" class="mpesa-number vodacom-color"></strong></li>
-                        <li>Weka PIN yako na uthibitishe</li>
-                    </ol>
+                <!-- Error State -->
+                <div id="stk-error-state" style="display:none; text-align:center; padding: 10px;">
+                    <div style="font-size: 3rem; margin-bottom: 12px;">⚠️</div>
+                    <h3 style="font-size:1.1rem; color: #e53e3e; margin-bottom:8px;">Ombi Halikusurf</h3>
+                    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;" id="stk-error-msg">
+                        Kuna tatizo la mtandao. Jaribu tena.
+                    </p>
+                    <button class="mpesa-back-btn" onclick="goBackToNetworks()">
+                        <ion-icon name="arrow-back-outline"></ion-icon>
+                        Jaribu Tena
+                    </button>
                 </div>
-
-                <!-- Tigo Steps -->
-                <div class="mpesa-instructions" id="steps-tigo" style="display:none;">
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*01#</strong></li>
-                        <li>Chagua <strong>"Lipa kwa Tigo Pesa"</strong> → <strong>"Lipa Namba"</strong></li>
-                        <li>Weka Lipa Namba: <strong class="mpesa-number tigo-color">43372850</strong> (Jina: <strong>MWAKIBAMBO</strong>)</li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-tigo" class="mpesa-number tigo-color"></strong></li>
-                        <li>Weka PIN yako na uthibitishe</li>
-                    </ol>
-                </div>
-
-                <!-- Airtel Steps -->
-                <div class="mpesa-instructions" id="steps-airtel" style="display:none;">
-                    <ol class="mpesa-steps">
-                        <li>Piga simu: <strong>*150*60#</strong></li>
-                        <li>Chagua <strong>"Lipa kwa Airtel Money"</strong> → <strong>"Lipa Namba"</strong></li>
-                        <li>Weka Lipa Namba: <strong class="mpesa-number airtel-color">43372850</strong> (Jina: <strong>MWAKIBAMBO</strong>)</li>
-                        <li>Weka kiasi: <strong id="mpesa-amount-airtel" class="mpesa-number airtel-color"></strong></li>
-                        <li>Weka PIN yako na uthibitishe</li>
-                    </ol>
-                </div>
-            </div>
-
-            <!-- Footer: Actions (visible on step 2) -->
-            <div class="mpesa-modal-footer" id="mpesa-footer" style="display:none;">
-                <button id="harakapay-stk-btn" class="mpesa-confirm-btn" style="background: linear-gradient(135deg, #10B981, #059669); margin-bottom: 10px;">
-                    <ion-icon name="flash-outline"></ion-icon>
-                    ⚡ Tumia Pop-Up ya Simu (STK Push)
-                </button>
-
-                <p class="mpesa-info-note" style="margin-top: 5px;">
-                    <ion-icon name="information-circle-outline"></ion-icon>
-                    Kama umelipa kwa USSD Lipa Namba, thibitisha hapa chini:
-                </p>
-                <button id="mpesa-confirm-btn" class="mpesa-confirm-btn" style="background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border);">
-                    <ion-icon name="checkmark-circle-outline"></ion-icon>
-                    Nimethibitisha Malipo kwa Lipa Namba — Tuma Oda
-                </button>
             </div>
 
         </div>
     </div>
+
 
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav">
