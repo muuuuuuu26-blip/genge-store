@@ -542,11 +542,9 @@ function showMpesaModal() {
     mainCart.forEach(item => totalAmount += item.price);
     const formatted = formatCurrency(totalAmount);
 
-    // Update amount displays
-    document.getElementById('mpesa-amount').innerText = formatted;
-    document.getElementById('mpesa-amount-vodacom').innerText = formatted;
-    document.getElementById('mpesa-amount-tigo').innerText = formatted;
-    document.getElementById('mpesa-amount-airtel').innerText = formatted;
+    // Update amount display (only the one element that exists in HTML)
+    const amountEl = document.getElementById('mpesa-amount');
+    if (amountEl) amountEl.innerText = formatted;
 
     // Close checkout, open mpesa
     document.getElementById('checkout-modal').classList.remove('active');
