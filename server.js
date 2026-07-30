@@ -28,6 +28,8 @@ function sendTelegramNotification(order) {
             gpsText = `\n📍 *GPS Map:* https://www.google.com/maps?q=${order.customer.gps.lat},${order.customer.gps.lng}`;
         }
 
+        const networkInfo = order.paymentNetwork ? `\n💳 *Mtandao wa Malipo:* ${order.paymentNetwork}` : '';
+
         const message = 
             `🔔 *ODA MPYA YA GENGE!* 🛍️\n\n` +
             `🆔 *Oda ID:* \`${order.id}\`\n` +
@@ -35,7 +37,7 @@ function sendTelegramNotification(order) {
             `📞 *Simu:* ${order.customer?.phone || '-'}\n` +
             `📍 *Mahali:* ${order.customer?.location || '-'}${gpsText}\n\n` +
             `🛒 *Bidhaa Zilizowekwa:*\n${itemsList}\n\n` +
-            `💰 *Jumla Kuu:* *Tsh ${(order.total || 0).toLocaleString()}/=*\n` +
+            `💰 *Jumla Kuu:* *Tsh ${(order.total || 0).toLocaleString()}/=*${networkInfo}\n` +
             `🗓️ *Tarehe:* ${order.date || new Date().toLocaleString()}`;
 
         const postData = JSON.stringify({

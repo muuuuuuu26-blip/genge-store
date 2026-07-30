@@ -29,6 +29,35 @@ const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
 };
 
+// Validate Tanzania Phone Number (06..., 07..., 01..., +255..., 255...)
+function isValidTanzaniaPhone(phone) {
+    if (!phone) return false;
+    
+    // Remove spaces, hyphens, and parentheses
+    let clean = phone.replace(/[\s\-\(\)]/g, '');
+    
+    // Normalize country code +255 or 255 to leading 0
+    if (clean.startsWith('+255')) {
+        clean = '0' + clean.slice(4);
+    } else if (clean.startsWith('255')) {
+        clean = '0' + clean.slice(3);
+    }
+    
+    // Must be 10 digits starting with 06, 07, or 01 (standard TZ carriers)
+    const tzRegex = /^0[671]\d{8}$/;
+    if (!tzRegex.test(clean)) {
+        return false;
+    }
+    
+    // Prevent dummy repeated digits like 0700000000, 0711111111, 0000000000
+    const digitsAfterZero = clean.slice(1);
+    if (/^(\d)\1{8}$/.test(digitsAfterZero)) {
+        return false;
+    }
+    
+    return true;
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
     await loadPackagesFromAPI();
@@ -359,11 +388,55 @@ function setupEventListeners() {
         document.getElementById('checkout-modal').classList.add('active');
     });
 
-    // (Payment is now handled directly via selectNetworkAndPay when user picks a network)
-    
-    // Handle order submission — show M-Pesa modal first
+    // Real-time Phone Validation Feedback
+    const cPhoneInput = document.getElementById('c-phone');
+    const phoneMsg = document.getElementById('phone-validation-msg');
+    if (cPhoneInput) {
+        cPhoneInput.addEventListener('input', () => {
+            const val = cPhoneInput.value.trim();
+            if (!val) {
+                cPhoneInput.style.borderColor = '';
+                if (phoneMsg) phoneMsg.style.display = 'none';
+                return;
+            }
+            if (isValidTanzaniaPhone(val)) {
+                cPhoneInput.style.borderColor = '#10B981';
+                if (phoneMsg) {
+                    phoneMsg.innerText = '✅ Namba halali ya simu';
+                    phoneMsg.style.color = '#10B981';
+                    phoneMsg.style.display = 'block';
+                }
+            } else {
+                cPhoneInput.style.borderColor = '#ef4444';
+                if (phoneMsg) {
+                    phoneMsg.innerText = '⚠️ Ingiza namba halali (Mf. 07XXXXXXXX au 06XXXXXXXX)';
+                    phoneMsg.style.color = '#ef4444';
+                    phoneMsg.style.display = 'block';
+                }
+            }
+        });
+    }
+
+    // Handle order submission — validate real phone number first
     document.getElementById('checkout-form').addEventListener('submit', (e) => {
         e.preventDefault();
+        const pInput = document.getElementById('c-phone');
+        const phoneVal = pInput ? pInput.value.trim() : '';
+
+        if (!isValidTanzaniaPhone(phoneVal)) {
+            showToast('⚠️ Tafadhali ingiza namba halali ya simu ya Tanzania (Mf. 07XXXXXXXX au 06XXXXXXXX) kabla ya kuendelea.');
+            if (pInput) {
+                pInput.focus();
+                pInput.style.borderColor = '#ef4444';
+            }
+            if (phoneMsg) {
+                phoneMsg.innerText = '❌ Unatakiwa kuweka namba halali ya simu (Mf. 07XXXXXXXX au 06XXXXXXXX)';
+                phoneMsg.style.color = '#ef4444';
+                phoneMsg.style.display = 'block';
+            }
+            return;
+        }
+
         showMpesaModal();
     });
 
@@ -482,7 +555,7 @@ function showMpesaModal() {
 }
 
 // Submit Order to Server
-async function submitOrder(paymentStatus = 'pending') {
+async function submitOrder(paymentStatus = 'pending', paymentNetwork = null, keepMpesaModalOpen = true) {
     const name = document.getElementById('c-name').value;
     const phone = document.getElementById('c-phone').value;
     const location = document.getElementById('c-location').value;
@@ -514,6 +587,7 @@ async function submitOrder(paymentStatus = 'pending') {
         },
         items: mainCart,
         deliveryCharge: 0,
+        paymentNetwork: paymentNetwork || window.selectedPaymentNetworkLabel || 'Mobile Money',
         paymentStatus: paymentStatus,
         total: totalAmount,
         status: 'pending' // pending, accepted, rejected
@@ -535,7 +609,7 @@ async function submitOrder(paymentStatus = 'pending') {
             localStorage.setItem('genge_customer_phone', phone);
             localStorage.setItem('genge_customer_location', location);
 
-            // Clear cart and close modals
+            // Clear cart and reset fields
             mainCart = [];
             customBuilderCart = [];
             updateMainCartUI();
@@ -557,14 +631,16 @@ async function submitOrder(paymentStatus = 'pending') {
                 btnLocation.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
             }
 
-            document.getElementById('mpesa-modal').classList.remove('active');
+            if (!keepMpesaModalOpen) {
+                document.getElementById('mpesa-modal').classList.remove('active');
+            }
             document.getElementById('checkout-modal').classList.remove('active');
             document.getElementById('cart-overlay').classList.remove('active');
             
             if (paymentStatus === 'paid') {
                 showToast('✅ Asante! Oda yako imetumwa. Tutakufikia hivi karibuni!');
             } else {
-                showToast('Oda yako imetumwa kikamilifu!');
+                showToast('Oda yako imetumwa kwa Admin kikamilifu!');
             }
         } else {
             const result = await response.json();
@@ -1310,7 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
 const networkConfig = {
     vodacom: { label: 'M-Pesa (Vodacom)',   color: '#e60000', emoji: '🔴' },
     tigo:    { label: 'Tigo Pesa',          color: '#00aaff', emoji: '🔵' },
-    airtel:  { label: 'Airtel Money',       color: '#ff6600', emoji: '🟠' }
+    airtel:  { label: 'Airtel Money',       color: '#ff6600', emoji: '🟠' },
+    halotel: { label: 'HaloPesa (Halotel)', color: '#e6005c', emoji: '🔴' }
 };
 
 // Called when user clicks a network button — triggers STK Push automatically
@@ -1335,7 +1412,7 @@ async function selectNetworkAndPay(network) {
     }
 
     // Disable all network buttons to prevent double-click
-    ['vodacom','tigo','airtel'].forEach(n => {
+    ['vodacom','tigo','airtel','halotel'].forEach(n => {
         const btn = document.getElementById('net-btn-' + n);
         if (btn) btn.disabled = true;
     });
@@ -1348,8 +1425,9 @@ async function selectNetworkAndPay(network) {
     document.getElementById('stk-error-state').style.display = 'none';
 
     try {
-        // 1. Submit order as 'pending' first
-        await submitOrder('pending');
+        // 1. Submit order as 'pending' with the selected network
+        const netLabel = cfg ? cfg.label : network;
+        await submitOrder('pending', netLabel, true);
 
         // 2. Trigger STK Push via HarakaPay
         const response = await fetch(API_URL + '/api/payments/stkpush', {
@@ -1405,7 +1483,7 @@ function selectNetwork(network) {
 
 function goBackToNetworks() {
     // Re-enable network buttons
-    ['vodacom','tigo','airtel'].forEach(n => {
+    ['vodacom','tigo','airtel','halotel'].forEach(n => {
         const btn = document.getElementById('net-btn-' + n);
         if (btn) btn.disabled = false;
     });
@@ -1415,7 +1493,7 @@ function goBackToNetworks() {
 
 // Reset mpesa modal to step 1 when opened
 function resetMpesaModal() {
-    ['vodacom','tigo','airtel'].forEach(n => {
+    ['vodacom','tigo','airtel','halotel'].forEach(n => {
         const btn = document.getElementById('net-btn-' + n);
         if (btn) btn.disabled = false;
     });

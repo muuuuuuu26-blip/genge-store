@@ -247,7 +247,8 @@
                 </div>
                 <div class="form-group">
                     <label for="c-phone">Namba ya Simu</label>
-                    <input type="tel" id="c-phone" required placeholder="Mf. 07XXXXXXXX">
+                    <input type="tel" id="c-phone" required placeholder="Mf. 07XXXXXXXX" maxlength="13">
+                    <p id="phone-validation-msg" style="font-size: 0.82rem; margin-top: 4px; display: none;"></p>
                 </div>
                 <div class="form-group">
                     <label for="c-location">Mahali/Sehemu unapoishi</label>
@@ -315,6 +316,11 @@
                         <span class="net-icon net-airtel">📱</span>
                         <span class="net-name">Airtel Money</span>
                         <span class="net-carrier">Airtel</span>
+                    </button>
+                    <button class="mpesa-network-btn" id="net-btn-halotel" onclick="selectNetworkAndPay('halotel')">
+                        <span class="net-icon net-halotel">📱</span>
+                        <span class="net-name">HaloPesa</span>
+                        <span class="net-carrier">Halotel</span>
                     </button>
                 </div>
                 <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:12px;">

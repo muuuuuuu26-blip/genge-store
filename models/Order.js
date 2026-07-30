@@ -24,6 +24,7 @@ const orderSchema = new mongoose.Schema({
     items: [itemSchema],
     deliveryCharge: { type: Number, default: 0 },
     total: { type: Number, required: true },
+    paymentNetwork: { type: String, default: 'Mobile Money' }, // Vodacom (M-Pesa), Tigo Pesa, Airtel Money
     paymentStatus: { type: String, default: 'pending' }, // pending, paid, failed
     status: { type: String, default: 'pending' } // pending, accepted, rejected
 });

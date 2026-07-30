@@ -394,6 +394,8 @@ function renderOrdersTable(orders) {
             paymentBadge = '<span class="badge payment-pending">⏳ Inasubiri</span>';
         }
         
+        const netTag = order.paymentNetwork ? `<span style="font-size:0.75rem; color:#4B5563; font-weight:600; margin-top:2px;">📱 ${order.paymentNetwork}</span>` : '';
+        
         // Status Dropdown Select for Admin Control
         const statusSelectHtml = `
             <select class="status-select" onchange="updateOrderStatus('${order.id}', this.value)">
@@ -440,6 +442,7 @@ function renderOrdersTable(orders) {
                 <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
                     ${statusBadge}
                     ${paymentBadge}
+                    ${netTag}
                 </div>
             </td>
             <td>${actionButtons}</td>

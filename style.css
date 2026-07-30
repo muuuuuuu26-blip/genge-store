@@ -2990,7 +2990,7 @@ footer {
 /* STEP 1 — Network Selection Grid */
 .mpesa-network-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
 }
 
@@ -3031,6 +3031,7 @@ footer {
 .net-vodacom { background: rgba(230,0,0,0.15); }
 .net-tigo    { background: rgba(0,170,255,0.15); }
 .net-airtel  { background: rgba(255,102,0,0.15); }
+.net-halotel { background: rgba(230,0,90,0.15); }
 
 .net-name {
     font-size: 0.8rem;
@@ -3046,10 +3047,11 @@ footer {
     text-align: center;
 }
 
-/* Vodacom selected border */
+/* Selected network borders */
 .mpesa-network-btn.selected-vodacom { border-color: #e60000; box-shadow: 0 0 16px rgba(230,0,0,0.25); }
 .mpesa-network-btn.selected-tigo    { border-color: #00aaff; box-shadow: 0 0 16px rgba(0,170,255,0.25); }
 .mpesa-network-btn.selected-airtel  { border-color: #ff6600; box-shadow: 0 0 16px rgba(255,102,0,0.25); }
+.mpesa-network-btn.selected-halotel { border-color: #e6005c; box-shadow: 0 0 16px rgba(230,0,90,0.25); }
 
 /* STEP 2 — Instructions */
 .mpesa-step-2-header {
