@@ -413,6 +413,8 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
         let targetPhone = rawPhone;
         if (targetPhone.startsWith('0')) {
             targetPhone = '255' + targetPhone.slice(1);
+        } else if (!targetPhone.startsWith('255') && targetPhone.length === 9) {
+            targetPhone = '255' + targetPhone;
         }
 
         const selectedProvider = provider || 'VodaCom M-Pesa';

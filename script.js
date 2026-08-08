@@ -275,6 +275,38 @@ function renderCustomProducts(category) {
         `;
         grid.appendChild(card);
     });
+    // Baada ya kurender, onyesha hali ya kapu kwa kila kadi
+    refreshProductCardStates();
+}
+
+// Onyesha badge ya idadi na hali ya "imo kwenye kapu" kwenye kadi za bidhaa
+function refreshProductCardStates() {
+    const cards = document.querySelectorAll('.product-card-new');
+    cards.forEach(card => {
+        const btn = card.querySelector('.prod-add-btn');
+        if (!btn) return;
+
+        const onclickAttr = btn.getAttribute('onclick') || '';
+        const match = onclickAttr.match(/addToCustomBuilder\(['"](.+?)['"]\)/);
+        if (!match) return;
+        const productId = match[1];
+
+        const cartItem = customBuilderCart.find(i => i.id === productId);
+
+        // Futa badge ya zamani
+        const oldBadge = card.querySelector('.prod-card-badge');
+        if (oldBadge) oldBadge.remove();
+
+        if (cartItem && cartItem.quantity > 0) {
+            card.classList.add('in-cart');
+            const badge = document.createElement('div');
+            badge.className = 'prod-card-badge';
+            badge.textContent = cartItem.quantity;
+            card.appendChild(badge);
+        } else {
+            card.classList.remove('in-cart');
+        }
+    });
 }
 
 // Setup Event Listeners
@@ -290,9 +322,7 @@ function setupEventListeners() {
 
     // Custom Builder Add to Main Cart
     document.getElementById('add-custom-btn').addEventListener('click', () => {
-        if (customBuilderTotal >= 5000) {
-            addCustomBundleToMainCart();
-        }
+        document.getElementById('cart-overlay').classList.add('active');
     });
 
     // Checkout button
@@ -330,6 +360,25 @@ function setupEventListeners() {
         e.preventDefault();
         submitOrder();
     });
+
+    // Setup checkout modal provider card clicks
+    const checkoutCards = document.querySelectorAll('#checkout-providers-grid .stk-provider-card');
+    checkoutCards.forEach(card => {
+        card.addEventListener('click', () => {
+            checkoutCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            const radio = card.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+    });
+
+    // Auto-detect provider in checkout form as user types phone number
+    const cPhoneInput = document.getElementById('c-phone');
+    if (cPhoneInput) {
+        cPhoneInput.addEventListener('input', (e) => {
+            autoSelectProviderByPhone(e.target.value.trim());
+        });
+    }
 
     // Handle Get Location
     const btnLocation = document.getElementById('btn-get-location');
@@ -379,6 +428,9 @@ async function submitOrder() {
     const lat = document.getElementById('c-lat').value;
     const lng = document.getElementById('c-lng').value;
     
+    const selectedNetworkEl = document.querySelector('input[name="checkout_provider"]:checked');
+    const paymentNetwork = selectedNetworkEl ? selectedNetworkEl.value : 'VodaCom M-Pesa';
+    
     let totalAmount = 0;
     mainCart.forEach(item => totalAmount += item.price);
     
@@ -391,6 +443,7 @@ async function submitOrder() {
             location,
             gps: (lat && lng) ? { lat, lng } : null
         },
+        paymentNetwork: paymentNetwork,
         items: mainCart,
         deliveryCharge: 0,
         paymentStatus: 'pending',
@@ -463,6 +516,7 @@ window.addToCustomBuilder = function(productId) {
     }
 
     updateCustomBuilderUI();
+    refreshProductCardStates();
     showToast(`${product.name} imeongezwa!`);
 };
 
@@ -477,6 +531,7 @@ window.removeFromCustomBuilder = function(productId) {
         }
     }
     updateCustomBuilderUI();
+    refreshProductCardStates();
 };
 
 // Update Custom Builder UI
@@ -521,15 +576,55 @@ function updateCustomBuilderUI() {
     const alert = document.getElementById('min-order-alert');
     
     if (customBuilderTotal >= 5000) {
+        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
         btn.disabled = false;
         alert.className = 'min-order-alert success';
-        alert.innerHTML = 'Kiwango kimefikiwa! Unaweza kuongeza kwenye kapu.';
-    } else {
-        btn.disabled = true;
+        alert.innerHTML = 'Kiwango kimefikiwa! Kifurushi kipo tayari kwenye kapu.';
+    } else if (customBuilderTotal > 0) {
+        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
+        btn.disabled = false;
         alert.className = 'min-order-alert';
         const remaining = 5000 - customBuilderTotal;
         alert.innerHTML = `Bado ${formatCurrency(remaining)} kufikisha kima cha chini (Tsh 5,000)`;
+    } else {
+        btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
+        btn.disabled = true;
+        alert.className = 'min-order-alert';
+        alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
     }
+
+    // Automatically sync to main cart
+    syncCustomBuilderToMainCart();
+}
+
+function syncCustomBuilderToMainCart() {
+    customBuilderTotal = customBuilderCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const customItemIndex = mainCart.findIndex(item => item.type === 'custom');
+
+    if (customBuilderCart.length === 0) {
+        if (customItemIndex > -1) {
+            mainCart.splice(customItemIndex, 1);
+        }
+    } else {
+        const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
+        
+        const updatedItem = {
+            cartId: customItemIndex > -1 ? mainCart[customItemIndex].cartId : Date.now().toString(),
+            type: 'custom',
+            title: 'Kifurushi Binafsi',
+            price: customBuilderTotal,
+            details: details,
+            quantity: 1
+        };
+
+        if (customItemIndex > -1) {
+            mainCart[customItemIndex] = updatedItem;
+        } else {
+            mainCart.push(updatedItem);
+        }
+    }
+
+    updateMainCartUI();
 }
 
 // Add Pre-made package to Main Cart
@@ -551,39 +646,31 @@ window.addPreMadeToCart = function(pkgId) {
     showToast(`${pkg.title} imeongezwa kwenye kapu!`);
 };
 
-// Add Custom Bundle to Main Cart
-function addCustomBundleToMainCart() {
-    if (customBuilderTotal < 5000) return;
-
-    // Create a string of items
-    const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
-
-    const cartItem = {
-        cartId: Date.now().toString(),
-        type: 'custom',
-        title: 'Kifurushi Binafsi',
-        price: customBuilderTotal,
-        details: details,
-        quantity: 1
-    };
-
-    mainCart.push(cartItem);
-    
-    // Clear builder
-    customBuilderCart = [];
-    updateCustomBuilderUI();
-    
-    updateMainCartUI();
-    showToast('Kifurushi chako kimeongezwa kwenye kapu!');
-    
-    // Open sidebar
-    document.getElementById('cart-overlay').classList.add('active');
-}
-
 // Remove from Main Cart
 window.removeFromMainCart = function(cartId) {
+    const item = mainCart.find(i => i.cartId === cartId);
+    if (item && item.type === 'custom') {
+        customBuilderCart = [];
+        customBuilderTotal = 0;
+        document.getElementById('custom-total').innerText = formatCurrency(0);
+        
+        const container = document.getElementById('custom-cart-items');
+        if (container) container.innerHTML = '<p class="empty-msg">Hujachagua bidhaa yoyote bado.</p>';
+        
+        const btn = document.getElementById('add-custom-btn');
+        const alert = document.getElementById('min-order-alert');
+        if (btn) {
+            btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
+            btn.disabled = true;
+        }
+        if (alert) {
+            alert.className = 'min-order-alert';
+            alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
+        }
+    }
     mainCart = mainCart.filter(item => item.cartId !== cartId);
     updateMainCartUI();
+    refreshProductCardStates();
 };
 
 // Update Main Cart UI
@@ -594,17 +681,29 @@ function updateMainCartUI() {
 
     countEl.innerText = mainCart.length;
 
+    const warningEl = document.getElementById('cart-min-warning');
+    const checkoutBtn = document.getElementById('checkout-btn');
+
     if (mainCart.length === 0) {
         container.innerHTML = '<p class="empty-msg">Kapu lako liko wazi.</p>';
         totalEl.innerText = formatCurrency(0);
+        if (warningEl) warningEl.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.disabled = false;
         return;
     }
 
     container.innerHTML = '';
     let total = 0;
+    let hasCustomItems = false;
+    let customTotal = 0;
 
     mainCart.forEach(item => {
         total += item.price;
+        if (item.type === 'custom' || item.type === 'product') {
+            hasCustomItems = true;
+            customTotal += item.price;
+        }
+        
         const el = document.createElement('div');
         el.className = 'cart-package';
         el.innerHTML = `
@@ -619,6 +718,19 @@ function updateMainCartUI() {
     });
 
     totalEl.innerText = formatCurrency(total);
+
+    // Validation warning and button state
+    if (hasCustomItems && customTotal < 5000) {
+        const remaining = 5000 - customTotal;
+        if (warningEl) {
+            warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
+            warningEl.style.display = 'block';
+        }
+        if (checkoutBtn) checkoutBtn.disabled = true;
+    } else {
+        if (warningEl) warningEl.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.disabled = false;
+    }
 }
 
 // Toast Notification
@@ -1039,16 +1151,18 @@ function autoSelectProviderByPhone(phone) {
     else if (['62'].includes(prefix)) selectedProvider = 'HaloPesa';
 
     if (selectedProvider) {
-        const radios = document.querySelectorAll('input[name="stk_provider"]');
-        radios.forEach(radio => {
-            if (radio.value === selectedProvider) {
-                radio.checked = true;
-                const card = radio.closest('.stk-provider-card');
-                if (card) {
-                    document.querySelectorAll('.stk-provider-card').forEach(c => c.classList.remove('active'));
-                    card.classList.add('active');
+        ['checkout_provider', 'stk_provider'].forEach(groupName => {
+            const radios = document.querySelectorAll(`input[name="${groupName}"]`);
+            radios.forEach(radio => {
+                if (radio.value === selectedProvider) {
+                    radio.checked = true;
+                    const card = radio.closest('.stk-provider-card');
+                    if (card && card.parentElement) {
+                        card.parentElement.querySelectorAll('.stk-provider-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                    }
                 }
-            }
+            });
         });
     }
 }
