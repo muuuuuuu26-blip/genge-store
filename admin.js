@@ -1,304 +1,55 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
-let currentOrders = [];
-let currentFilterStatus = 'all';
-let currentSearchText = '';
-let knownOrderIds = null;
-let soundEnabled = true;
+// ── LOGIN PROTECTION ─────────────────────────────────────────────
+const ADMIN_USER = 'genge-letu';
+const ADMIN_PASS = 'gengetz2026';
 
-// Sound generator using Web Audio API (Chime sound for new orders)
-function playOrderAlertSound() {
-    if (!soundEnabled) return;
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // Chime 1
-        const osc1 = audioCtx.createOscillator();
-        const gain1 = audioCtx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-        gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-        osc1.connect(gain1);
-        gain1.connect(audioCtx.destination);
-        osc1.start();
-        osc1.stop(audioCtx.currentTime + 0.3);
+function attemptLogin() {
+    const user = document.getElementById('admin-username').value.trim();
+    const pass = document.getElementById('admin-password').value.trim();
+    const errEl = document.getElementById('login-error');
 
-        // Chime 2
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-        gain2.gain.setValueAtTime(0.4, audioCtx.currentTime + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.destination);
-        osc2.start(audioCtx.currentTime + 0.15);
-        osc2.stop(audioCtx.currentTime + 0.6);
-    } catch (e) {
-        console.error('Audio play error:', e);
+    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        sessionStorage.setItem('genge_admin_auth', '1');
+        document.getElementById('login-overlay').classList.add('hidden');
+        errEl.innerText = '';
+    } else {
+        errEl.innerText = '❌ Username au Password si sahihi. Jaribu tena.';
+        document.getElementById('admin-password').value = '';
     }
 }
 
-// Request Browser Notifications Permission
-function requestDesktopNotificationPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
-}
-
-// Trigger Desktop Notification
-function triggerDesktopNotification(order) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-        const title = `🛍️ ODA MPYA YA GENGE (${order.id})`;
-        const options = {
-            body: `Mteja: ${order.customer?.name || 'Bila Jina'}\nSimu: ${order.customer?.phone || ''}\nJumla: ${formatCurrency(order.total)}`,
-            icon: 'pics/12.png',
-            tag: order.id
-        };
-        new Notification(title, options);
-    }
-}
-
-// Show Banner Notification in Admin UI
-function showAdminOrderBanner(order) {
-    let banner = document.getElementById('admin-order-alert-banner');
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'admin-order-alert-banner';
-        banner.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            background: linear-gradient(135deg, #10B981, #059669);
-            color: white;
-            padding: 16px 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 600;
-            font-family: 'Outfit', sans-serif;
-            animation: slideInBanner 0.4s ease;
-        `;
-        document.body.appendChild(banner);
-    }
-    banner.innerHTML = `
-        <span style="font-size: 1.6rem;">🔔</span>
-        <div>
-            <div style="font-size: 1rem; font-weight: 700;">ODA MPYA IMEINGIA!</div>
-            <div style="font-size: 0.85rem; opacity: 0.95;">${order.customer?.name || 'Mteja'} (${order.id}) — ${formatCurrency(order.total)}</div>
-        </div>
-        <button onclick="document.getElementById('admin-order-alert-banner').remove()" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-left: 10px; font-weight: 600;">Funga</button>
-    `;
-    setTimeout(() => {
-        if (banner && banner.parentNode) banner.remove();
-    }, 10000);
-}
-
-function getAuthHeaders() {
-    const token = localStorage.getItem('adminToken');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
-}
-
-function checkAuth() {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-        document.getElementById('login-overlay').style.display = 'flex';
-        document.getElementById('admin-main-container').style.display = 'none';
-        return false;
-    }
-    document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('admin-main-container').style.display = 'flex';
-    return true;
-}
-
-window.adminLogout = function() {
-    localStorage.removeItem('adminToken');
-    checkAuth();
-};
-
+// Allow pressing Enter on inputs to trigger login
 document.addEventListener('DOMContentLoaded', () => {
-    // Login form logic
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            const errorEl = document.getElementById('login-error');
-            
-            errorEl.style.display = 'none';
-            errorEl.innerText = '';
-            
-            try {
-                const response = await fetch(API_URL + '/api/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('adminToken', data.token);
-                    checkAuth();
-                    loadOrders();
-                } else {
-                    errorEl.innerText = data.message;
-                    errorEl.style.display = 'block';
-                }
-            } catch (err) {
-                errorEl.innerText = 'Tatizo la mtandao, jaribu tena.';
-                errorEl.style.display = 'block';
-            }
-        });
-    }
-
-    // Sidebar Mobile Controls
-    const menuToggle = document.getElementById('menu-toggle');
-    const closeSidebar = document.getElementById('close-sidebar');
-    const sidebar = document.getElementById('admin-sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-
-    if (menuToggle && closeSidebar && sidebar && overlay) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.add('open');
-            overlay.classList.add('active');
-        });
-
-        const closeMenu = () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        };
-
-        closeSidebar.addEventListener('click', closeMenu);
-        overlay.addEventListener('click', closeMenu);
-    }
-
-    // Search and Filter Controls
-    const searchInput = document.getElementById('search-orders');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            currentSearchText = e.target.value;
-            renderOrdersTable(currentOrders);
-        });
-    }
-
-    const filterTabs = document.querySelectorAll('.filter-tab');
-    filterTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            filterTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            currentFilterStatus = tab.getAttribute('data-status');
-            renderOrdersTable(currentOrders);
-        });
+    ['admin-username', 'admin-password'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
     });
 
-    // Image Upload Preview Logic
-    const fileInput = document.getElementById('product-image');
-    const previewContainer = document.getElementById('image-preview-container');
-    const previewImage = document.getElementById('image-preview');
-    const removePreviewBtn = document.getElementById('remove-preview-btn');
-
-    if (fileInput && previewContainer && previewImage && removePreviewBtn) {
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewContainer.style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        removePreviewBtn.addEventListener('click', () => {
-            fileInput.value = '';
-            previewImage.src = '';
-            previewContainer.style.display = 'none';
-        });
-    }
-
-    // Refresh products list
-    const refreshProductsBtn = document.getElementById('refresh-products-btn');
-    if (refreshProductsBtn) {
-        refreshProductsBtn.addEventListener('click', loadProductsList);
-    }
-
-    // Open add package modal
-    const openAddPkgBtn = document.getElementById('open-add-pkg-btn');
-    if (openAddPkgBtn) {
-        openAddPkgBtn.addEventListener('click', openAddPackageModal);
-    }
-
-    // Save product edit
-    const saveProductEditBtn = document.getElementById('save-product-edit-btn');
-    if (saveProductEditBtn) {
-        saveProductEditBtn.addEventListener('click', saveProductEdit);
-    }
-
-    // Close product edit modal
-    const closeProductEditBtn = document.getElementById('close-product-edit-btn');
-    if (closeProductEditBtn) {
-        closeProductEditBtn.addEventListener('click', closeEditProductModal);
-    }
-
-    // Save package
-    const savePackageBtn = document.getElementById('save-package-btn');
-    if (savePackageBtn) {
-        savePackageBtn.addEventListener('click', savePackage);
-    }
-
-    // Close package modal
-    const closePackageModalBtn = document.getElementById('close-package-modal-btn');
-    if (closePackageModalBtn) {
-        closePackageModalBtn.addEventListener('click', closePackageModal);
-    }
-
-    if (checkAuth()) {
-        requestDesktopNotificationPermission();
-        loadOrders();
-        // Refresh orders every 6 seconds automatically for real-time notification
-        setInterval(() => {
-            if (checkAuth()) loadOrders();
-        }, 6000);
+    // Check if already authenticated in this session
+    if (sessionStorage.getItem('genge_admin_auth') === '1') {
+        document.getElementById('login-overlay').classList.add('hidden');
     }
 });
+// ─────────────────────────────────────────────────────────────────
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadOrders();
+    // Optional: Refresh orders every 10 seconds automatically to simulate real-time
+    setInterval(loadOrders, 10000);
+});
+
+let currentOrders = [];
 
 async function loadOrders() {
     try {
-        const response = await fetch(API_URL + '/api/orders', {
-            headers: getAuthHeaders()
-        });
-        
-        if (response.status === 401 || response.status === 403) {
-            adminLogout();
-            return;
-        }
-
+        const response = await fetch(API_URL + '/api/orders');
         const orders = await response.json();
         
         console.log('Fetched orders from server:', orders);
         
-        // Detect new incoming orders for notifications
-        if (knownOrderIds === null) {
-            knownOrderIds = new Set(orders.map(o => o.id));
-        } else {
-            const newOrders = orders.filter(o => !knownOrderIds.has(o.id));
-            if (newOrders.length > 0) {
-                newOrders.forEach(newOrder => {
-                    knownOrderIds.add(newOrder.id);
-                    playOrderAlertSound();
-                    triggerDesktopNotification(newOrder);
-                    showAdminOrderBanner(newOrder);
-                });
-            }
-        }
-
-        currentOrders = orders; // Save for filtering & printing
+        currentOrders = orders; // Save for printInvoice
         updateStats(orders);
         renderOrdersTable(orders);
     } catch (err) {
@@ -311,81 +62,39 @@ function updateStats(orders) {
     
     const pendingCount = orders.filter(o => o.status === 'pending').length;
     document.getElementById('pending-orders').innerText = pendingCount;
-
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const revenueEl = document.getElementById('total-revenue');
-    if (revenueEl) {
-        revenueEl.innerText = formatCurrency(totalRevenue);
-    }
 }
-
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
-};
 
 function renderOrdersTable(orders) {
     const tbody = document.getElementById('orders-tbody');
-    const mobileList = document.getElementById('orders-mobile-list');
     const noOrdersMsg = document.getElementById('no-orders-msg');
     
-    // Apply filters
-    let filtered = orders;
-    if (currentFilterStatus !== 'all') {
-        filtered = filtered.filter(o => o.status === currentFilterStatus);
-    }
-    if (currentSearchText.trim() !== '') {
-        const query = currentSearchText.toLowerCase().trim();
-        filtered = filtered.filter(o => {
-            const idMatch = o.id.toLowerCase().includes(query);
-            const nameMatch = o.customer.name.toLowerCase().includes(query);
-            const phoneMatch = o.customer.phone.toLowerCase().includes(query);
-            const locMatch = o.customer.location.toLowerCase().includes(query);
-            return idMatch || nameMatch || phoneMatch || locMatch;
-        });
-    }
-    
-    if (filtered.length === 0) {
+    if (orders.length === 0) {
         tbody.innerHTML = '';
-        mobileList.innerHTML = '';
         noOrdersMsg.style.display = 'block';
         return;
     }
     
     noOrdersMsg.style.display = 'none';
     tbody.innerHTML = '';
-    mobileList.innerHTML = '';
     
-    filtered.forEach(order => {
-        // --- 1. DESKTOP RENDER (Table Rows) ---
+    orders.forEach(order => {
         const tr = document.createElement('tr');
         
         // Format Items
         let itemsHtml = '<div class="order-items">';
         order.items.forEach(item => {
-            itemsHtml += `<div>- ${item.title} x${item.quantity || 1}</div>`;
+            itemsHtml += `<div>- ${item.title}</div>`;
         });
         itemsHtml += '</div>';
         
         // Status Badge
         let statusBadge = '';
         let paymentBadge = '';
-        
-        if (order.status === 'pending') {
-            statusBadge = '<span class="badge pending">Nasubiri</span>';
-        } else if (order.status === 'accepted') {
-            statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
-        } else if (order.status === 'processing') {
-            statusBadge = '<span class="badge processing">Inaandaliwa</span>';
-        } else if (order.status === 'shipped') {
-            statusBadge = '<span class="badge shipped">Iko Njiani</span>';
-        } else if (order.status === 'delivered') {
-            statusBadge = '<span class="badge delivered">Imewasilishwa</span>';
-        } else if (order.status === 'rejected') {
-            statusBadge = '<span class="badge rejected">Imekataliwa</span>';
-        }
+        let actionButtons = '';
         
         // Payment Status Badge
         const paymentStatus = order.paymentStatus || 'pending';
+        console.log(`Order ${order.id} - Payment Status: ${paymentStatus}, Order Status: ${order.status}`);
         if (paymentStatus === 'paid') {
             paymentBadge = '<span class="badge payment-paid">💳 Ililipwa</span>';
         } else if (paymentStatus === 'failed') {
@@ -394,37 +103,49 @@ function renderOrdersTable(orders) {
             paymentBadge = '<span class="badge payment-pending">⏳ Inasubiri</span>';
         }
         
-        const netTag = order.paymentNetwork ? `<span style="font-size:0.75rem; color:#4B5563; font-weight:600; margin-top:2px;">📱 ${order.paymentNetwork}</span>` : '';
+        if (order.status === 'pending') {
+            statusBadge = '<span class="badge pending">Nasubiri</span>';
+            actionButtons = `
+                <div class="actions">
+                    <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
+                    <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                </div>
+            `;
+        } else if (order.status === 'accepted') {
+            statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
+            actionButtons = `
+                <div class="actions">
+                    <em>Imekamilika</em>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                </div>
+            `;
+        } else if (order.status === 'rejected') {
+            statusBadge = '<span class="badge rejected">Imekataliwa</span>';
+            actionButtons = `
+                <div class="actions">
+                    <em>Imekataliwa</em>
+                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
+                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+                </div>
+            `;
+        }
         
-        // Status Dropdown Select for Admin Control
-        const statusSelectHtml = `
-            <select class="status-select" onchange="updateOrderStatus('${order.id}', this.value)">
-                <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ Nasubiri</option>
-                <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>✅ Imekubaliwa</option>
-                <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>📦 Inaandaliwa</option>
-                <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🛵 Iko Njiani</option>
-                <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>🎉 Imewasilishwa</option>
-                <option value="rejected" ${order.status === 'rejected' ? 'selected' : ''}>❌ Imekataliwa</option>
-            </select>
-        `;
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+        };
 
-        const actionButtons = `
-            <div class="actions">
-                ${statusSelectHtml}
-                <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa"><ion-icon name="trash-outline"></ion-icon></button>
-                <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice"><ion-icon name="print-outline"></ion-icon></button>
-            </div>
-        `;
-        
         let gpsLink = '';
         if (order.customer.gps && order.customer.gps.lat && order.customer.gps.lng) {
-            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${order.customer.gps.lat},${order.customer.gps.lng}" target="_blank" class="map-link" style="color: var(--primary); text-decoration: none; font-size: 0.8rem; display: block; margin-top: 5px; font-weight:600;">📍 Pata Ramani (GPS)</a>`;
+            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${order.customer.gps.lat},${order.customer.gps.lng}" target="_blank" class="map-link" style="color: #10B981; text-decoration: none; font-size: 0.85rem; display: block; margin-top: 5px;">📍 Pata Direction (Kutoka kwenye GPS)</a>`;
         }
         if (order.customer.location) {
+            // Append city context so Google Maps finds the right location in Tanzania
             const locationWithContext = order.customer.location + ', Dar es Salaam, Tanzania';
             const encodedLoc = encodeURIComponent(locationWithContext);
-            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${encodedLoc}" target="_blank" class="map-link" style="color: var(--secondary); text-decoration: none; font-size: 0.8rem; display: block; margin-top: 5px; font-weight:600;">🛣️ Pata Ramani (Jina)</a>`;
+            gpsLink += `<a href="https://www.google.com/maps/dir/?api=1&destination=${encodedLoc}" target="_blank" class="map-link" style="color: #F59E0B; text-decoration: none; font-size: 0.85rem; display: block; margin-top: 5px;">🛣️ Pata Direction (Kutoka kwenye Jina aliloandika)</a>`;
         }
 
         tr.innerHTML = `
@@ -439,68 +160,13 @@ function renderOrdersTable(orders) {
             <td><strong>${formatCurrency(order.total)}</strong></td>
             <td>${order.date}</td>
             <td>
-                <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
-                    ${statusBadge}
-                    ${paymentBadge}
-                    ${netTag}
-                </div>
+                <div>${statusBadge}</div>
+                <div style="margin-top: 5px;">${paymentBadge}</div>
             </td>
             <td>${actionButtons}</td>
         `;
-        tbody.appendChild(tr);
-
-        // --- 2. MOBILE RENDER (Cards Layout) ---
-        const card = document.createElement('div');
-        card.className = 'order-mobile-card';
         
-        let mobileItemsHtml = '';
-        order.items.forEach(item => {
-            mobileItemsHtml += `<div>- ${item.title} x${item.quantity || 1}</div>`;
-        });
-
-        const mobileActions = `
-            <div class="actions" style="margin-top: 8px; flex-wrap: wrap; width: 100%;">
-                <select class="status-select" onchange="updateOrderStatus('${order.id}', this.value)" style="flex: 1; min-width: 140px;">
-                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ Nasubiri</option>
-                    <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>✅ Imekubaliwa</option>
-                    <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>📦 Inaandaliwa</option>
-                    <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🛵 Iko Njiani</option>
-                    <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>🎉 Imewasilishwa</option>
-                    <option value="rejected" ${order.status === 'rejected' ? 'selected' : ''}>❌ Imekataliwa</option>
-                </select>
-                <button class="btn-delivery" onclick="setDeliveryCharge('${order.id}')" title="Weka Ada ya Usafiri"><ion-icon name="bicycle-outline"></ion-icon></button>
-                <button class="btn-delete" onclick="deleteOrder('${order.id}')"><ion-icon name="trash-outline"></ion-icon></button>
-                <button class="btn-print" onclick="printInvoice('${order.id}')"><ion-icon name="print-outline"></ion-icon></button>
-            </div>
-        `;
-
-        card.innerHTML = `
-            <div class="order-card-header">
-                <span class="order-number">Oda: ${order.id}</span>
-                <div style="display: flex; gap: 4px;">
-                    ${statusBadge}
-                    ${paymentBadge}
-                </div>
-            </div>
-            <div class="order-card-customer">
-                <span class="customer-name">${order.customer.name}</span>
-                <span class="customer-detail">📞 ${order.customer.phone}</span>
-                <span class="customer-detail">📍 ${order.customer.location}</span>
-                ${gpsLink}
-            </div>
-            <div class="order-card-items">
-                ${mobileItemsHtml}
-            </div>
-            <div class="order-card-summary">
-                <span class="price-label">Jumla Kuu:</span>
-                <span class="price-value">${formatCurrency(order.total)}</span>
-            </div>
-            <div class="order-card-footer">
-                <span class="order-card-date">${order.date}</span>
-                ${mobileActions}
-            </div>
-        `;
-        mobileList.appendChild(card);
+        tbody.appendChild(tr);
     });
 }
 
@@ -510,8 +176,7 @@ window.updateOrderStatus = async function(orderId, newStatus) {
         const response = await fetch(API_URL + `/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json',
-                ...getAuthHeaders()
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ status: newStatus })
         });
@@ -538,8 +203,7 @@ window.deleteOrder = async function(orderId) {
     
     try {
         const response = await fetch(API_URL + `/api/orders/${orderId}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
+            method: 'DELETE'
         });
 
         if (response.ok) {
@@ -553,85 +217,52 @@ window.deleteOrder = async function(orderId) {
     }
 };
 
-window.setDeliveryCharge = async function(orderId) {
-    const order = currentOrders.find(o => o.id === orderId);
-    if (!order) return;
-
-    const currentCharge = order.deliveryCharge || 0;
-    const inputStr = prompt(
-        `🚚 Weka Ada ya Usafiri (Tsh)\n` +
-        `Oda: ${orderId}\n` +
-        `Mteja: ${order.customer.name}\n` +
-        `Ada ya sasa: ${formatCurrency(currentCharge)}\n\n` +
-        `Ingiza 0 au acha wazi kama hakuna ada ya usafiri.`,
-        currentCharge > 0 ? currentCharge : ''
-    );
-
-    if (inputStr === null) return; // Mtumiaji alibonyeza Ghairi
-
-    const amount = Number(inputStr) || 0;
-
-    try {
-        const response = await fetch(API_URL + `/api/orders/${orderId}/delivery`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ deliveryCharge: amount })
-        });
-
-        if (response.ok) {
-            setTimeout(() => loadOrders(), 500);
-        } else {
-            const result = await response.json();
-            alert('Kosa: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Error setting delivery charge:', error);
-        alert('Tatizo la mtandao.');
-    }
-};
-
 // --- Tab Switching Logic ---
 window.showSection = function(section, anchor) {
-    // Close mobile menu if open
-    const sidebar = document.getElementById('admin-sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    if (sidebar && overlay) {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-    }
-
     // Update nav active state
     document.querySelectorAll('.admin-nav a').forEach(el => el.classList.remove('active'));
     if (anchor) {
         anchor.classList.add('active');
     }
 
-    const pageTitle = document.getElementById('page-title');
-
-    // Hide all sections first
-    ['orders-section', 'upload-section', 'products-section', 'packages-section', 'feedback-section'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-
     if (section === 'orders') {
         document.getElementById('orders-section').style.display = 'block';
-        if (pageTitle) pageTitle.innerText = 'Oda za Wateja';
+        document.getElementById('upload-section').style.display = 'none';
+        document.getElementById('feedback-section').style.display = 'none';
+        document.getElementById('products-section').style.display = 'none';
+        document.getElementById('packages-section').style.display = 'none';
+        document.querySelector('.top-header h1').innerText = 'Oda za Wateja';
     } else if (section === 'upload') {
+        document.getElementById('orders-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'block';
-        if (pageTitle) pageTitle.innerText = 'Pakia Bidhaa Mpya';
-    } else if (section === 'products') {
-        document.getElementById('products-section').style.display = 'block';
-        if (pageTitle) pageTitle.innerText = 'Simamia Bidhaa';
-        loadProductsList();
-    } else if (section === 'packages') {
-        document.getElementById('packages-section').style.display = 'block';
-        if (pageTitle) pageTitle.innerText = 'Simamia Vifurushi';
-        loadPackagesList();
+        document.getElementById('feedback-section').style.display = 'none';
+        document.getElementById('products-section').style.display = 'none';
+        document.getElementById('packages-section').style.display = 'none';
+        document.querySelector('.top-header h1').innerText = 'Pakia Bidhaa Mpya';
     } else if (section === 'feedback') {
+        document.getElementById('orders-section').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'none';
         document.getElementById('feedback-section').style.display = 'block';
-        if (pageTitle) pageTitle.innerText = 'Maoni ya Wateja';
+        document.getElementById('products-section').style.display = 'none';
+        document.getElementById('packages-section').style.display = 'none';
+        document.querySelector('.top-header h1').innerText = 'Maoni ya Wateja';
         loadFeedbacks();
+    } else if (section === 'products') {
+        document.getElementById('orders-section').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'none';
+        document.getElementById('feedback-section').style.display = 'none';
+        document.getElementById('products-section').style.display = 'block';
+        document.getElementById('packages-section').style.display = 'none';
+        document.querySelector('.top-header h1').innerText = 'Hariri Bei za Bidhaa';
+        loadProducts();
+    } else if (section === 'packages') {
+        document.getElementById('orders-section').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'none';
+        document.getElementById('feedback-section').style.display = 'none';
+        document.getElementById('products-section').style.display = 'none';
+        document.getElementById('packages-section').style.display = 'block';
+        document.querySelector('.top-header h1').innerText = 'Vifurushi vya Familia';
+        loadPackages();
     }
 };
 
@@ -648,10 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(uploadForm);
 
             try {
-                const headers = getAuthHeaders();
                 const response = await fetch(API_URL + '/api/products', {
                     method: 'POST',
-                    headers: headers,
                     body: formData
                 });
 
@@ -661,14 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusEl.innerText = '✅ Bidhaa imepakiwa kikamilifu!';
                     statusEl.style.color = 'green';
                     uploadForm.reset();
-                    
-                    // Clear image preview
-                    const previewContainer = document.getElementById('image-preview-container');
-                    const previewImage = document.getElementById('image-preview');
-                    if (previewContainer && previewImage) {
-                        previewImage.src = '';
-                        previewContainer.style.display = 'none';
-                    }
                 } else {
                     statusEl.innerText = '❌ Kosa: ' + result.message;
                     statusEl.style.color = 'red';
@@ -682,19 +303,150 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ── PRODUCTS MANAGEMENT ──────────────────────────────────────────────────────
+let allProducts = [];
+
+async function loadProducts() {
+    const tbody = document.getElementById('products-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);padding:1.5rem;">Inapakia bidhaa...</td></tr>';
+    try {
+        const res = await fetch(API_URL + '/api/products');
+        allProducts = await res.json();
+        renderProductsTable(allProducts);
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:red;text-align:center;">Tatizo la mtandao.</td></tr>';
+    }
+}
+
+window.filterProducts = function() {
+    const cat = document.getElementById('products-filter').value;
+    const filtered = cat === 'all' ? allProducts : allProducts.filter(p => p.category === cat);
+    renderProductsTable(filtered);
+};
+
+function renderProductsTable(products) {
+    const tbody = document.getElementById('products-tbody');
+    const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+    tbody.innerHTML = '';
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);padding:1.5rem;">Hakuna bidhaa za kundi hili.</td></tr>';
+        return;
+    }
+    products.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${p.name}</strong></td>
+            <td style="text-transform:capitalize;">${p.category}</td>
+            <td><strong style="color:#10b981;">${fmt(p.price)}</strong></td>
+            <td><input type="number" id="price-${p.id}" value="${p.price}" min="0" step="50"
+                style="width:110px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
+                background:rgba(255,255,255,0.08);color:#fff;font-size:0.9rem;"></td>
+            <td>
+                <button onclick="updateProductPrice('${p.id}')"
+                    style="padding:0.4rem 0.9rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-right:6px;">
+                    💾 Hifadhi
+                </button>
+                <button onclick="deleteProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}')"
+                    style="padding:0.4rem 0.7rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+                    🗑️
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+window.updateProductPrice = async function(productId) {
+    const newPrice = document.getElementById('price-' + productId).value;
+    if (!newPrice || isNaN(newPrice) || Number(newPrice) < 0) { alert('Tafadhali weka bei sahihi.'); return; }
+    try {
+        const res = await fetch(API_URL + '/api/products/' + productId + '/price', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ price: Number(newPrice) })
+        });
+        if (res.ok) {
+            const p = allProducts.find(p => p.id === productId);
+            if (p) p.price = Number(newPrice);
+            const cat = document.getElementById('products-filter').value;
+            renderProductsTable(cat === 'all' ? allProducts : allProducts.filter(x => x.category === cat));
+            alert('✅ Bei ya bidhaa imebadilishwa kikamilifu!');
+        } else { alert('❌ Imeshindwa kubadilisha bei.'); }
+    } catch (err) { alert('Tatizo la mtandao.'); }
+};
+
+window.deleteProduct = async function(productId, productName) {
+    if (!confirm(`Onyo: Unataka kufuta bidhaa "${productName}" kabisa?`)) return;
+    try {
+        const res = await fetch(API_URL + '/api/products/' + productId, { method: 'DELETE' });
+        if (res.ok) {
+            allProducts = allProducts.filter(p => p.id !== productId);
+            window.filterProducts();
+            alert('✅ Bidhaa imefutwa.');
+        } else { alert('❌ Imeshindwa kufuta bidhaa.'); }
+    } catch (err) { alert('Tatizo la mtandao.'); }
+};
+
+// ── PACKAGES MANAGEMENT ──────────────────────────────────────────────────────
+async function loadPackages() {
+    const grid = document.getElementById('packages-grid');
+    grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);">Inapakia vifurushi...</p>';
+    try {
+        const res = await fetch(API_URL + '/api/packages');
+        const packages = await res.json();
+        grid.innerHTML = '';
+        const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+        packages.forEach(pkg => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:1.4rem;';
+            card.innerHTML = `
+                <h3 style="color:#fff;margin-bottom:0.5rem;font-size:1.05rem;">📦 ${pkg.title}</h3>
+                <p style="color:#10b981;font-weight:700;font-size:1.1rem;margin-bottom:0.8rem;">${fmt(pkg.price)}</p>
+                <ul style="color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;padding-left:1.2rem;">
+                    ${pkg.features.map(f => `<li>${f}</li>`).join('')}
+                </ul>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <label style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Bei Mpya (Tsh):</label>
+                    <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
+                        style="flex:1;min-width:120px;padding:0.4rem 0.7rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
+                        background:rgba(255,255,255,0.08);color:#fff;font-size:0.9rem;">
+                    <button onclick="updatePackagePrice('${pkg.id}')"
+                        style="padding:0.45rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                        💾 Hifadhi Bei
+                    </button>
+                </div>
+                <div id="pkg-msg-${pkg.id}" style="margin-top:0.5rem;font-size:0.82rem;"></div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) { grid.innerHTML = '<p style="color:red;">Tatizo la mtandao.</p>'; }
+}
+
+window.updatePackagePrice = async function(pkgId) {
+    const newPrice = document.getElementById('pkg-price-' + pkgId).value;
+    const msgEl = document.getElementById('pkg-msg-' + pkgId);
+    if (!newPrice || isNaN(newPrice) || Number(newPrice) < 0) {
+        msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Weka bei sahihi.'; return;
+    }
+    try {
+        const res = await fetch(API_URL + '/api/packages/' + pkgId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ price: Number(newPrice) })
+        });
+        if (res.ok) {
+            msgEl.style.color = '#10b981';
+            msgEl.innerText = '✅ Bei imebadilishwa kikamilifu!';
+            setTimeout(() => msgEl.innerText = '', 3000);
+        } else { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Imeshindwa.'; }
+    } catch (err) { msgEl.style.color = '#ef4444'; msgEl.innerText = 'Tatizo la mtandao.'; }
+};
+
 async function loadFeedbacks() {
     const container = document.getElementById('feedback-container');
     container.innerHTML = '<p>Inavuta maoni...</p>';
     try {
-        const response = await fetch(API_URL + '/api/feedback', {
-            headers: getAuthHeaders()
-        });
-        
-        if (response.status === 401 || response.status === 403) {
-            adminLogout();
-            return;
-        }
-
+        const response = await fetch(API_URL + '/api/feedback');
         const feedbacks = await response.json();
 
         if (feedbacks.length === 0) {
@@ -730,6 +482,10 @@ window.printInvoice = function(orderId) {
     
     if (!order) return;
 
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+    };
+
     document.getElementById('inv-order-id').innerText = order.id;
     document.getElementById('inv-date').innerText = `Tarehe: ${order.date}`;
     document.getElementById('inv-name').innerText = order.customer.name;
@@ -738,9 +494,6 @@ window.printInvoice = function(orderId) {
     
     const tbody = document.getElementById('inv-items-body');
     tbody.innerHTML = '';
-    // Compute items subtotal (total minus delivery charge)
-    const deliveryCharge = order.deliveryCharge || 0;
-    const itemsSubtotal = order.total - deliveryCharge;
     order.items.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -750,21 +503,9 @@ window.printInvoice = function(orderId) {
         `;
         tbody.appendChild(tr);
     });
-
-    // Subtotal row
-    document.getElementById('inv-subtotal').innerText = formatCurrency(itemsSubtotal);
-
-    // Delivery charge row
-    const deliveryEl = document.getElementById('inv-delivery');
-    const deliveryLabelEl = document.getElementById('inv-delivery-label');
-    if (deliveryCharge > 0) {
-        deliveryEl.innerText = formatCurrency(deliveryCharge);
-        if (deliveryLabelEl) deliveryLabelEl.innerText = 'Ada ya Usafiri';
-    } else {
-        deliveryEl.innerText = 'Huduma Hii Haifanywa';
-        if (deliveryLabelEl) deliveryLabelEl.innerText = 'Ada ya Usafiri';
-    }
-
+    
+    const deliveryCharge = order.deliveryCharge || 0;
+    document.getElementById('inv-delivery').innerText = formatCurrency(deliveryCharge);
     document.getElementById('inv-total').innerText = formatCurrency(order.total);
     
     // Set payment status
@@ -787,288 +528,3 @@ window.printInvoice = function(orderId) {
     // Trigger Print
     window.print();
 };
-
-// --- Product Management ---
-window.loadProductsList = async function() {
-    const grid = document.getElementById('products-list-grid');
-    const statusEl = document.getElementById('products-list-status');
-    grid.innerHTML = '<p style="color:var(--text-muted)">Inapakia bidhaa...</p>';
-    statusEl.innerText = '';
-
-    try {
-        const response = await fetch(API_URL + '/api/products');
-        const products = await response.json();
-
-        if (!products.length) {
-            grid.innerHTML = '<p>Hakuna bidhaa zozote kwenye mfumo sasa hivi.</p>';
-            return;
-        }
-
-        statusEl.innerText = `Jumla: bidhaa ${products.length}`;
-        grid.innerHTML = '';
-        products.forEach(prod => {
-            const card = document.createElement('div');
-            card.style.cssText = 'background:var(--card-bg,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
-            card.innerHTML = `
-                <img src="${prod.icon}" alt="${prod.name}" style="width:100%; height:120px; object-fit:cover; border-radius:10px; background:#f3f4f6;" onerror="this.src='pics/15.png'">
-                <div style="font-weight:700; font-size:0.9rem; line-height:1.3;">${prod.name}</div>
-                <div style="font-size:0.85rem; color:var(--text-muted,#666);">${prod.category || ''}</div>
-                <div style="font-weight:700; color:var(--primary,#e84393); font-size:1rem;">${formatCurrency(prod.price)}</div>
-                <div style="display:flex; gap:6px; margin-top:4px;">
-                    <button class="edit-prod-btn" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
-                        <ion-icon name="create-outline"></ion-icon> Hariri
-                    </button>
-                    <button class="delete-prod-btn" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
-                        <ion-icon name="trash-outline"></ion-icon>
-                    </button>
-                </div>
-            `;
-            
-            card.querySelector('.edit-prod-btn').addEventListener('click', () => {
-                openEditProductModal(prod.id, prod.name, prod.price, prod.category);
-            });
-            card.querySelector('.delete-prod-btn').addEventListener('click', () => {
-                deleteProduct(prod.id);
-            });
-            
-            grid.appendChild(card);
-        });
-    } catch (err) {
-        grid.innerHTML = '<p style="color:red;">Imeshindwa kupakia bidhaa. Angalia mtandao.</p>';
-    }
-};
-
-window.openEditProductModal = function(id, name, price, category) {
-    document.getElementById('edit-product-id').value = id;
-    document.getElementById('edit-product-name').value = name;
-    document.getElementById('edit-product-price').value = price;
-    document.getElementById('edit-product-category').value = category || 'matunda';
-    document.getElementById('edit-product-status').innerText = '';
-    const modal = document.getElementById('edit-product-modal');
-    modal.style.display = 'flex';
-};
-
-window.closeEditProductModal = function() {
-    document.getElementById('edit-product-modal').style.display = 'none';
-};
-
-window.saveProductEdit = async function() {
-    const id = document.getElementById('edit-product-id').value;
-    const name = document.getElementById('edit-product-name').value.trim();
-    const price = document.getElementById('edit-product-price').value;
-    const category = document.getElementById('edit-product-category').value;
-    const statusEl = document.getElementById('edit-product-status');
-
-    if (!name || !price) {
-        statusEl.innerText = '⚠️ Tafadhali jaza jina na bei.';
-        statusEl.style.color = 'orange';
-        return;
-    }
-
-    statusEl.innerText = 'Inasasisha...';
-    statusEl.style.color = 'var(--text-muted)';
-
-    try {
-        const response = await fetch(API_URL + `/api/products/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ name, price: Number(price), category })
-        });
-        const result = await response.json();
-        if (response.ok) {
-            statusEl.innerText = '✅ Imesasishwa kikamilifu!';
-            statusEl.style.color = 'green';
-            setTimeout(() => {
-                closeEditProductModal();
-                loadProductsList();
-            }, 900);
-        } else {
-            statusEl.innerText = '❌ ' + result.message;
-            statusEl.style.color = 'red';
-        }
-    } catch (err) {
-        statusEl.innerText = '❌ Tatizo la mtandao.';
-        statusEl.style.color = 'red';
-    }
-};
-
-window.deleteProduct = async function(id) {
-    if (!confirm('Je, una uhakika unataka kufuta bidhaa hii kabisa? Huwezi kuirudisha.')) return;
-    try {
-        const response = await fetch(API_URL + `/api/products/${id}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-        if (response.ok) {
-            loadProductsList();
-        } else {
-            const result = await response.json();
-            alert('Kosa: ' + result.message);
-        }
-    } catch (err) {
-        alert('Tatizo la mtandao.');
-    }
-};
-
-// --- Package Management ---
-window.loadPackagesList = async function() {
-    const grid = document.getElementById('packages-list-grid');
-    const statusEl = document.getElementById('packages-list-status');
-    grid.innerHTML = '<p style="color:var(--text-muted)">Inapakia vifurushi...</p>';
-    statusEl.innerText = '';
-
-    try {
-        const response = await fetch(API_URL + '/api/packages', {
-            headers: getAuthHeaders()
-        });
-        const packages = await response.json();
-
-        if (!packages || !packages.length) {
-            grid.innerHTML = '<p>Hakuna vifurushi vyovyote. Bonyeza "Ongeza Kifurushi" kuanza.</p>';
-            return;
-        }
-
-        statusEl.innerText = `Jumla: vifurushi ${packages.length}`;
-        grid.innerHTML = '';
-        packages.forEach(pkg => {
-            const card = document.createElement('div');
-            card.style.cssText = 'background:var(--card-bg,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
-            const imgHtml = pkg.isImage 
-                ? `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%; height:120px; object-fit:cover; border-radius:10px; background:#f3f4f6;" onerror="this.src='pics/15.png'">`
-                : `<div style="font-size: 3rem; text-align: center;">${pkg.icon}</div>`;
-                
-            card.innerHTML = `
-                ${imgHtml}
-                <div style="font-weight:700; font-size:1rem; line-height:1.3;">${pkg.title}</div>
-                <div style="font-weight:700; color:var(--primary,#e84393); font-size:1.1rem;">${formatCurrency(pkg.price)}</div>
-                <div style="font-size:0.85rem; color:var(--text-muted,#666); flex-grow:1;">${pkg.features ? pkg.features.length : 0} bidhaa ndani</div>
-                <div style="display:flex; gap:6px; margin-top:4px;">
-                    <button class="edit-pkg-btn" style="flex:1; padding:7px; border:none; background:var(--primary,#e84393); color:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;">
-                        <ion-icon name="create-outline"></ion-icon> Hariri
-                    </button>
-                    <button class="delete-pkg-btn" style="padding:7px 10px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.82rem;">
-                        <ion-icon name="trash-outline"></ion-icon>
-                    </button>
-                </div>
-            `;
-            
-            card.querySelector('.edit-pkg-btn').addEventListener('click', () => {
-                openEditPackageModal(pkg.id, pkg.title, pkg.price, (pkg.features || []).join('\n'));
-            });
-            card.querySelector('.delete-pkg-btn').addEventListener('click', () => {
-                deletePackage(pkg.id);
-            });
-            
-            grid.appendChild(card);
-        });
-    } catch (err) {
-        grid.innerHTML = '<p style="color:red;">Imeshindwa kupakia vifurushi. Angalia mtandao.</p>';
-    }
-};
-
-window.openAddPackageModal = function() {
-    document.getElementById('package-modal-title').innerHTML = '<ion-icon name="add-circle-outline"></ion-icon> Ongeza Kifurushi';
-    document.getElementById('pkg-id').value = '';
-    document.getElementById('pkg-title').value = '';
-    document.getElementById('pkg-price').value = '';
-    document.getElementById('pkg-image').value = '';
-    document.getElementById('pkg-features').value = '';
-    document.getElementById('pkg-status').innerText = '';
-    
-    document.getElementById('package-modal').style.display = 'flex';
-};
-
-window.openEditPackageModal = function(id, title, price, features) {
-    document.getElementById('package-modal-title').innerHTML = '<ion-icon name="create-outline"></ion-icon> Hariri Kifurushi';
-    document.getElementById('pkg-id').value = id;
-    document.getElementById('pkg-title').value = title;
-    document.getElementById('pkg-price').value = price;
-    document.getElementById('pkg-image').value = '';
-    document.getElementById('pkg-features').value = features || '';
-    document.getElementById('pkg-status').innerText = '';
-    
-    document.getElementById('package-modal').style.display = 'flex';
-};
-
-window.closePackageModal = function() {
-    document.getElementById('package-modal').style.display = 'none';
-};
-
-window.savePackage = async function() {
-    const id = document.getElementById('pkg-id').value;
-    const title = document.getElementById('pkg-title').value.trim();
-    const price = document.getElementById('pkg-price').value;
-    const featuresText = document.getElementById('pkg-features').value.trim();
-    const fileInput = document.getElementById('pkg-image');
-    const statusEl = document.getElementById('pkg-status');
-
-    if (!title || !price) {
-        statusEl.innerText = '⚠️ Tafadhali jaza jina na bei.';
-        statusEl.style.color = 'orange';
-        return;
-    }
-
-    const featuresArray = featuresText.split(/\r?\n/).map(f => f.trim()).filter(f => f.length > 0);
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('price', price);
-    formData.append('features', JSON.stringify(featuresArray));
-    
-    if (fileInput.files[0]) {
-        formData.append('image', fileInput.files[0]);
-    } else if (!id) { // Adding new requires image
-        statusEl.innerText = '⚠️ Tafadhali pakia picha ya kifurushi.';
-        statusEl.style.color = 'orange';
-        return;
-    }
-
-    statusEl.innerText = 'Inahifadhi... tafadhali subiri.';
-    statusEl.style.color = 'var(--text-muted)';
-
-    const url = id ? API_URL + '/api/packages/' + id : API_URL + '/api/packages';
-    const method = id ? 'PATCH' : 'POST';
-
-    try {
-        const response = await fetch(url, {
-            method: method,
-            headers: getAuthHeaders(), // Don't set Content-Type, let browser handle FormData
-            body: formData
-        });
-        
-        const result = await response.json();
-        if (response.ok) {
-            statusEl.innerText = '✅ ' + result.message;
-            statusEl.style.color = 'green';
-            setTimeout(() => {
-                closePackageModal();
-                loadPackagesList();
-            }, 900);
-        } else {
-            statusEl.innerText = '❌ ' + result.message;
-            statusEl.style.color = 'red';
-        }
-    } catch (err) {
-        statusEl.innerText = '❌ Tatizo la mtandao.';
-        statusEl.style.color = 'red';
-    }
-};
-
-window.deletePackage = async function(id) {
-    if (!confirm('Je, una uhakika unataka kufuta kifurushi hiki? Huwezi kukirudisha.')) return;
-    try {
-        const response = await fetch(API_URL + '/api/packages/' + id, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-        if (response.ok) {
-            loadPackagesList();
-        } else {
-            const result = await response.json();
-            alert('Kosa: ' + result.message);
-        }
-    } catch (err) {
-        alert('Tatizo la mtandao.');
-    }
-};
-

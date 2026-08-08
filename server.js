@@ -7,6 +7,7 @@ const path = require('path');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
+const Package = require('./models/Package');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -231,8 +232,55 @@ const initialPackages = [
     }
 ];
 
-app.get('/api/packages', (req, res) => {
-    res.json(initialPackages);
+app.get('/api/packages', async (req, res) => {
+    try {
+        let packages = await Package.find();
+        if (packages.length === 0) {
+            // Auto-seed from initialPackages if DB empty
+            packages = await Package.insertMany(initialPackages);
+        }
+        res.json(packages);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1c. Update a package
+app.patch('/api/packages/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        const pkg = await Package.findOneAndUpdate({ id: id }, updates, { new: true });
+        if (!pkg) return res.status(404).json({ message: 'Kifurushi hakijapatikana.' });
+        res.json({ message: 'Kifurushi kimesasishwa.', package: pkg });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1d. Update product price
+app.patch('/api/products/:id/price', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price } = req.body;
+        const product = await Product.findOneAndUpdate({ id: id }, { price: Number(price) }, { new: true });
+        if (!product) return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        res.json({ message: 'Bei imebadilishwa.', product });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1e. Delete a product
+app.delete('/api/products/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Product.findOneAndDelete({ id: id });
+        if (!result) return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        res.json({ message: 'Bidhaa imefutwa.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
 // 2. Add a new product
