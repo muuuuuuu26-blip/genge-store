@@ -34,6 +34,13 @@ body {
     color: var(--text-main);
     line-height: 1.6;
     overflow-x: hidden;
+    background-image: 
+        linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)),
+        url('pics/13.png');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
 }
 
 html {
@@ -68,9 +75,10 @@ html {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: #C9DB88;
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(201, 219, 136, 0.65);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-img {
@@ -78,7 +86,7 @@ html {
     width: auto;
     object-fit: contain;
     display: block;
-    filter: drop-shadow(0 2px 8px rgba(60, 214, 4, 0.3));
+    filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.3));
     animation: logoSpin 5s ease-in-out infinite;
 }
 
@@ -102,18 +110,18 @@ html {
 }
 
 .nav-links a {
-    color: #0F172A;
+    color: var(--text-main);
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.9rem;
-    padding: 0.45rem 1.1rem;
+    padding: 0.5rem 1.2rem;
     border-radius: 50px;
-    border: 1.5px solid rgba(15, 23, 42, 0.14);
-    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
     transition: var(--transition);
     position: relative;
     letter-spacing: 0.01em;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
 }
 
 .nav-links a::after {
@@ -121,10 +129,10 @@ html {
 }
 
 .nav-links a:hover {
-    color: var(--primary);
+    color: white;
     border-color: var(--primary);
-    background: rgba(16, 185, 129, 0.10);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12), 0 4px 14px rgba(16, 185, 129, 0.15);
+    background: var(--primary);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
     transform: translateY(-2px);
 }
 
