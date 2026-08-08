@@ -2,7 +2,100 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
 // Data
-let preMadePackages = [];
+const preMadePackages = [
+    {
+        id: 'pkg-1',
+        title: 'Starter Pack',
+        price: 55000, // Bei ya makadirio, utabadilisha
+        icon: 'images/namba1.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 5',
+            'Unga wa Sembe Kg 5',
+            'Mafuta Lita 3',
+            'Sukari Kg 2',
+            'Maharage Kg 2',
+            'Vitunguu Kg 1',
+            'Nyanya Kg 2',
+            '<i>Motto: Mahitaji muhimu kwa wiki nzima.</i>'
+        ]
+    },
+    {
+        id: 'pkg-2',
+        title: 'Family Essentials Pack',
+        price: 110000, // Bei ya makadirio
+        icon: 'images/namba2.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 10',
+            'Unga wa Sembe Kg 10',
+            'Mafuta Lita 5',
+            'Sukari Kg 5',
+            'Maharage Kg 5',
+            'Vitunguu Kg 2',
+            'Nyanya Kg 3',
+            'Karoti Kg 2',
+            '<i>Motto: Kila kitu muhimu kwa familia yako.</i>'
+        ]
+    },
+    {
+        id: 'pkg-3',
+        title: 'Family Value Pack',
+        price: 200000, // Bei ya makadirio
+        icon: 'images/namba3.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 15',
+            'Unga (Sembe + Dona) Kg 15',
+            'Mafuta Lita 10',
+            'Sukari Kg 5',
+            'Maharage Kg 5',
+            'Ngano Kg 5',
+            'Nyama ya Ng\'ombe Kg 3',
+            'Kuku Fresh 3',
+            '<i>Motto: Thamani kubwa kwa matumizi makubwa.</i>'
+        ]
+    },
+    {
+        id: 'pkg-4',
+        title: 'Premium Family Pack',
+        price: 320000, // Bei ya makadirio
+        icon: 'images/namba4.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 25',
+            'Unga (Sembe + Dona) Kg 20',
+            'Mafuta Lita 15',
+            'Sukari Kg 10',
+            'Maharage Kg 10',
+            'Ngano Kg 10',
+            'Nyama ya Ng\'ombe Kg 5',
+            'Kuku Fresh 5',
+            'Mayai Tray 2',
+            '<i>Motto: Familia kubwa, mahitaji yote yamekamilika.</i>'
+        ]
+    },
+    {
+        id: 'pkg-5',
+        title: 'Genge Royal Pack',
+        price: 600000, // Bei ya makadirio
+        icon: 'images/namba5.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 50',
+            'Unga (Sembe + Dona) Kg 25',
+            'Mafuta Lita 20',
+            'Sukari Kg 15',
+            'Maharage Kg 15',
+            'Ngano Kg 15',
+            'Nyama ya Ng\'ombe Kg 10',
+            'Kuku Fresh 10',
+            'Mayai Tray 5',
+            'Chumvi Kg 2',
+            '<i>Motto: Mwezi mzima bila wasiwasi wa sokoni.</i>'
+        ]
+    }
+];
 
 // Shop Categories with representative images
 const shopCategories = [
@@ -22,49 +115,20 @@ let customProducts = [];
 let mainCart = [];
 let customBuilderCart = [];
 let customBuilderTotal = 0;
-let currentCategory = 'all';
 
 // Format Currency
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
 };
 
-// Validate Tanzania Phone Number (06..., 07..., 01..., +255..., 255...)
-function isValidTanzaniaPhone(phone) {
-    if (!phone) return false;
-    
-    // Remove spaces, hyphens, and parentheses
-    let clean = phone.replace(/[\s\-\(\)]/g, '');
-    
-    // Normalize country code +255 or 255 to leading 0
-    if (clean.startsWith('+255')) {
-        clean = '0' + clean.slice(4);
-    } else if (clean.startsWith('255')) {
-        clean = '0' + clean.slice(3);
-    }
-    
-    // Must be 10 digits starting with 06, 07, or 01 (standard TZ carriers)
-    const tzRegex = /^0[671]\d{8}$/;
-    if (!tzRegex.test(clean)) {
-        return false;
-    }
-    
-    // Prevent dummy repeated digits like 0700000000, 0711111111, 0000000000
-    const digitsAfterZero = clean.slice(1);
-    if (/^(\d)\1{8}$/.test(digitsAfterZero)) {
-        return false;
-    }
-    
-    return true;
-}
-
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadPackagesFromAPI();
+    renderPreMadePackages();
     renderCategoryTiles('all');
     await loadProductsFromAPI();
     setupEventListeners();
     setupHistoryListeners();
+    setupStkPushListeners();
 });
 
 // ============================================
@@ -126,20 +190,6 @@ async function loadProductsFromAPI() {
     }
 }
 
-async function loadPackagesFromAPI() {
-    try {
-        const res = await fetch(API_URL + '/api/packages');
-        if (res.ok) {
-            preMadePackages = await res.json();
-            renderPreMadePackages();
-        } else {
-            console.error('Failed to fetch packages');
-        }
-    } catch (error) {
-        console.error('Error fetching packages from server:', error);
-    }
-}
-
 // Render Pre-made Packages
 function renderPreMadePackages() {
     const grid = document.getElementById('packages-grid');
@@ -185,7 +235,6 @@ function renderCategoryTiles(activeId) {
         tile.addEventListener('click', () => {
             document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
             tile.classList.add('active');
-            currentCategory = cat.id;
             renderCustomProducts(cat.id);
         });
         container.appendChild(tile);
@@ -212,44 +261,15 @@ function renderCustomProducts(category) {
         const imgHtml = prod.isImage
             ? `<img src="${prod.icon}" alt="${prod.name}" class="prod-card-img" onerror="this.src='pics/15.png'">`
             : `<div class="prod-card-emoji">${prod.icon}</div>`;
-            
-        // Check if item is already in cart/builder depending on screen size
-        let existingItem;
-        if (window.innerWidth <= 768) {
-            existingItem = mainCart.find(item => item.productId === prod.id && item.type === 'product');
-        } else {
-            existingItem = customBuilderCart.find(item => item.id === prod.id);
-        }
-        
-        let actionBtnHtml = '';
-        
-        if (existingItem && existingItem.quantity > 0) {
-            actionBtnHtml = `
-                <div class="prod-qty-controls">
-                    <button class="prod-qty-btn" onclick="removeFromCustomBuilder('${prod.id}')" title="Punguza">
-                        <ion-icon name="remove-outline"></ion-icon>
-                    </button>
-                    <span class="prod-qty-val">${existingItem.quantity}</span>
-                    <button class="prod-qty-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
-                        <ion-icon name="add-outline"></ion-icon>
-                    </button>
-                </div>
-            `;
-        } else {
-            actionBtnHtml = `
-                <button class="prod-add-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
-                    <ion-icon name="add-outline"></ion-icon>
-                </button>
-            `;
-        }
-
         card.innerHTML = `
             <div class="prod-card-img-wrap">${imgHtml}</div>
             <div class="prod-card-body">
                 <div class="prod-card-name">${prod.name}</div>
                 <div class="prod-card-footer">
                     <span class="prod-card-price">${formatCurrency(prod.price)}</span>
-                    ${actionBtnHtml}
+                    <button class="prod-add-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
+                        <ion-icon name="add-outline"></ion-icon>
+                    </button>
                 </div>
             </div>
         `;
@@ -257,100 +277,8 @@ function renderCustomProducts(category) {
     });
 }
 
-// Prepare checkout modal fields, handling normal and reorder checkouts
-function prepareCheckoutFields() {
-    const savedName = localStorage.getItem('genge_customer_name') || '';
-    const savedPhone = localStorage.getItem('genge_customer_phone') || '';
-    const savedLocation = localStorage.getItem('genge_customer_location') || '';
-    
-    const reorderLocGroup = document.getElementById('reorder-location-toggle-group');
-    const sameLocCheckbox = document.getElementById('c-same-location');
-    const locInput = document.getElementById('c-location');
-    const latInput = document.getElementById('c-lat');
-    const lngInput = document.getElementById('c-lng');
-    const locStatus = document.getElementById('location-status');
-    const btnLocation = document.getElementById('btn-get-location');
-
-    // Reset location status and button appearance
-    if (locStatus) locStatus.innerText = '';
-    if (btnLocation) {
-        btnLocation.style.borderColor = "var(--border)";
-        btnLocation.style.color = "var(--text)";
-        btnLocation.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
-    }
-
-    if (window.currentReorder && window.currentReorder.customer) {
-        document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
-        document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
-        locInput.value = window.currentReorder.customer.location || savedLocation;
-        
-        // Show same-location checkbox option for reorders
-        if (reorderLocGroup) reorderLocGroup.style.display = 'block';
-        if (sameLocCheckbox) sameLocCheckbox.checked = true;
-        
-        // Lock location field by default for reorders using previous location
-        locInput.readOnly = true;
-        locInput.style.backgroundColor = '#f3f4f6';
-        locInput.style.cursor = 'not-allowed';
-        
-        // Set previous GPS coordinates if they exist
-        if (window.currentReorder.customer.gps && window.currentReorder.customer.gps.lat && window.currentReorder.customer.gps.lng) {
-            latInput.value = window.currentReorder.customer.gps.lat;
-            lngInput.value = window.currentReorder.customer.gps.lng;
-            if (locStatus) {
-                locStatus.innerText = "✅ Itatumia location/GPS ya oda ya mwanzo.";
-                locStatus.style.color = "green";
-            }
-        } else {
-            latInput.value = '';
-            lngInput.value = '';
-            if (locStatus) {
-                locStatus.innerText = "Oda ya mwanzo haina ramani (GPS). Unaweza kuchukua upya.";
-                locStatus.style.color = "var(--text-muted)";
-            }
-        }
-    } else {
-        document.getElementById('c-name').value = savedName;
-        document.getElementById('c-phone').value = savedPhone;
-        locInput.value = savedLocation;
-        locInput.readOnly = false;
-        locInput.style.backgroundColor = '';
-        locInput.style.cursor = '';
-        
-        if (reorderLocGroup) reorderLocGroup.style.display = 'none';
-        if (sameLocCheckbox) sameLocCheckbox.checked = false;
-        latInput.value = '';
-        lngInput.value = '';
-    }
-}
-
 // Setup Event Listeners
 function setupEventListeners() {
-    
-    // Mobile Menu Toggle
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const navLinks = document.querySelector('.nav-links');
-    if (mobileMenuBtn && navLinks) {
-        mobileMenuBtn.addEventListener('click', () => {
-            navLinks.classList.toggle('active');
-            const icon = mobileMenuBtn.querySelector('ion-icon');
-            if (navLinks.classList.contains('active')) {
-                icon.setAttribute('name', 'close-outline');
-            } else {
-                icon.setAttribute('name', 'grid-outline');
-            }
-        });
-
-        // Close menu when a link is clicked
-        const links = navLinks.querySelectorAll('a');
-        links.forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('active');
-                mobileMenuBtn.querySelector('ion-icon').setAttribute('name', 'grid-outline');
-            });
-        });
-    }
-
     // Cart Sidebar toggle
     document.getElementById('cart-icon').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.add('active');
@@ -360,15 +288,32 @@ function setupEventListeners() {
         document.getElementById('cart-overlay').classList.remove('active');
     });
 
-    // Custom Builder Add to Main Cart (now opens the main cart overlay)
+    // Custom Builder Add to Main Cart
     document.getElementById('add-custom-btn').addEventListener('click', () => {
-        document.getElementById('cart-overlay').classList.add('active');
+        if (customBuilderTotal >= 5000) {
+            addCustomBundleToMainCart();
+        }
     });
 
     // Checkout button
     document.getElementById('checkout-btn').addEventListener('click', () => {
         if (mainCart.length > 0) {
-            prepareCheckoutFields();
+            // Auto-fill inputs if data exists
+            const savedName = localStorage.getItem('genge_customer_name') || '';
+            const savedPhone = localStorage.getItem('genge_customer_phone') || '';
+            const savedLocation = localStorage.getItem('genge_customer_location') || '';
+            
+            // Prioritize current reorder if available, otherwise use localStorage
+            if (window.currentReorder && window.currentReorder.customer) {
+                document.getElementById('c-name').value = window.currentReorder.customer.name || savedName;
+                document.getElementById('c-phone').value = window.currentReorder.customer.phone || savedPhone;
+                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
+            } else {
+                document.getElementById('c-name').value = savedName;
+                document.getElementById('c-phone').value = savedPhone;
+                document.getElementById('c-location').value = savedLocation;
+            }
+
             document.getElementById('checkout-modal').classList.add('active');
         } else {
             showToast('Kapu lako liko wazi!');
@@ -378,113 +323,13 @@ function setupEventListeners() {
     // Close checkout modal
     document.getElementById('close-checkout').addEventListener('click', () => {
         document.getElementById('checkout-modal').classList.remove('active');
-        window.currentReorder = null;
-        prepareCheckoutFields();
     });
-
-    // Close M-Pesa modal (go back to checkout)
-    document.getElementById('close-mpesa').addEventListener('click', () => {
-        document.getElementById('mpesa-modal').classList.remove('active');
-        document.getElementById('checkout-modal').classList.add('active');
-    });
-
-    // Real-time Phone Validation Feedback
-    const cPhoneInput = document.getElementById('c-phone');
-    const phoneMsg = document.getElementById('phone-validation-msg');
-    if (cPhoneInput) {
-        cPhoneInput.addEventListener('input', () => {
-            const val = cPhoneInput.value.trim();
-            if (!val) {
-                cPhoneInput.style.borderColor = '';
-                if (phoneMsg) phoneMsg.style.display = 'none';
-                return;
-            }
-            if (isValidTanzaniaPhone(val)) {
-                cPhoneInput.style.borderColor = '#10B981';
-                if (phoneMsg) {
-                    phoneMsg.innerText = '✅ Namba halali ya simu';
-                    phoneMsg.style.color = '#10B981';
-                    phoneMsg.style.display = 'block';
-                }
-            } else {
-                cPhoneInput.style.borderColor = '#ef4444';
-                if (phoneMsg) {
-                    phoneMsg.innerText = '⚠️ Ingiza namba halali (Mf. 07XXXXXXXX au 06XXXXXXXX)';
-                    phoneMsg.style.color = '#ef4444';
-                    phoneMsg.style.display = 'block';
-                }
-            }
-        });
-    }
-
-    // Handle order submission — validate real phone number first
+    
+    // Handle order submission
     document.getElementById('checkout-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        const pInput = document.getElementById('c-phone');
-        const phoneVal = pInput ? pInput.value.trim() : '';
-
-        if (!isValidTanzaniaPhone(phoneVal)) {
-            showToast('⚠️ Tafadhali ingiza namba halali ya simu ya Tanzania (Mf. 07XXXXXXXX au 06XXXXXXXX) kabla ya kuendelea.');
-            if (pInput) {
-                pInput.focus();
-                pInput.style.borderColor = '#ef4444';
-            }
-            if (phoneMsg) {
-                phoneMsg.innerText = '❌ Unatakiwa kuweka namba halali ya simu (Mf. 07XXXXXXXX au 06XXXXXXXX)';
-                phoneMsg.style.color = '#ef4444';
-                phoneMsg.style.display = 'block';
-            }
-            return;
-        }
-
-        showMpesaModal();
+        submitOrder();
     });
-
-    // Handle Same Location Checkbox
-    const sameLocCheckbox = document.getElementById('c-same-location');
-    if (sameLocCheckbox) {
-        sameLocCheckbox.addEventListener('change', () => {
-            const locInput = document.getElementById('c-location');
-            const latInput = document.getElementById('c-lat');
-            const lngInput = document.getElementById('c-lng');
-            const locStatus = document.getElementById('location-status');
-            const btnLoc = document.getElementById('btn-get-location');
-
-            if (sameLocCheckbox.checked) {
-                if (window.currentReorder && window.currentReorder.customer) {
-                    locInput.value = window.currentReorder.customer.location || '';
-                    locInput.readOnly = true;
-                    locInput.style.backgroundColor = '#f3f4f6';
-                    locInput.style.cursor = 'not-allowed';
-
-                    if (window.currentReorder.customer.gps && window.currentReorder.customer.gps.lat && window.currentReorder.customer.gps.lng) {
-                        latInput.value = window.currentReorder.customer.gps.lat;
-                        lngInput.value = window.currentReorder.customer.gps.lng;
-                        locStatus.innerText = "✅ Itatumia location/GPS ya oda ya mwanzo.";
-                        locStatus.style.color = "green";
-                    } else {
-                        latInput.value = '';
-                        lngInput.value = '';
-                        locStatus.innerText = "Oda ya mwanzo haina ramani (GPS). Unaweza kuchukua upya.";
-                        locStatus.style.color = "var(--text-muted)";
-                    }
-                }
-            } else {
-                locInput.readOnly = false;
-                locInput.style.backgroundColor = '';
-                locInput.style.cursor = '';
-                latInput.value = '';
-                lngInput.value = '';
-                locStatus.innerText = '';
-
-                if (btnLoc) {
-                    btnLoc.style.borderColor = "var(--border)";
-                    btnLoc.style.color = "var(--text)";
-                    btnLoc.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
-                }
-            }
-        });
-    }
 
     // Handle Get Location
     const btnLocation = document.getElementById('btn-get-location');
@@ -494,15 +339,6 @@ function setupEventListeners() {
 
     if (btnLocation) {
         btnLocation.addEventListener('click', () => {
-            // If they click to get current location, they are choosing a new/current spot
-            if (sameLocCheckbox && sameLocCheckbox.checked) {
-                sameLocCheckbox.checked = false;
-                const locInput = document.getElementById('c-location');
-                locInput.readOnly = false;
-                locInput.style.backgroundColor = '';
-                locInput.style.cursor = '';
-            }
-
             if (!navigator.geolocation) {
                 locStatus.innerText = "Kivinjari chako hakikubali kuchukua location.";
                 locStatus.style.color = "red";
@@ -535,25 +371,8 @@ function setupEventListeners() {
     }
 }
 
-// Show M-Pesa Payment Modal
-function showMpesaModal() {
-    // Calculate total from mainCart
-    let totalAmount = 0;
-    mainCart.forEach(item => totalAmount += item.price);
-    const formatted = formatCurrency(totalAmount);
-
-    // Update amount display (only the one element that exists in HTML)
-    const amountEl = document.getElementById('mpesa-amount');
-    if (amountEl) amountEl.innerText = formatted;
-
-    // Close checkout, open mpesa
-    document.getElementById('checkout-modal').classList.remove('active');
-    resetMpesaModal();
-    document.getElementById('mpesa-modal').classList.add('active');
-}
-
 // Submit Order to Server
-async function submitOrder(paymentStatus = 'pending', paymentNetwork = null, keepMpesaModalOpen = true) {
+async function submitOrder() {
     const name = document.getElementById('c-name').value;
     const phone = document.getElementById('c-phone').value;
     const location = document.getElementById('c-location').value;
@@ -563,34 +382,21 @@ async function submitOrder(paymentStatus = 'pending', paymentNetwork = null, kee
     let totalAmount = 0;
     mainCart.forEach(item => totalAmount += item.price);
     
-    // Check same location checkbox
-    const sameLocCheckbox = document.getElementById('c-same-location');
-    const sameLocGroup = document.getElementById('reorder-location-toggle-group');
-    let finalLocation = location;
-    
-    if (sameLocCheckbox && sameLocCheckbox.checked && sameLocGroup && sameLocGroup.style.display !== 'none') {
-        if (!finalLocation.startsWith('[Sehemu ileile]')) {
-            finalLocation = '[Sehemu ileile] ' + finalLocation;
-        }
-    }
-    
     const newOrder = {
         id: 'ORD-' + Date.now(),
         date: new Date().toLocaleString('sw-TZ'),
         customer: { 
             name, 
             phone, 
-            location: finalLocation,
+            location,
             gps: (lat && lng) ? { lat, lng } : null
         },
         items: mainCart,
         deliveryCharge: 0,
-        paymentNetwork: paymentNetwork || window.selectedPaymentNetworkLabel || 'Mobile Money',
-        paymentStatus: paymentStatus,
+        paymentStatus: 'pending',
         total: totalAmount,
         status: 'pending' // pending, accepted, rejected
     };
-    window.lastSubmittedOrderId = newOrder.id;
     
     try {
         const response = await fetch(API_URL + '/api/orders', {
@@ -602,19 +408,15 @@ async function submitOrder(paymentStatus = 'pending', paymentNetwork = null, kee
         });
 
         if (response.ok) {
-            // Save customer info to localStorage for history feature (save original location text without badge)
+            // Save customer info to localStorage for history feature
             localStorage.setItem('genge_customer_name', name);
             localStorage.setItem('genge_customer_phone', phone);
             localStorage.setItem('genge_customer_location', location);
 
-            // Clear cart and reset fields
+            // Clear cart and close modals
             mainCart = [];
-            customBuilderCart = [];
             updateMainCartUI();
             document.getElementById('checkout-form').reset();
-            window.currentReorder = null;
-            prepareCheckoutFields();
-            renderCustomProducts(currentCategory);
             
             // EXPLICITLY clear hidden GPS inputs
             document.getElementById('c-lat').value = '';
@@ -629,17 +431,15 @@ async function submitOrder(paymentStatus = 'pending', paymentNetwork = null, kee
                 btnLocation.innerHTML = '<ion-icon name="location-outline"></ion-icon> Chukua Location Yangu ya Sasa';
             }
 
-            if (!keepMpesaModalOpen) {
-                document.getElementById('mpesa-modal').classList.remove('active');
-            }
             document.getElementById('checkout-modal').classList.remove('active');
             document.getElementById('cart-overlay').classList.remove('active');
             
-            if (paymentStatus === 'paid') {
-                showToast('✅ Asante! Oda yako imetumwa. Tutakufikia hivi karibuni!');
-            } else {
-                showToast('Oda yako imetumwa kwa Admin kikamilifu!');
-            }
+            showToast('Oda yako imetumwa kikamilifu!');
+
+            // Open STK Push Modal to prompt payment immediately
+            setTimeout(() => {
+                openStkPushModal(newOrder.id, newOrder.total, phone);
+            }, 500);
         } else {
             const result = await response.json();
             showToast('Kosa: ' + result.message);
@@ -655,30 +455,6 @@ window.addToCustomBuilder = function(productId) {
     const product = customProducts.find(p => p.id === productId);
     if (!product) return;
 
-    if (window.innerWidth <= 768) {
-        // Mobile behavior: add directly to mainCart
-        const existingItem = mainCart.find(item => item.productId === productId && item.type === 'product');
-        if (existingItem) {
-            existingItem.quantity += 1;
-            existingItem.price = product.price * existingItem.quantity;
-        } else {
-            mainCart.push({
-                cartId: Date.now().toString() + '_' + productId,
-                type: 'product',
-                productId: productId,
-                title: product.name,
-                price: product.price,
-                details: 'Bidhaa',
-                quantity: 1
-            });
-        }
-        updateMainCartUI();
-        renderCustomProducts(currentCategory);
-        showToast(`${product.name} imeongezwa kwenye kapu!`);
-        return;
-    }
-
-    // Desktop behavior (existing custom builder flow)
     const existingItem = customBuilderCart.find(item => item.id === productId);
     if (existingItem) {
         existingItem.quantity += 1;
@@ -687,30 +463,11 @@ window.addToCustomBuilder = function(productId) {
     }
 
     updateCustomBuilderUI();
-    renderCustomProducts(currentCategory);
     showToast(`${product.name} imeongezwa!`);
 };
 
 // Remove/Decrease from Custom Builder
 window.removeFromCustomBuilder = function(productId) {
-    if (window.innerWidth <= 768) {
-        // Mobile behavior: remove/decrease directly in mainCart
-        const existingItem = mainCart.find(item => item.productId === productId && item.type === 'product');
-        if (existingItem) {
-            const product = customProducts.find(p => p.id === productId);
-            if (existingItem.quantity > 1) {
-                existingItem.quantity -= 1;
-                existingItem.price = product.price * existingItem.quantity;
-            } else {
-                mainCart = mainCart.filter(item => !(item.productId === productId && item.type === 'product'));
-            }
-        }
-        updateMainCartUI();
-        renderCustomProducts(currentCategory);
-        return;
-    }
-
-    // Desktop behavior (existing custom builder flow)
     const itemIndex = customBuilderCart.findIndex(item => item.id === productId);
     if (itemIndex > -1) {
         if (customBuilderCart[itemIndex].quantity > 1) {
@@ -720,7 +477,6 @@ window.removeFromCustomBuilder = function(productId) {
         }
     }
     updateCustomBuilderUI();
-    renderCustomProducts(currentCategory);
 };
 
 // Update Custom Builder UI
@@ -765,55 +521,15 @@ function updateCustomBuilderUI() {
     const alert = document.getElementById('min-order-alert');
     
     if (customBuilderTotal >= 5000) {
-        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
         btn.disabled = false;
         alert.className = 'min-order-alert success';
-        alert.innerHTML = 'Kiwango kimefikiwa! Kifurushi kipo tayari kwenye kapu.';
-    } else if (customBuilderTotal > 0) {
-        btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
-        btn.disabled = false;
+        alert.innerHTML = 'Kiwango kimefikiwa! Unaweza kuongeza kwenye kapu.';
+    } else {
+        btn.disabled = true;
         alert.className = 'min-order-alert';
         const remaining = 5000 - customBuilderTotal;
         alert.innerHTML = `Bado ${formatCurrency(remaining)} kufikisha kima cha chini (Tsh 5,000)`;
-    } else {
-        btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
-        btn.disabled = true;
-        alert.className = 'min-order-alert';
-        alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
     }
-
-    // Automatically sync to main cart
-    syncCustomBuilderToMainCart();
-}
-
-function syncCustomBuilderToMainCart() {
-    customBuilderTotal = customBuilderCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const customItemIndex = mainCart.findIndex(item => item.type === 'custom');
-
-    if (customBuilderCart.length === 0) {
-        if (customItemIndex > -1) {
-            mainCart.splice(customItemIndex, 1);
-        }
-    } else {
-        const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
-        
-        const updatedItem = {
-            cartId: customItemIndex > -1 ? mainCart[customItemIndex].cartId : Date.now().toString(),
-            type: 'custom',
-            title: 'Kifurushi Binafsi',
-            price: customBuilderTotal,
-            details: details,
-            quantity: 1
-        };
-
-        if (customItemIndex > -1) {
-            mainCart[customItemIndex] = updatedItem;
-        } else {
-            mainCart.push(updatedItem);
-        }
-    }
-
-    updateMainCartUI();
 }
 
 // Add Pre-made package to Main Cart
@@ -835,32 +551,39 @@ window.addPreMadeToCart = function(pkgId) {
     showToast(`${pkg.title} imeongezwa kwenye kapu!`);
 };
 
+// Add Custom Bundle to Main Cart
+function addCustomBundleToMainCart() {
+    if (customBuilderTotal < 5000) return;
+
+    // Create a string of items
+    const details = customBuilderCart.map(i => `${i.quantity}x ${i.name}`).join(', ');
+
+    const cartItem = {
+        cartId: Date.now().toString(),
+        type: 'custom',
+        title: 'Kifurushi Binafsi',
+        price: customBuilderTotal,
+        details: details,
+        quantity: 1
+    };
+
+    mainCart.push(cartItem);
+    
+    // Clear builder
+    customBuilderCart = [];
+    updateCustomBuilderUI();
+    
+    updateMainCartUI();
+    showToast('Kifurushi chako kimeongezwa kwenye kapu!');
+    
+    // Open sidebar
+    document.getElementById('cart-overlay').classList.add('active');
+}
+
 // Remove from Main Cart
 window.removeFromMainCart = function(cartId) {
-    const item = mainCart.find(i => i.cartId === cartId);
-    if (item && item.type === 'custom') {
-        customBuilderCart = [];
-        // Update total and elements
-        customBuilderTotal = 0;
-        document.getElementById('custom-total').innerText = formatCurrency(0);
-        
-        const container = document.getElementById('custom-cart-items');
-        if (container) container.innerHTML = '<p class="empty-msg">Hujachagua bidhaa yoyote bado.</p>';
-        
-        const btn = document.getElementById('add-custom-btn');
-        const alert = document.getElementById('min-order-alert');
-        if (btn) {
-            btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
-            btn.disabled = true;
-        }
-        if (alert) {
-            alert.className = 'min-order-alert';
-            alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
-        }
-    }
     mainCart = mainCart.filter(item => item.cartId !== cartId);
     updateMainCartUI();
-    renderCustomProducts(currentCategory);
 };
 
 // Update Main Cart UI
@@ -871,29 +594,17 @@ function updateMainCartUI() {
 
     countEl.innerText = mainCart.length;
 
-    const warningEl = document.getElementById('cart-min-warning');
-    const checkoutBtn = document.getElementById('checkout-btn');
-
     if (mainCart.length === 0) {
         container.innerHTML = '<p class="empty-msg">Kapu lako liko wazi.</p>';
         totalEl.innerText = formatCurrency(0);
-        if (warningEl) warningEl.style.display = 'none';
-        if (checkoutBtn) checkoutBtn.disabled = false;
         return;
     }
 
     container.innerHTML = '';
     let total = 0;
-    let hasCustomItems = false;
-    let customTotal = 0;
 
     mainCart.forEach(item => {
         total += item.price;
-        if (item.type === 'custom' || item.type === 'product') {
-            hasCustomItems = true;
-            customTotal += item.price;
-        }
-        
         const el = document.createElement('div');
         el.className = 'cart-package';
         el.innerHTML = `
@@ -908,23 +619,6 @@ function updateMainCartUI() {
     });
 
     totalEl.innerText = formatCurrency(total);
-
-    // Validation warning and button state
-    if (hasCustomItems && customTotal < 5000) {
-        const remaining = 5000 - customTotal;
-        if (warningEl) {
-            if (window.innerWidth <= 768) {
-                warningEl.innerHTML = `⚠️ Kima cha chini cha agizo ni Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
-            } else {
-                warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
-            }
-            warningEl.style.display = 'block';
-        }
-        if (checkoutBtn) checkoutBtn.disabled = true;
-    } else {
-        if (warningEl) warningEl.style.display = 'none';
-        if (checkoutBtn) checkoutBtn.disabled = false;
-    }
 }
 
 // Toast Notification
@@ -1106,81 +800,8 @@ async function fetchOrderHistory(phone) {
 
 function statusLabel(status) {
     if (status === 'accepted') return { text: '✅ Imekubaliwa', cls: 'badge-accepted' };
-    if (status === 'processing') return { text: '📦 Inaandaliwa', cls: 'badge-processing' };
-    if (status === 'shipped') return { text: '🛵 Iko Njiani', cls: 'badge-shipped' };
-    if (status === 'delivered') return { text: '🎉 Imewasilishwa', cls: 'badge-delivered' };
     if (status === 'rejected') return { text: '❌ Imekataliwa', cls: 'badge-rejected' };
     return { text: '⏳ Inasubiri', cls: 'badge-pending' };
-}
-
-// Visual Order Tracking Timeline Generator
-function getTrackingTimelineHtml(order) {
-    const status = order.status || 'pending';
-    
-    if (status === 'rejected') {
-        return `
-            <div class="tracking-timeline rejected-timeline">
-                <div class="timeline-step completed">
-                    <div class="step-icon">🛒</div>
-                    <div class="step-title">Imepokelewa</div>
-                </div>
-                <div class="timeline-line completed-danger"></div>
-                <div class="timeline-step active-danger">
-                    <div class="step-icon">❌</div>
-                    <div class="step-title">Imekataliwa</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    const steps = [
-        { id: 'pending', title: 'Imepokelewa', icon: '🛒' },
-        { id: 'accepted', title: 'Imekubaliwa', icon: '✅' },
-        { id: 'processing', title: 'Inaandaliwa', icon: '📦' },
-        { id: 'shipped', title: 'Iko Njiani', icon: '🛵' },
-        { id: 'delivered', title: 'Imewasilishwa', icon: '🎉' }
-    ];
-    
-    let currentStatusIndex = 0;
-    if (status === 'accepted') currentStatusIndex = 1;
-    else if (status === 'processing') currentStatusIndex = 2;
-    else if (status === 'shipped') currentStatusIndex = 3;
-    else if (status === 'delivered') currentStatusIndex = 4;
-    
-    let html = '<div class="tracking-timeline-wrapper">';
-    html += '<div class="tracking-timeline">';
-    
-    steps.forEach((step, idx) => {
-        let stepClass = '';
-        if (idx < currentStatusIndex) {
-            stepClass = 'completed';
-        } else if (idx === currentStatusIndex) {
-            stepClass = 'active';
-        } else {
-            stepClass = 'upcoming';
-        }
-        
-        html += `
-            <div class="timeline-step ${stepClass}">
-                <div class="step-circle">${step.icon}</div>
-                <div class="step-title">${step.title}</div>
-            </div>
-        `;
-        
-        if (idx < steps.length - 1) {
-            let lineClass = '';
-            if (idx < currentStatusIndex) {
-                lineClass = 'completed';
-            } else {
-                lineClass = 'upcoming';
-            }
-            html += `<div class="timeline-line ${lineClass}"></div>`;
-        }
-    });
-    
-    html += '</div>';
-    html += '</div>';
-    return html;
 }
 
 function renderOrderHistory(orders) {
@@ -1207,18 +828,31 @@ function renderOrderHistory(orders) {
         document.getElementById('last-order-date').textContent  = '🗓 ' + last.date;
         document.getElementById('last-order-total').textContent = formatCurrency(last.total);
 
-        // Inject tracking timeline
-        const trackingEl = document.getElementById('last-order-tracking');
-        if (trackingEl) {
-            trackingEl.innerHTML = getTrackingTimelineHtml(last);
-        }
-
         const itemsEl = document.getElementById('last-order-items');
         itemsEl.innerHTML = last.items.map(i =>
             `<div class="spotlight-item"><ion-icon name="checkmark-circle-outline"></ion-icon> ${i.title} — <em>${i.details || ''}</em></div>`
         ).join('');
 
         document.getElementById('reorder-last-btn').onclick = () => reorderOrder(last);
+
+        // STK Push Button for spotlight if payment is pending
+        let stkSpotlightBtn = document.getElementById('stk-spotlight-btn');
+        if (!stkSpotlightBtn) {
+            stkSpotlightBtn = document.createElement('button');
+            stkSpotlightBtn.id = 'stk-spotlight-btn';
+            stkSpotlightBtn.className = 'stk-spotlight-btn';
+            const spotlightFooter = document.querySelector('.spotlight-footer');
+            if (spotlightFooter) spotlightFooter.appendChild(stkSpotlightBtn);
+        }
+
+        if (last.paymentStatus !== 'paid' && last.status !== 'rejected') {
+            stkSpotlightBtn.style.display = 'inline-flex';
+            stkSpotlightBtn.innerHTML = '<ion-icon name="phone-portrait-outline"></ion-icon> 📲 Lipia kwa Simu (STK Push)';
+            stkSpotlightBtn.onclick = () => openStkPushModal(last.id, last.total, last.customer ? last.customer.phone : '');
+        } else {
+            stkSpotlightBtn.style.display = 'none';
+        }
+
         lastSpotlight.style.display = 'block';
     } else {
         lastSpotlight.style.display = 'none';
@@ -1230,6 +864,14 @@ function renderOrderHistory(orders) {
 
     orders.forEach((order, idx) => {
         const sl = statusLabel(order.status);
+        const isPendingPayment = order.paymentStatus !== 'paid' && order.status !== 'rejected';
+
+        const stkButtonHtml = isPendingPayment 
+            ? `<button class="stk-small-btn" onclick="openStkPushModal('${order.id}', ${order.total}, '${order.customer ? order.customer.phone : ''}')">
+                 <ion-icon name="phone-portrait-outline"></ion-icon> 📲 Lipia kwa Simu
+               </button>`
+            : `<span class="payment-status-badge ${order.paymentStatus === 'paid' ? 'paid' : ''}">${order.paymentStatus === 'paid' ? '💳 Ililipwa' : ''}</span>`;
+
         const card = document.createElement('div');
         card.className = 'history-card glass-panel';
         card.innerHTML = `
@@ -1240,20 +882,17 @@ function renderOrderHistory(orders) {
                 </div>
                 <span class="order-status-badge ${sl.cls}">${sl.text}</span>
             </div>
-            
-            <!-- Past Order Tracking Timeline -->
-            <div class="history-card-tracking-container" style="margin: 15px 0;">
-                ${getTrackingTimelineHtml(order)}
-            </div>
-
             <div class="history-card-items">
                 ${order.items.map(i => `<span class="history-item-chip">${i.title}</span>`).join('')}
             </div>
             <div class="history-card-footer">
                 <span class="history-card-total">${formatCurrency(order.total)}</span>
-                <button class="reorder-small-btn" onclick="reorderOrder(${JSON.stringify(order).replace(/"/g, '&quot;')})">  
-                    <ion-icon name="refresh-outline"></ion-icon> Agiza Tena
-                </button>
+                <div class="history-card-actions">
+                    ${stkButtonHtml}
+                    <button class="reorder-small-btn" onclick="reorderOrder(${JSON.stringify(order).replace(/"/g, '&quot;')})">  
+                        <ion-icon name="refresh-outline"></ion-icon> Agiza Tena
+                    </button>
+                </div>
             </div>
         `;
         listEl.appendChild(card);
@@ -1276,38 +915,8 @@ window.reorderOrder = function(order) {
             details:  item.details || '',
             quantity: item.quantity || 1
         });
-
-        // Restore customBuilderCart from the order if type is custom
-        if (item.type === 'custom') {
-            customBuilderCart = [];
-            const parts = item.details.split(', ');
-            parts.forEach(part => {
-                const match = part.match(/^(\d+)x\s+(.+)$/);
-                if (match) {
-                    const qty = parseInt(match[1], 10);
-                    const name = match[2].trim();
-                    const prod = customProducts.find(p => p.name === name);
-                    if (prod) {
-                        customBuilderCart.push({ ...prod, quantity: qty });
-                    }
-                }
-            });
-            customBuilderTotal = customBuilderCart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-        }
     });
-
-    // If custom items were restored, update the builder UI and product cards
-    if (customBuilderCart.length > 0) {
-        updateCustomBuilderUI();
-        renderCustomProducts(currentCategory);
-    } else {
-        updateMainCartUI();
-    }
-
-    // Save customer info from this order so checkout can pre-fill it
-    if (order.customer) {
-        window.currentReorder = order;
-    }
+    updateMainCartUI();
 
     // Fill popup with item list
     const popupItems = document.getElementById('reorder-popup-items');
@@ -1332,31 +941,11 @@ window.reorderOrder = function(order) {
 
 // Reorder Popup Buttons
 document.addEventListener('DOMContentLoaded', () => {
-    // "Endelea na Malipo" — skip cart sidebar, open checkout modal directly with pre-filled data
+    // "Endelea na Malipo" — open checkout directly
     document.getElementById('reorder-popup-checkout')?.addEventListener('click', () => {
         document.getElementById('reorder-popup').style.display = 'none';
-        closeOrdersPage(); // Close the orders history overlay
-
         if (mainCart.length > 0) {
-            // Pre-fill checkout fields from saved customer data or current reorder
-            const savedName     = localStorage.getItem('genge_customer_name')     || '';
-            const savedPhone    = localStorage.getItem('genge_customer_phone')    || '';
-            const savedLocation = localStorage.getItem('genge_customer_location') || '';
-
-            if (window.currentReorder && window.currentReorder.customer) {
-                document.getElementById('c-name').value     = window.currentReorder.customer.name     || savedName;
-                document.getElementById('c-phone').value    = window.currentReorder.customer.phone    || savedPhone;
-                document.getElementById('c-location').value = window.currentReorder.customer.location || savedLocation;
-            } else {
-                document.getElementById('c-name').value     = savedName;
-                document.getElementById('c-phone').value    = savedPhone;
-                document.getElementById('c-location').value = savedLocation;
-            }
-
-            // Open checkout modal directly (bypass cart sidebar)
-            document.getElementById('checkout-modal').classList.add('active');
-        } else {
-            showToast('Kapu lako liko wazi!');
+            document.getElementById('cart-overlay').classList.add('active');
         }
     });
 
@@ -1377,127 +966,227 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ============================================
+// STK PUSH MANUAL LOGIC
+// ============================================
 
-// =============================================
-// HARAKAPAY STK PUSH PAYMENT FLOW
-// =============================================
-const networkConfig = {
-    vodacom: { label: 'M-Pesa (Vodacom)',   color: '#e60000', emoji: '🔴' },
-    tigo:    { label: 'Tigo Pesa',          color: '#00aaff', emoji: '🔵' },
-    airtel:  { label: 'Airtel Money',       color: '#ff6600', emoji: '🟠' },
-    halotel: { label: 'HaloPesa (Halotel)', color: '#e6005c', emoji: '🔴' }
-};
+let currentStkOrderId = null;
+let currentStkTotal = 0;
+let stkTimerInterval = null;
 
-// Called when user clicks a network button — triggers STK Push automatically
-async function selectNetworkAndPay(network) {
-    window.selectedPaymentNetwork = network;
-    const cfg = networkConfig[network];
-
-    const phoneInput = document.getElementById('c-phone');
-    const phone = (phoneInput && phoneInput.value) ? phoneInput.value : localStorage.getItem('genge_customer_phone');
-
-    if (!phone) {
-        showToast('Tafadhali rudi uweke namba ya simu kwanza.');
-        return;
+function setupStkPushListeners() {
+    const closeBtn = document.getElementById('close-stk-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeStkPushModal);
     }
 
-    let totalAmount = 0;
-    mainCart.forEach(item => totalAmount += item.price);
-
-    if (totalAmount <= 0) {
-        showToast('Kapu lako liko wazi.');
-        return;
+    const triggerBtn = document.getElementById('btn-trigger-stk');
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', triggerManualStkPush);
     }
 
-    // Disable all network buttons to prevent double-click
-    ['vodacom','tigo','airtel','halotel'].forEach(n => {
-        const btn = document.getElementById('net-btn-' + n);
-        if (btn) btn.disabled = true;
+    const resendBtn = document.getElementById('btn-resend-stk');
+    if (resendBtn) {
+        resendBtn.addEventListener('click', triggerManualStkPush);
+    }
+
+    // Provider radios styling toggle
+    const providerCards = document.querySelectorAll('.stk-provider-card');
+    providerCards.forEach(card => {
+        card.addEventListener('click', () => {
+            providerCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            const radio = card.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
     });
 
-    // Switch to step 2 - show loading
-    document.getElementById('mpesa-step-1').style.display = 'none';
-    document.getElementById('mpesa-step-2').style.display = 'block';
-    document.getElementById('stk-loading-state').style.display = 'block';
-    document.getElementById('stk-success-state').style.display = 'none';
-    document.getElementById('stk-error-state').style.display = 'none';
+    // Auto-detect provider based on phone number input
+    const phoneInput = document.getElementById('stk-phone-input');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', (e) => {
+            autoSelectProviderByPhone(e.target.value.trim());
+        });
+    }
+
+    // Close modal clicking outside
+    const stkOverlay = document.getElementById('stk-modal-overlay');
+    if (stkOverlay) {
+        stkOverlay.addEventListener('click', (e) => {
+            if (e.target.id === 'stk-modal-overlay') {
+                closeStkPushModal();
+            }
+        });
+    }
+}
+
+function autoSelectProviderByPhone(phone) {
+    if (!phone) return;
+    const clean = phone.replace(/[\s\-\+]/g, '');
+    let prefix = '';
+    if (clean.startsWith('255')) prefix = clean.slice(3, 5);
+    else if (clean.startsWith('0')) prefix = clean.slice(1, 3);
+    else prefix = clean.slice(0, 2);
+
+    let selectedProvider = '';
+    // Vodacom: 74, 75, 76, 79
+    if (['74', '75', '76', '79'].includes(prefix)) selectedProvider = 'VodaCom M-Pesa';
+    // Tigo: 71, 65, 67, 77
+    else if (['71', '65', '67', '77'].includes(prefix)) selectedProvider = 'Tigo Pesa';
+    // Airtel: 78, 68, 69
+    else if (['78', '68', '69'].includes(prefix)) selectedProvider = 'Airtel Money';
+    // Halotel: 62
+    else if (['62'].includes(prefix)) selectedProvider = 'HaloPesa';
+
+    if (selectedProvider) {
+        const radios = document.querySelectorAll('input[name="stk_provider"]');
+        radios.forEach(radio => {
+            if (radio.value === selectedProvider) {
+                radio.checked = true;
+                const card = radio.closest('.stk-provider-card');
+                if (card) {
+                    document.querySelectorAll('.stk-provider-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                }
+            }
+        });
+    }
+}
+
+window.openStkPushModal = function(orderId, total, phone) {
+    currentStkOrderId = orderId;
+    currentStkTotal = total;
+
+    document.getElementById('stk-order-id-display').textContent = orderId;
+    document.getElementById('stk-amount-display').textContent = formatCurrency(total);
+    document.getElementById('stk-ussd-amount').textContent = formatCurrency(total);
+
+    const inputPhone = document.getElementById('stk-phone-input');
+    const targetPhone = phone || localStorage.getItem('genge_customer_phone') || '';
+    if (inputPhone) {
+        inputPhone.value = targetPhone;
+        autoSelectProviderByPhone(targetPhone);
+    }
+
+    // Hide live status & timer initially
+    const liveStatus = document.getElementById('stk-live-status');
+    if (liveStatus) liveStatus.style.display = 'none';
+    if (stkTimerInterval) clearInterval(stkTimerInterval);
+
+    const modal = document.getElementById('stk-modal-overlay');
+    if (modal) {
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('active'));
+    }
+
+    // Auto trigger STK push immediately so customer receives prompt without clicking extra buttons
+    setTimeout(() => {
+        triggerManualStkPush();
+    }, 400);
+};
+
+window.closeStkPushModal = function() {
+    const modal = document.getElementById('stk-modal-overlay');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    }
+    if (stkTimerInterval) clearInterval(stkTimerInterval);
+};
+
+window.toggleUssdGuide = function() {
+    const body = document.getElementById('stk-ussd-body');
+    const chevron = document.getElementById('ussd-chevron');
+    if (body) {
+        if (body.style.display === 'none' || !body.style.display) {
+            body.style.display = 'block';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        } else {
+            body.style.display = 'none';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+};
+
+async function triggerManualStkPush() {
+    if (!currentStkOrderId) return;
+
+    const phoneInput = document.getElementById('stk-phone-input');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    if (!phone) {
+        showToast('Tafadhali ingiza namba ya simu ya kufanya malipo.');
+        return;
+    }
+
+    const selectedProviderEl = document.querySelector('input[name="stk_provider"]:checked');
+    const provider = selectedProviderEl ? selectedProviderEl.value : 'VodaCom M-Pesa';
+
+    const triggerBtn = document.getElementById('btn-trigger-stk');
+    if (triggerBtn) {
+        triggerBtn.disabled = true;
+        triggerBtn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Inatuma Ombi la PIN...';
+    }
 
     try {
-        // 1. Submit order as 'pending' with the selected network
-        const netLabel = cfg ? cfg.label : network;
-        await submitOrder('pending', netLabel, true);
-
-        // 2. Trigger STK Push via HarakaPay
-        const response = await fetch(API_URL + '/api/payments/stkpush', {
+        const response = await fetch(API_URL + `/api/orders/${currentStkOrderId}/stk-push`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                phone: phone,
-                amount: totalAmount,
-                network: network,
-                orderId: window.lastSubmittedOrderId || ('ORD-' + Date.now())
-            })
+            body: JSON.stringify({ phone, provider })
         });
 
         const data = await response.json();
 
-        // 3. Show success/waiting state
-        document.getElementById('stk-loading-state').style.display = 'none';
-        document.getElementById('stk-success-state').style.display = 'block';
-
-        // Show phone number
-        let displayPhone = phone.replace(/^(\+?255|0)/, '0');
-        if (displayPhone.length > 6) {
-            displayPhone = displayPhone.slice(0,4) + '****' + displayPhone.slice(-3);
+        if (response.ok && data.success) {
+            showToast('✅ STK Push imetumwa! Angalia simu yako kuingiza PIN.');
+            showStkLiveStatus(phone, provider);
+        } else {
+            showToast('⚠️ ' + (data.message || 'Haikufanikiwa kutuma STK Push. Tumia Lipa Namba chini.'));
+            showStkLiveStatus(phone, provider);
+            if (typeof window.toggleUssdGuide === 'function') {
+                const ussdBody = document.getElementById('stk-ussd-body');
+                if (ussdBody && (ussdBody.style.display === 'none' || !ussdBody.style.display)) {
+                    window.toggleUssdGuide();
+                }
+            }
         }
-        document.getElementById('stk-phone-display').textContent = '📱 ' + displayPhone;
-
-        // Show network badge
-        const badge = document.getElementById('stk-network-badge');
-        badge.textContent = cfg.emoji + ' ' + cfg.label;
-        badge.style.cssText = `background:${cfg.color}20; color:${cfg.color}; border:1px solid ${cfg.color}50; display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-top:8px;`;
-
     } catch (err) {
-        console.error('STK Push error:', err);
-        // Even on error, still show success — order is saved
-        document.getElementById('stk-loading-state').style.display = 'none';
-        document.getElementById('stk-success-state').style.display = 'block';
-
-        let displayPhone = phone.replace(/^(\+?255|0)/, '0');
-        if (displayPhone.length > 6) {
-            displayPhone = displayPhone.slice(0,4) + '****' + displayPhone.slice(-3);
+        console.error('STK Push Error:', err);
+        showToast('⚠️ Ombi linachukua muda. Angalia simu yako au tumia Lipa Namba.');
+        showStkLiveStatus(phone, provider);
+        if (typeof window.toggleUssdGuide === 'function') {
+            const ussdBody = document.getElementById('stk-ussd-body');
+            if (ussdBody && (ussdBody.style.display === 'none' || !ussdBody.style.display)) {
+                window.toggleUssdGuide();
+            }
         }
-        document.getElementById('stk-phone-display').textContent = '📱 ' + displayPhone;
-        const badge = document.getElementById('stk-network-badge');
-        badge.textContent = cfg.emoji + ' ' + cfg.label;
-        badge.style.cssText = `background:${cfg.color}20; color:${cfg.color}; border:1px solid ${cfg.color}50; display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-top:8px;`;
+    } finally {
+        if (triggerBtn) {
+            triggerBtn.disabled = false;
+            triggerBtn.innerHTML = '<ion-icon name="send-outline"></ion-icon> Tuma Notification ya PIN Sasa (STK Push)';
+        }
     }
 }
 
-// Keep legacy selectNetwork as alias for compatibility
-function selectNetwork(network) {
-    selectNetworkAndPay(network);
-}
+function showStkLiveStatus(phone, provider) {
+    const liveStatus = document.getElementById('stk-live-status');
+    if (!liveStatus) return;
+    liveStatus.style.display = 'block';
+    
+    document.getElementById('stk-status-title').textContent = `Ombi la PIN Limetumwa! (${provider})`;
+    document.getElementById('stk-status-desc').innerHTML = `Tafadhali angalia simu yako (<strong>${phone}</strong>). Utapokea ujumbe rasmi wa <strong>${provider}</strong> kwenye screen ya simu yako kuweka PIN.`;
 
-function goBackToNetworks() {
-    // Re-enable network buttons
-    ['vodacom','tigo','airtel','halotel'].forEach(n => {
-        const btn = document.getElementById('net-btn-' + n);
-        if (btn) btn.disabled = false;
-    });
-    document.getElementById('mpesa-step-1').style.display = 'block';
-    document.getElementById('mpesa-step-2').style.display = 'none';
-}
+    let seconds = 60;
+    const timerEl = document.getElementById('stk-timer-countdown');
+    if (timerEl) timerEl.textContent = seconds;
 
-// Reset mpesa modal to step 1 when opened
-function resetMpesaModal() {
-    ['vodacom','tigo','airtel','halotel'].forEach(n => {
-        const btn = document.getElementById('net-btn-' + n);
-        if (btn) btn.disabled = false;
-    });
-    document.getElementById('mpesa-step-1').style.display = 'block';
-    document.getElementById('mpesa-step-2').style.display = 'none';
-    document.getElementById('stk-loading-state').style.display = 'block';
-    document.getElementById('stk-success-state').style.display = 'none';
-    document.getElementById('stk-error-state').style.display = 'none';
+    if (stkTimerInterval) clearInterval(stkTimerInterval);
+    stkTimerInterval = setInterval(() => {
+        seconds--;
+        if (timerEl) timerEl.textContent = seconds;
+        if (seconds <= 0) {
+            clearInterval(stkTimerInterval);
+            document.getElementById('stk-status-title').textContent = '⚠️ Bado Hujaweka PIN?';
+            document.getElementById('stk-status-desc').innerHTML = 'Kama notification haikufika au ilipotea, unaweza kubonyeza kitufe hapa chini <strong>Kutuma Tena Push</strong> au tumia <strong>Lipa Namba (USSD)</strong>.';
+        }
+    }, 1000);
 }

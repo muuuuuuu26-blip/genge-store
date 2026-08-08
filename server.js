@@ -440,7 +440,7 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
             });
         }
 
-        // ─── Tuma ombi kwa HarakaPay API ───────────────────────────────
+        // ─── Tuma ombi kwa HarakaPay API (With 8s Timeout) ───────────────
         console.log(`[HARAKAPAY] Inatuma USSD push kwa ${targetPhone} kiasi TZS ${order.total}...`);
 
         const callbackUrl = `${req.protocol}://${req.get('host')}/api/harakapay/webhook`;
@@ -451,17 +451,36 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
         params.append('description', `Malipo ya Oda ${order.id} - GENGE Delivery`);
         params.append('webhook_url', callbackUrl);
 
-        const harakaResponse = await fetch(`${baseUrl}/api/v1/collect`, {
-            method: 'POST',
-            headers: {
-                'X-API-Key': apiKey,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: params
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const harakaText = await harakaResponse.text();
-        console.log('[HARAKAPAY RAW RESPONSE]:', harakaText);
+        let harakaText = '';
+        let harakaResponse;
+
+        try {
+            harakaResponse = await fetch(`${baseUrl}/api/v1/collect`, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            harakaText = await harakaResponse.text();
+            console.log('[HARAKAPAY RAW RESPONSE]:', harakaText);
+        } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+                console.error('[HARAKAPAY TIMEOUT] Ombi limechelewa zaidi ya sekunde 8');
+                return res.status(504).json({
+                    success: false,
+                    message: 'Mtandao wa HarakaPay unachukua muda mrefu kujibu. Angalia simu yako au tumia Lipa Namba (USSD).'
+                });
+            }
+            throw fetchErr;
+        }
 
         let harakaData;
         try {
