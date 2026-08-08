@@ -135,6 +135,106 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
+// 1b. Get all pre-made packages
+const initialPackages = [
+    {
+        id: 'pkg-1',
+        title: 'Starter Pack',
+        price: 55000,
+        icon: 'images/namba1.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 5',
+            'Unga wa Sembe Kg 5',
+            'Mafuta Lita 3',
+            'Sukari Kg 2',
+            'Maharage Kg 2',
+            'Vitunguu Kg 1',
+            'Nyanya Kg 2',
+            '<i>Motto: Mahitaji muhimu kwa wiki nzima.</i>'
+        ]
+    },
+    {
+        id: 'pkg-2',
+        title: 'Family Essentials Pack',
+        price: 110000,
+        icon: 'images/namba2.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 10',
+            'Unga wa Sembe Kg 10',
+            'Mafuta Lita 5',
+            'Sukari Kg 5',
+            'Maharage Kg 5',
+            'Vitunguu Kg 2',
+            'Nyanya Kg 3',
+            'Karoti Kg 2',
+            '<i>Motto: Kila kitu muhimu kwa familia yako.</i>'
+        ]
+    },
+    {
+        id: 'pkg-3',
+        title: 'Family Value Pack',
+        price: 200000,
+        icon: 'images/namba3.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 15',
+            'Unga (Sembe + Dona) Kg 15',
+            'Mafuta Lita 10',
+            'Sukari Kg 5',
+            'Maharage Kg 5',
+            'Ngano Kg 5',
+            'Nyama ya Ng\'ombe Kg 3',
+            'Kuku Fresh 3',
+            '<i>Motto: Thamani kubwa kwa matumizi makubwa.</i>'
+        ]
+    },
+    {
+        id: 'pkg-4',
+        title: 'Premium Family Pack',
+        price: 320000,
+        icon: 'images/namba4.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 25',
+            'Unga (Sembe + Dona) Kg 20',
+            'Mafuta Lita 15',
+            'Sukari Kg 10',
+            'Maharage Kg 10',
+            'Ngano Kg 10',
+            'Nyama ya Ng\'ombe Kg 5',
+            'Kuku Fresh 5',
+            'Mayai Tray 2',
+            '<i>Motto: Familia kubwa, mahitaji yote yamekamilika.</i>'
+        ]
+    },
+    {
+        id: 'pkg-5',
+        title: 'Genge Royal Pack',
+        price: 600000,
+        icon: 'images/namba5.png',
+        isImage: true,
+        features: [
+            'Mchele Kg 50',
+            'Unga (Sembe + Dona) Kg 25',
+            'Mafuta Lita 20',
+            'Sukari Kg 15',
+            'Maharage Kg 15',
+            'Ngano Kg 15',
+            'Nyama ya Ng\'ombe Kg 10',
+            'Kuku Fresh 10',
+            'Mayai Tray 5',
+            'Chumvi Kg 2',
+            '<i>Motto: Mwezi mzima bila wasiwasi wa sokoni.</i>'
+        ]
+    }
+];
+
+app.get('/api/packages', (req, res) => {
+    res.json(initialPackages);
+});
+
 // 2. Add a new product
 app.post('/api/products', upload.single('image'), async (req, res) => {
     try {
@@ -345,22 +445,35 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
 
         const callbackUrl = `${req.protocol}://${req.get('host')}/api/harakapay/webhook`;
 
+        const params = new URLSearchParams();
+        params.append('phone', targetPhone);
+        params.append('amount', order.total);
+        params.append('description', `Malipo ya Oda ${order.id} - GENGE Delivery`);
+        params.append('webhook_url', callbackUrl);
+
         const harakaResponse = await fetch(`${baseUrl}/api/v1/collect`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': apiKey
+                'X-API-Key': apiKey,
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: JSON.stringify({
-                phone: targetPhone,
-                amount: order.total,
-                description: `Malipo ya Oda ${order.id} - GENGE Delivery`,
-                webhook_url: callbackUrl
-            })
+            body: params
         });
 
-        const harakaData = await harakaResponse.json();
-        console.log('[HARAKAPAY RESPONSE]:', harakaData);
+        const harakaText = await harakaResponse.text();
+        console.log('[HARAKAPAY RAW RESPONSE]:', harakaText);
+
+        let harakaData;
+        try {
+            harakaData = JSON.parse(harakaText);
+        } catch (jsonErr) {
+            console.error('[HARAKAPAY JSON PARSE ERROR]:', jsonErr);
+            return res.status(400).json({
+                success: false,
+                message: 'Jibu kutoka HarakaPay si la kueleweka. Jaribu tena baadaye.',
+                raw: harakaText
+            });
+        }
 
         if (harakaData.success) {
             // Hifadhi HarakaPay Order ID kwenye oda yetu
