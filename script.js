@@ -312,17 +312,22 @@ function refreshProductCardStates() {
 // Setup Event Listeners
 function setupEventListeners() {
     // Cart Sidebar toggle
+    const feedbackBtn = document.getElementById('open-feedback-btn');
+
     document.getElementById('cart-icon').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.add('active');
+        if (feedbackBtn) feedbackBtn.style.display = 'none';
     });
     
     document.getElementById('close-cart').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.remove('active');
+        if (feedbackBtn) feedbackBtn.style.display = 'flex';
     });
 
     // Custom Builder Add to Main Cart
     document.getElementById('add-custom-btn').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.add('active');
+        if (feedbackBtn) feedbackBtn.style.display = 'none';
     });
 
     // Checkout button
@@ -353,6 +358,7 @@ function setupEventListeners() {
     // Close checkout modal
     document.getElementById('close-checkout').addEventListener('click', () => {
         document.getElementById('checkout-modal').classList.remove('active');
+        if (feedbackBtn) feedbackBtn.style.display = 'flex';
     });
     
     // Handle order submission
@@ -911,9 +917,12 @@ async function fetchOrderHistory(phone) {
 }
 
 function statusLabel(status) {
+    if (status === 'processing') return { text: '👨‍🍳 Oda Yako Inaandaliwa', cls: 'badge-pending' };
+    if (status === 'in_transit') return { text: '🛵 Oda Ipo Njiani Inakuja', cls: 'badge-pending' };
+    if (status === 'delivered') return { text: '✅ Oda Imefikishwa Kikamilifu', cls: 'badge-accepted' };
+    if (status === 'rejected') return { text: '❌ Oda Imekataliwa', cls: 'badge-rejected' };
     if (status === 'accepted') return { text: '✅ Imekubaliwa', cls: 'badge-accepted' };
-    if (status === 'rejected') return { text: '❌ Imekataliwa', cls: 'badge-rejected' };
-    return { text: '⏳ Inasubiri', cls: 'badge-pending' };
+    return { text: '⏳ Inasubiri Malipo', cls: 'badge-pending' };
 }
 
 function renderOrderHistory(orders) {
