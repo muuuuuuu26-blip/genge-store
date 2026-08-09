@@ -1160,44 +1160,83 @@ footer {
 }
 
 /* ============================================
-   CATEGORY IMAGE TILES
+   CATEGORY IMAGE TILES (Horizontal Swipe Slider)
    ============================================ */
 .categories-tiles-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 14px;
-    margin-bottom: 2.5rem;
-    padding: 0.5rem 0;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 0.2rem 1rem 0.2rem;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.categories-tiles-row::-webkit-scrollbar {
+    height: 4px;
+}
+
+.categories-tiles-row::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.categories-tiles-row::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
 }
 
 .cat-tile {
+    flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 14px 10px;
-    background: rgba(30, 41, 59, 0.7);
-    border: 2px solid transparent;
-    border-radius: 18px;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50px;
     cursor: pointer;
     transition: var(--transition);
     text-align: center;
     backdrop-filter: blur(8px);
+    white-space: nowrap;
 }
 
 @media (hover: hover) {
     .cat-tile:hover {
         border-color: var(--primary);
-        background: rgba(16, 185, 129, 0.08);
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+        background: rgba(16, 185, 129, 0.15);
+        transform: translateY(-2px);
     }
 }
 
 .cat-tile.active {
     border-color: var(--primary);
-    background: rgba(16, 185, 129, 0.15);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.cat-tile-img-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cat-tile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cat-tile-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: inherit;
 }
 
 .cat-tile-img-wrap {
