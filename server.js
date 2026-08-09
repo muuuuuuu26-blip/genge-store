@@ -363,10 +363,11 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-// 6. Get all orders
+// 6. Get all paid orders (For Admin Panel)
 app.get('/api/orders', async (req, res) => {
     try {
-        const orders = await Order.find().sort({ _id: -1 }); // Sort by creation time descending
+        // Return only orders where paymentStatus is 'paid'
+        const orders = await Order.find({ paymentStatus: 'paid' }).sort({ _id: -1 });
         res.json(orders);
     } catch (err) {
         res.status(500).json({ message: err.message });
