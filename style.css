@@ -2889,3 +2889,46 @@ footer {
     font-size: 0.85rem;
 }
 
+/* Floating Feedback Button */
+.feedback-float-btn {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background: linear-gradient(135deg, #10B981, #059669);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.75rem 1.3rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    z-index: 990;
+    transition: var(--transition);
+}
+
+.feedback-float-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+}
+
+/* Hide feedback button automatically when cart overlay or checkout modal is active */
+body:has(.cart-overlay.active) .feedback-float-btn,
+body:has(.checkout-modal-overlay.active) .feedback-float-btn,
+.cart-overlay.active ~ .feedback-float-btn,
+.checkout-modal-overlay.active ~ .feedback-float-btn {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    .feedback-float-btn {
+        bottom: 20px;
+        right: 15px;
+        padding: 0.6rem 1rem;
+        font-size: 0.82rem;
+    }
+}
+
