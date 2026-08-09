@@ -190,11 +190,11 @@
             </section>
 
             <!-- Products Management Section -->
-            <section class="orders-section" id="products-section" style="display:none;">
-                <h2 style="color:#fff;margin-bottom:1rem;">🏷️ Hariri Bei za Bidhaa</h2>
-                <div style="margin-bottom:1rem;">
-                    <label style="color:rgba(255,255,255,0.6);font-size:0.85rem;">Chuja kwa Kundi:</label>
-                    <select id="products-filter" onchange="filterProducts()" style="margin-left:0.5rem;padding:0.4rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;cursor:pointer;">
+            <section class="orders-section" id="products-section" style="display:none;padding:1.2rem;">
+                <h2 style="color:var(--text-main);margin-bottom:1rem;font-size:1.3rem;">🏷️ Hariri Bei za Bidhaa</h2>
+                <div style="margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
+                    <label style="color:var(--text-muted);font-size:0.88rem;font-weight:600;">Chuja kwa Kundi:</label>
+                    <select id="products-filter" onchange="filterProducts()" style="padding:0.45rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);cursor:pointer;font-weight:600;">
                         <option value="all">Zote</option>
                         <option value="matunda">Matunda</option>
                         <option value="mbogamboga">Mbogamboga</option>
@@ -208,6 +208,7 @@
                     <table class="orders-table">
                         <thead>
                             <tr>
+                                <th>Picha</th>
                                 <th>Bidhaa</th>
                                 <th>Kundi</th>
                                 <th>Bei ya Sasa</th>
@@ -217,14 +218,14 @@
                         </thead>
                         <tbody id="products-tbody"></tbody>
                     </table>
-                    <div id="no-products-msg" style="display:none;text-align:center;padding:2rem;color:rgba(255,255,255,0.4);">Hakuna bidhaa.</div>
+                    <div id="no-products-msg" style="display:none;text-align:center;padding:2rem;color:var(--text-muted);">Hakuna bidhaa.</div>
                 </div>
             </section>
 
             <!-- Packages Management Section -->
-            <section class="orders-section" id="packages-section" style="display:none;">
-                <h2 style="color:#fff;margin-bottom:1.2rem;">📦 Simamia Vifurushi vya Familia</h2>
-                <div id="packages-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.2rem;"></div>
+            <section class="orders-section" id="packages-section" style="display:none;padding:1.2rem;">
+                <h2 style="color:var(--text-main);margin-bottom:1.2rem;font-size:1.3rem;">📦 Simamia Vifurushi vya Familia</h2>
+                <div id="packages-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.2rem;"></div>
             </section>
 
         </main>

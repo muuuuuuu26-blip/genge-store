@@ -327,25 +327,39 @@ function renderProductsTable(products) {
     const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
     tbody.innerHTML = '';
     if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);padding:1.5rem;">Hakuna bidhaa za kundi hili.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:1.5rem;">Hakuna bidhaa za kundi hili.</td></tr>';
         return;
     }
     products.forEach(p => {
         const tr = document.createElement('tr');
+        
+        let imgHtml = '';
+        if (p.image) {
+            const imgSrc = p.image.startsWith('http') || p.image.startsWith('/') ? p.image : API_URL + '/' + p.image;
+            imgHtml = `<img src="${imgSrc}" alt="${p.name}" style="width:45px;height:45px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`;
+        } else if (p.isImage && p.icon) {
+            imgHtml = `<img src="${p.icon}" alt="${p.name}" style="width:45px;height:45px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`;
+        } else {
+            imgHtml = `<span style="font-size:1.8rem;">${p.icon || '🥦'}</span>`;
+        }
+
         tr.innerHTML = `
+            <td>${imgHtml}</td>
             <td><strong>${p.name}</strong></td>
-            <td style="text-transform:capitalize;">${p.category}</td>
+            <td style="text-transform:capitalize;">${p.category || 'Mchanganyiko'}</td>
             <td><strong style="color:#10b981;">${fmt(p.price)}</strong></td>
-            <td><input type="number" id="price-${p.id}" value="${p.price}" min="0" step="50"
-                style="width:110px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
-                background:rgba(255,255,255,0.08);color:#fff;font-size:0.9rem;"></td>
+            <td>
+                <input type="number" id="price-${p.id}" value="${p.price}" min="0" step="50"
+                    style="width:110px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid var(--border);
+                    background:var(--bg-main);color:var(--text-main);font-size:0.9rem;font-weight:600;">
+            </td>
             <td>
                 <button onclick="updateProductPrice('${p.id}')"
-                    style="padding:0.4rem 0.9rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-right:6px;">
-                    💾 Hifadhi
+                    style="padding:0.45rem 0.9rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-right:6px;">
+                    💾 Hifadhi Bei
                 </button>
                 <button onclick="deleteProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}')"
-                    style="padding:0.4rem 0.7rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+                    style="padding:0.45rem 0.7rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">
                     🗑️
                 </button>
             </td>
@@ -388,7 +402,7 @@ window.deleteProduct = async function(productId, productName) {
 // ── PACKAGES MANAGEMENT ──────────────────────────────────────────────────────
 async function loadPackages() {
     const grid = document.getElementById('packages-grid');
-    grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);">Inapakia vifurushi...</p>';
+    grid.innerHTML = '<p style="color:var(--text-muted);">Inapakia vifurushi...</p>';
     try {
         const res = await fetch(API_URL + '/api/packages');
         const packages = await res.json();
@@ -396,24 +410,37 @@ async function loadPackages() {
         const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
         packages.forEach(pkg => {
             const card = document.createElement('div');
-            card.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:1.4rem;';
+            card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,0.03);display:flex;flex-direction:column;justify-content:space-between;';
+            
+            let imgHtml = '';
+            if (pkg.isImage && pkg.icon) {
+                imgHtml = `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:0.8rem;">`;
+            } else {
+                imgHtml = `<div style="font-size:3rem;text-align:center;margin-bottom:0.8rem;">📦</div>`;
+            }
+
             card.innerHTML = `
-                <h3 style="color:#fff;margin-bottom:0.5rem;font-size:1.05rem;">📦 ${pkg.title}</h3>
-                <p style="color:#10b981;font-weight:700;font-size:1.1rem;margin-bottom:0.8rem;">${fmt(pkg.price)}</p>
-                <ul style="color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;padding-left:1.2rem;">
-                    ${pkg.features.map(f => `<li>${f}</li>`).join('')}
-                </ul>
-                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                    <label style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Bei Mpya (Tsh):</label>
-                    <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
-                        style="flex:1;min-width:120px;padding:0.4rem 0.7rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
-                        background:rgba(255,255,255,0.08);color:#fff;font-size:0.9rem;">
-                    <button onclick="updatePackagePrice('${pkg.id}')"
-                        style="padding:0.45rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
-                        💾 Hifadhi Bei
-                    </button>
+                <div>
+                    ${imgHtml}
+                    <h3 style="color:var(--text-main);margin-bottom:0.4rem;font-size:1.1rem;font-weight:700;">${pkg.title}</h3>
+                    <p style="color:#10b981;font-weight:800;font-size:1.2rem;margin-bottom:0.8rem;">${fmt(pkg.price)}</p>
+                    <ul style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.2rem;padding-left:1.2rem;line-height:1.5;">
+                        ${pkg.features.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
                 </div>
-                <div id="pkg-msg-${pkg.id}" style="margin-top:0.5rem;font-size:0.82rem;"></div>
+                <div>
+                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                        <label style="color:var(--text-muted);font-size:0.82rem;font-weight:600;">Bei Mpya (Tsh):</label>
+                        <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
+                            style="flex:1;min-width:110px;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);
+                            background:var(--bg-main);color:var(--text-main);font-size:0.9rem;font-weight:600;">
+                        <button onclick="updatePackagePrice('${pkg.id}')"
+                            style="padding:0.45rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                            💾 Hifadhi Bei
+                        </button>
+                    </div>
+                    <div id="pkg-msg-${pkg.id}" style="margin-top:0.5rem;font-size:0.82rem;"></div>
+                </div>
             `;
             grid.appendChild(card);
         });
