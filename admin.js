@@ -103,34 +103,32 @@ function renderOrdersTable(orders) {
             paymentBadge = '<span class="badge payment-pending">⏳ Inasubiri</span>';
         }
         
-        if (order.status === 'pending') {
-            statusBadge = '<span class="badge pending">Nasubiri</span>';
-            actionButtons = `
-                <div class="actions">
-                    <button class="btn-accept" onclick="updateOrderStatus('${order.id}', 'accepted')">Kubali</button>
-                    <button class="btn-reject" onclick="updateOrderStatus('${order.id}', 'rejected')">Kataa</button>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
-                </div>
-            `;
-        } else if (order.status === 'accepted') {
-            statusBadge = '<span class="badge accepted">Imekubaliwa</span>';
-            actionButtons = `
-                <div class="actions">
-                    <em>Imekamilika</em>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
-                </div>
-            `;
-        } else if (order.status === 'rejected') {
-            statusBadge = '<span class="badge rejected">Imekataliwa</span>';
-            actionButtons = `
-                <div class="actions">
-                    <em>Imekataliwa</em>
-                    <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
-                    <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
-                </div>
-            `;
+        // Status Selector for Admin Control
+        const currentStatus = order.status || 'pending';
+        actionButtons = `
+            <div class="actions" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+                <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:0.4rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(15,23,42,0.9);color:#fff;font-size:0.85rem;cursor:pointer;">
+                    <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>⏳ Inasubiri Malipo</option>
+                    <option value="processing" ${currentStatus === 'processing' ? 'selected' : ''}>👨‍🍳 Inaandaliwa (Processing)</option>
+                    <option value="in_transit" ${currentStatus === 'in_transit' ? 'selected' : ''}>🛵 Ipo Njiani (In-Transit)</option>
+                    <option value="delivered" ${currentStatus === 'delivered' ? 'selected' : ''}>✅ Imefikishwa (Delivered)</option>
+                    <option value="rejected" ${currentStatus === 'rejected' ? 'selected' : ''}>❌ Imekataliwa (Cancelled)</option>
+                </select>
+                <button class="btn-delete" onclick="deleteOrder('${order.id}')" title="Futa Oda Kabisa">🗑️</button>
+                <button class="btn-print" onclick="printInvoice('${order.id}')" title="Print Invoice">🖨️</button>
+            </div>
+        `;
+        
+        if (currentStatus === 'processing') {
+            statusBadge = '<span class="badge pending" style="background:#3b82f6;color:#fff;">👨‍🍳 Inaandaliwa</span>';
+        } else if (currentStatus === 'in_transit') {
+            statusBadge = '<span class="badge pending" style="background:#f59e0b;color:#fff;">🛵 Ipo Njiani</span>';
+        } else if (currentStatus === 'delivered') {
+            statusBadge = '<span class="badge accepted">✅ Imefikishwa</span>';
+        } else if (currentStatus === 'rejected') {
+            statusBadge = '<span class="badge rejected">❌ Imekataliwa</span>';
+        } else {
+            statusBadge = '<span class="badge pending">⏳ Inasubiri</span>';
         }
         
         const formatCurrency = (amount) => {
