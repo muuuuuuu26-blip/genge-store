@@ -567,21 +567,23 @@ window.printInvoice = function(orderId) {
     document.getElementById('inv-delivery').innerText = formatCurrency(deliveryCharge);
     document.getElementById('inv-total').innerText = formatCurrency(order.total);
     
-    // Set payment status
+    // Set payment status safely
     const paymentStatusEl = document.getElementById('inv-payment-status');
-    const paymentStatus = order.paymentStatus || 'pending';
-    if (paymentStatus === 'paid') {
-        paymentStatusEl.innerText = '✅ ILILIPWA';
-        paymentStatusEl.style.backgroundColor = '#D4EDDA';
-        paymentStatusEl.style.color = '#155724';
-    } else if (paymentStatus === 'failed') {
-        paymentStatusEl.innerText = '❌ HAIKUSURF';
-        paymentStatusEl.style.backgroundColor = '#F8D7DA';
-        paymentStatusEl.style.color = '#721C24';
-    } else {
-        paymentStatusEl.innerText = '⏳ INASUBIRI MALIPO';
-        paymentStatusEl.style.backgroundColor = '#FFF3CD';
-        paymentStatusEl.style.color = '#856404';
+    if (paymentStatusEl) {
+        const paymentStatus = order.paymentStatus || 'pending';
+        if (paymentStatus === 'paid') {
+            paymentStatusEl.innerText = '✅ ILILIPWA';
+            paymentStatusEl.style.backgroundColor = '#D4EDDA';
+            paymentStatusEl.style.color = '#155724';
+        } else if (paymentStatus === 'failed') {
+            paymentStatusEl.innerText = '❌ HAIKUSURF';
+            paymentStatusEl.style.backgroundColor = '#F8D7DA';
+            paymentStatusEl.style.color = '#721C24';
+        } else {
+            paymentStatusEl.innerText = '⏳ INASUBIRI MALIPO';
+            paymentStatusEl.style.backgroundColor = '#FFF3CD';
+            paymentStatusEl.style.color = '#856404';
+        }
     }
 
     // Trigger Print
