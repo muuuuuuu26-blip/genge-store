@@ -338,25 +338,39 @@ function renderProductsTable(products) {
             const imgSrc = p.image.startsWith('http') || p.image.startsWith('/') ? p.image : API_URL + '/' + p.image;
             imgHtml = `<img src="${imgSrc}" alt="${p.name}" style="width:45px;height:45px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`;
         } else if (p.isImage && p.icon) {
-            imgHtml = `<img src="${p.icon}" alt="${p.name}" style="width:45px;height:45px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`;
+            imgHtml = `<img src="${pkgIcon(p)}" alt="${p.name}" style="width:45px;height:45px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`;
         } else {
             imgHtml = `<span style="font-size:1.8rem;">${p.icon || '🥦'}</span>`;
         }
 
         tr.innerHTML = `
             <td>${imgHtml}</td>
-            <td><strong>${p.name}</strong></td>
-            <td style="text-transform:capitalize;">${p.category || 'Mchanganyiko'}</td>
-            <td><strong style="color:#10b981;">${fmt(p.price)}</strong></td>
             <td>
-                <input type="number" id="price-${p.id}" value="${p.price}" min="0" step="50"
-                    style="width:110px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid var(--border);
+                <input type="text" id="name-${p.id}" value="${p.name.replace(/"/g, '&quot;')}"
+                    style="width:100%;min-width:130px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid var(--border);
                     background:var(--bg-main);color:var(--text-main);font-size:0.9rem;font-weight:600;">
             </td>
             <td>
-                <button onclick="updateProductPrice('${p.id}')"
+                <select id="cat-${p.id}" style="padding:0.4rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.85rem;">
+                    <option value="matunda" ${p.category === 'matunda' ? 'selected' : ''}>Matunda</option>
+                    <option value="mbogamboga" ${p.category === 'mbogamboga' ? 'selected' : ''}>Mbogamboga</option>
+                    <option value="mafuta" ${p.category === 'mafuta' ? 'selected' : ''}>Mafuta</option>
+                    <option value="nyama" ${p.category === 'nyama' ? 'selected' : ''}>Nyama</option>
+                    <option value="samaki" ${p.category === 'samaki' ? 'selected' : ''}>Samaki</option>
+                    <option value="nafaka" ${p.category === 'nafaka' ? 'selected' : ''}>Nafaka</option>
+                    <option value="vinywaji" ${p.category === 'vinywaji' ? 'selected' : ''}>Vinywaji</option>
+                </select>
+            </td>
+            <td><strong style="color:#10b981;">${fmt(p.price)}</strong></td>
+            <td>
+                <input type="number" id="price-${p.id}" value="${p.price}" min="0" step="50"
+                    style="width:100px;padding:0.4rem 0.6rem;border-radius:8px;border:1px solid var(--border);
+                    background:var(--bg-main);color:var(--text-main);font-size:0.9rem;font-weight:600;">
+            </td>
+            <td>
+                <button onclick="updateFullProduct('${p.id}')"
                     style="padding:0.45rem 0.9rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-right:6px;">
-                    💾 Hifadhi Bei
+                    💾 Hifadhi Taarifa
                 </button>
                 <button onclick="deleteProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}')"
                     style="padding:0.45rem 0.7rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">
@@ -368,24 +382,31 @@ function renderProductsTable(products) {
     });
 }
 
-window.updateProductPrice = async function(productId) {
+function pkgIcon(p) { return p.icon; }
+
+window.updateFullProduct = async function(productId) {
+    const newName = document.getElementById('name-' + productId).value.trim();
+    const newCat = document.getElementById('cat-' + productId).value;
     const newPrice = document.getElementById('price-' + productId).value;
+
+    if (!newName) { alert('Tafadhali weka jina la bidhaa.'); return; }
     if (!newPrice || isNaN(newPrice) || Number(newPrice) < 0) { alert('Tafadhali weka bei sahihi.'); return; }
+
     try {
-        const res = await fetch(API_URL + '/api/products/' + productId + '/price', {
-            method: 'PATCH',
+        const res = await fetch(API_URL + '/api/products/' + productId, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ price: Number(newPrice) })
+            body: JSON.stringify({ name: newName, category: newCat, price: Number(newPrice) })
         });
         if (res.ok) {
             const p = allProducts.find(p => p.id === productId);
-            if (p) p.price = Number(newPrice);
-            const cat = document.getElementById('products-filter').value;
-            renderProductsTable(cat === 'all' ? allProducts : allProducts.filter(x => x.category === cat));
-            alert('✅ Bei ya bidhaa imebadilishwa kikamilifu!');
-        } else { alert('❌ Imeshindwa kubadilisha bei.'); }
+            if (p) { p.name = newName; p.category = newCat; p.price = Number(newPrice); }
+            alert('✅ Taarifa za bidhaa zimehifadhiwa kikamilifu!');
+        } else { alert('❌ Imeshindwa kuhifadhi taarifa za bidhaa.'); }
     } catch (err) { alert('Tatizo la mtandao.'); }
 };
+
+window.updateProductPrice = window.updateFullProduct;
 
 window.deleteProduct = async function(productId, productName) {
     if (!confirm(`Onyo: Unataka kufuta bidhaa "${productName}" kabisa?`)) return;
@@ -410,36 +431,38 @@ async function loadPackages() {
         const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
         packages.forEach(pkg => {
             const card = document.createElement('div');
-            card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,0.03);display:flex;flex-direction:column;justify-content:space-between;';
+            card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,0.03);display:flex;flex-direction:column;justify-content:space-between;gap:1rem;';
             
             let imgHtml = '';
             if (pkg.isImage && pkg.icon) {
-                imgHtml = `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:0.8rem;">`;
+                imgHtml = `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:0.5rem;">`;
             } else {
-                imgHtml = `<div style="font-size:3rem;text-align:center;margin-bottom:0.8rem;">📦</div>`;
+                imgHtml = `<div style="font-size:2.8rem;text-align:center;margin-bottom:0.5rem;">📦</div>`;
             }
+
+            const featuresText = pkg.features ? pkg.features.join('\n') : '';
 
             card.innerHTML = `
                 <div>
                     ${imgHtml}
-                    <h3 style="color:var(--text-main);margin-bottom:0.4rem;font-size:1.1rem;font-weight:700;">${pkg.title}</h3>
-                    <p style="color:#10b981;font-weight:800;font-size:1.2rem;margin-bottom:0.8rem;">${fmt(pkg.price)}</p>
-                    <ul style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.2rem;padding-left:1.2rem;line-height:1.5;">
-                        ${pkg.features.map(f => `<li>${f}</li>`).join('')}
-                    </ul>
+                    <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Jina la Kifurushi:</label>
+                    <input type="text" id="pkg-title-${pkg.id}" value="${pkg.title.replace(/"/g, '&quot;')}"
+                        style="width:100%;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;">
+
+                    <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bei (Tsh):</label>
+                    <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
+                        style="width:100%;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:#10b981;font-size:1.1rem;font-weight:800;margin-bottom:0.8rem;">
+
+                    <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bidhaa za Ndani (Kila moja kwenye mstari mpya):</label>
+                    <textarea id="pkg-features-${pkg.id}" rows="5"
+                        style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.85rem;line-height:1.4;resize:vertical;">${featuresText}</textarea>
                 </div>
                 <div>
-                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                        <label style="color:var(--text-muted);font-size:0.82rem;font-weight:600;">Bei Mpya (Tsh):</label>
-                        <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
-                            style="flex:1;min-width:110px;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);
-                            background:var(--bg-main);color:var(--text-main);font-size:0.9rem;font-weight:600;">
-                        <button onclick="updatePackagePrice('${pkg.id}')"
-                            style="padding:0.45rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
-                            💾 Hifadhi Bei
-                        </button>
-                    </div>
-                    <div id="pkg-msg-${pkg.id}" style="margin-top:0.5rem;font-size:0.82rem;"></div>
+                    <button onclick="updateFullPackage('${pkg.id}')"
+                        style="width:100%;padding:0.6rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.92rem;">
+                        💾 Hifadhi Taarifa Zote
+                    </button>
+                    <div id="pkg-msg-${pkg.id}" style="margin-top:0.4rem;font-size:0.82rem;text-align:center;"></div>
                 </div>
             `;
             grid.appendChild(card);
@@ -447,25 +470,36 @@ async function loadPackages() {
     } catch (err) { grid.innerHTML = '<p style="color:red;">Tatizo la mtandao.</p>'; }
 }
 
-window.updatePackagePrice = async function(pkgId) {
+window.updateFullPackage = async function(pkgId) {
+    const newTitle = document.getElementById('pkg-title-' + pkgId).value.trim();
     const newPrice = document.getElementById('pkg-price-' + pkgId).value;
+    const featuresRaw = document.getElementById('pkg-features-' + pkgId).value;
     const msgEl = document.getElementById('pkg-msg-' + pkgId);
-    if (!newPrice || isNaN(newPrice) || Number(newPrice) < 0) {
-        msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Weka bei sahihi.'; return;
-    }
+
+    if (!newTitle) { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Weka jina la kifurushi.'; return; }
+    if (!newPrice || isNaN(newPrice) || Number(newPrice) < 0) { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Weka bei sahihi.'; return; }
+
+    const newFeatures = featuresRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
     try {
         const res = await fetch(API_URL + '/api/packages/' + pkgId, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ price: Number(newPrice) })
+            body: JSON.stringify({
+                title: newTitle,
+                price: Number(newPrice),
+                features: newFeatures
+            })
         });
         if (res.ok) {
             msgEl.style.color = '#10b981';
-            msgEl.innerText = '✅ Bei imebadilishwa kikamilifu!';
-            setTimeout(() => msgEl.innerText = '', 3000);
-        } else { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Imeshindwa.'; }
+            msgEl.innerText = '✅ Taarifa za kifurushi zimesasishwa kikamilifu!';
+            setTimeout(() => msgEl.innerText = '', 3500);
+        } else { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Imeshindwa kubadilisha.'; }
     } catch (err) { msgEl.style.color = '#ef4444'; msgEl.innerText = 'Tatizo la mtandao.'; }
 };
+
+window.updatePackagePrice = window.updateFullPackage;
 
 async function loadFeedbacks() {
     const container = document.getElementById('feedback-container');
