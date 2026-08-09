@@ -725,8 +725,11 @@ function updateMainCartUI() {
 
     totalEl.innerText = formatCurrency(total);
 
-    // Validation warning and button state
-    if (hasCustomItems && customTotal < 5000) {
+    // Check if cart has any pre-made package
+    const hasPremadePackage = mainCart.some(item => item.type === 'premade');
+
+    // Validation: enforce Tsh 5,000 minimum ONLY for custom/product-only orders
+    if (!hasPremadePackage && hasCustomItems && customTotal < 5000) {
         const remaining = 5000 - customTotal;
         if (warningEl) {
             warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
