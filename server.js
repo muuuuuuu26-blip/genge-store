@@ -258,7 +258,24 @@ app.patch('/api/packages/:id', async (req, res) => {
     }
 });
 
-// 1d. Update product price
+// 1d. Update product full details (Name, Category, Price)
+app.put('/api/products/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, category, price } = req.body;
+        const product = await Product.findOneAndUpdate(
+            { id: id },
+            { name, category, price: Number(price) },
+            { new: true }
+        );
+        if (!product) return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        res.json({ message: 'Taarifa za bidhaa zimesasishwa.', product });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1d-2. Update product price
 app.patch('/api/products/:id/price', async (req, res) => {
     try {
         const { id } = req.params;
