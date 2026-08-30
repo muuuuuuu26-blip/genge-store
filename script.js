@@ -634,7 +634,7 @@ function updateCustomBuilderUI() {
     const btn = document.getElementById('add-custom-btn');
     const alert = document.getElementById('min-order-alert');
     
-    if (customBuilderTotal >= 5000) {
+    if (customBuilderTotal >= 10000) {
         btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
         btn.disabled = false;
         alert.className = 'min-order-alert success';
@@ -643,13 +643,13 @@ function updateCustomBuilderUI() {
         btn.innerHTML = 'Fungua Kapu na Ulipie <ion-icon name="arrow-forward-outline"></ion-icon>';
         btn.disabled = false;
         alert.className = 'min-order-alert';
-        const remaining = 5000 - customBuilderTotal;
-        alert.innerHTML = `Bado ${formatCurrency(remaining)} kufikisha kima cha chini (Tsh 5,000)`;
+        const remaining = 10000 - customBuilderTotal;
+        alert.innerHTML = `Bado ${formatCurrency(remaining)} kufikisha kima cha chini (Tsh 10,000)`;
     } else {
         btn.innerHTML = 'Weka Kifurushi Kwenye Kapu';
         btn.disabled = true;
         alert.className = 'min-order-alert';
-        alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
+        alert.innerHTML = 'Bado Tsh 10,000/= kufikisha kima cha chini';
     }
 
     // Automatically sync to main cart
@@ -724,7 +724,7 @@ window.removeFromMainCart = function(cartId) {
         }
         if (alert) {
             alert.className = 'min-order-alert';
-            alert.innerHTML = 'Bado Tsh 5,000/= kufikisha kima cha chini';
+            alert.innerHTML = 'Bado Tsh 10,000/= kufikisha kima cha chini';
         }
     }
     mainCart = mainCart.filter(item => item.cartId !== cartId);
@@ -781,11 +781,11 @@ function updateMainCartUI() {
     // Check if cart has any pre-made package
     const hasPremadePackage = mainCart.some(item => item.type === 'premade');
 
-    // Validation: enforce Tsh 5,000 minimum ONLY for custom/product-only orders
-    if (!hasPremadePackage && hasCustomItems && customTotal < 5000) {
-        const remaining = 5000 - customTotal;
+    // Validation: enforce Tsh 10,000 minimum ONLY for custom/product-only orders
+    if (!hasPremadePackage && hasCustomItems && customTotal < 10000) {
+        const remaining = 10000 - customTotal;
         if (warningEl) {
-            warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 5,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
+            warningEl.innerHTML = `⚠️ Kifurushi chako binafsi hakijafikia Tsh 10,000. Bado Tsh ${formatCurrency(remaining)} ili kuagiza.`;
             warningEl.style.display = 'block';
         }
         if (checkoutBtn) checkoutBtn.disabled = true;
