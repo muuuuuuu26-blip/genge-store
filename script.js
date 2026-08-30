@@ -311,13 +311,19 @@ function refreshProductCardStates() {
 
 // Setup Event Listeners
 function setupEventListeners() {
-    // Auto hide / reveal header navigation bar on scroll
+    // Auto hide / reveal header navigation bar on scroll (Mobile only)
     const header = document.querySelector('.header');
     if (header) {
         let lastScrollY = window.scrollY;
         const scrollThreshold = 8;
 
         window.addEventListener('scroll', () => {
+            // Hufanya kazi kwenye simu tu (skrini za pixels 768 au chini)
+            if (window.innerWidth > 768) {
+                header.classList.remove('header-hidden');
+                return;
+            }
+
             const currentScrollY = window.scrollY;
 
             if (currentScrollY <= 30) {
@@ -331,15 +337,21 @@ function setupEventListeners() {
             }
 
             if (currentScrollY > lastScrollY) {
-                // Scrolling down -> hide navigation bar
+                // Scrolling down -> hide navigation bar on mobile
                 header.classList.add('header-hidden');
             } else {
-                // Scrolling up -> show navigation bar
+                // Scrolling up -> show navigation bar on mobile
                 header.classList.remove('header-hidden');
             }
 
             lastScrollY = currentScrollY;
         }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                header.classList.remove('header-hidden');
+            }
+        });
     }
 
     // Cart Sidebar toggle

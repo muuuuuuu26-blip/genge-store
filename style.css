@@ -79,12 +79,6 @@ html {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
-}
-
-.header.header-hidden {
-    transform: translateY(-100%);
 }
 
 .logo-img {
@@ -1681,6 +1675,12 @@ footer {
     .header {
         flex-wrap: wrap;
         padding: 1rem 5%;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: transform;
+    }
+    
+    .header.header-hidden {
+        transform: translateY(-100%);
     }
     
     .nav-links {
