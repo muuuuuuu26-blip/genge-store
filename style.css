@@ -83,9 +83,8 @@ html {
 
 .logo-img {
     height: 55px;
-    width: 55px;
-    object-fit: cover;
-    border-radius: 50%;
+    width: auto;
+    object-fit: contain;
     display: block;
     filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.3));
     animation: logoSpin 5s ease-in-out infinite;
