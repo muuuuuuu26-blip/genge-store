@@ -354,6 +354,16 @@ function setupEventListeners() {
         });
     }
 
+    // Terms modal overlay click listener
+    const termsOverlay = document.getElementById('terms-modal-overlay');
+    if (termsOverlay) {
+        termsOverlay.addEventListener('click', (e) => {
+            if (e.target === termsOverlay) {
+                closeTermsModal();
+            }
+        });
+    }
+
     // Cart Sidebar toggle
     const feedbackBtn = document.getElementById('open-feedback-btn');
 
@@ -1359,3 +1369,21 @@ function showStkLiveStatus(phone, provider) {
         }
     }, 1000);
 }
+
+// Terms & Conditions Modal Functions
+function openTermsModal() {
+    const modal = document.getElementById('terms-modal-overlay');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeTermsModal() {
+    const modal = document.getElementById('terms-modal-overlay');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+window.openTermsModal = openTermsModal;
+window.closeTermsModal = closeTermsModal;

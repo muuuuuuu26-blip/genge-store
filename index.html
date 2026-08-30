@@ -35,6 +35,7 @@
             <a href="#" id="open-orders-page" onclick="openOrdersPage(); return false;">Oda Zangu</a>
             <a href="#kuhusu-sisi">Kuhusu Sisi</a>
             <a href="#wasiliana-nasi">Mawasiliano</a>
+            <a href="#" onclick="openTermsModal(); return false;">Vigezo & Masharti</a>
         </nav>
         <div class="cart-icon" id="cart-icon">
             <ion-icon name="cart-outline"></ion-icon>
@@ -180,6 +181,7 @@
                 <a href="#vifurushi">Vifurushi</a>
                 <a href="#custom-builder">Tengeneza Chako</a>
                 <a href="#kuhusu-sisi">Kuhusu Sisi</a>
+                <a href="#" onclick="openTermsModal(); return false;">Vigezo & Masharti</a>
             </div>
         </div>
         <div class="footer-bottom">
@@ -569,7 +571,67 @@
         </div>
     </div>
 
-    <script src="script.js?v=10"></script>
+    <!-- Terms & Conditions Modal Overlay -->
+    <div class="checkout-modal-overlay" id="terms-modal-overlay" style="display:none;">
+        <div class="checkout-modal glass-panel" style="max-width: 620px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.8rem; margin-bottom: 1rem;">
+                <h2 style="font-size: 1.3rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <ion-icon name="document-text-outline" style="color:#10b981; font-size:1.5rem;"></ion-icon> Vigezo na Masharti
+                </h2>
+                <button class="close-modal" id="close-terms-modal" onclick="closeTermsModal()"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; padding-right: 8px; font-size: 0.92rem; line-height: 1.6; color: rgba(255,255,255,0.85);">
+                <p style="margin-bottom: 1.2rem; color: #10B981; font-weight: 600; background: rgba(16,185,129,0.1); padding: 0.8rem; border-radius: 8px;">
+                    Karibu GENGE ONLINE DELIVERY. Kwa kutumia huduma zetu au kuweka oda, unakubaliana na vigezo na masharti yafuatayo:
+                </p>
+
+                <div class="terms-card" style="background: rgba(255,255,255,0.04); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #10B981;">
+                    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">1. Uagizaji wa Bidhaa (Orders)</h3>
+                    <ul style="padding-left: 1.2rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Kima cha chini cha kutengeneza kifurushi chako mwenyewe (Custom Builder) ni <strong>Tsh 5,000/=</strong>.</li>
+                        <li>Mteja anapaswa kutoa namba sahihi ya simu na maelezo sahihi ya eneo alipo (Location) ili kurahisisha ufikishaji wa oda.</li>
+                    </ul>
+                </div>
+
+                <div class="terms-card" style="background: rgba(255,255,255,0.04); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #10B981;">
+                    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">2. Ufikishaji wa Oda (Delivery)</h3>
+                    <ul style="padding-left: 1.2rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Ufikishaji wa bidhaa unafanyika ndani ya masaa <strong>1 hadi 3</strong> kuanzia pale oda inapothibitishwa.</li>
+                        <li>Makao makuu ya GENGE ONLINE DELIVERY yapo Madale (jirani na Uwata Primary School), Dar es Salaam. Ufikishaji unafanyika Dar es Salaam na viunga vyake.</li>
+                        <li>Gharama za usafiri zitakokotolewa kulingana na umbali wa eneo alipo mteja.</li>
+                    </ul>
+                </div>
+
+                <div class="terms-card" style="background: rgba(255,255,255,0.04); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #10B981;">
+                    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">3. Njia za Malipo (Payments)</h3>
+                    <ul style="padding-left: 1.2rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Malipo yanaweza kufanyika kwa Tigo Pesa Lipa Namba (<strong>43372850</strong>), STK Push ya simu, au Fedha Taslimu (Cash on Delivery).</li>
+                        <li>Oda zote zitakaguliwa na kuthibitishwa baada ya malipo kukamilika au kukubaliwa.</li>
+                    </ul>
+                </div>
+
+                <div class="terms-card" style="background: rgba(255,255,255,0.04); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #10B981;">
+                    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">4. Kurejesha na Kubadilisha Bidhaa (Returns & Refunds)</h3>
+                    <ul style="padding-left: 1.2rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Kwa kuwa tunatoa bidhaa mbichi za chakula (mbogamboga, matunda, nyama, samaki), mteja anapaswa kukagua mzigo wake wakati wa kupokea mbele ya mpeleka mzigo (Rider).</li>
+                        <li>Kama kuna bidhaa iliyoharibika au isiyo na kiwango wakati wa kufikishwa, itabadilishwa au mteja kurudishiwa fedha zake mara moja kabla ya Rider kuondoka.</li>
+                    </ul>
+                </div>
+
+                <div class="terms-card" style="background: rgba(255,255,255,0.04); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #10B981;">
+                    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">5. Ulinzi wa Taarifa Binfasi (Privacy)</h3>
+                    <ul style="padding-left: 1.2rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Taarifa zote za mteja (Jina, Namba ya simu, na Anwani) zinahifadhiwa kwa siri kubwa na zinatumika tu kwa ajili ya kufikisha oda na huduma za Genge Online Delivery.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+                <button class="checkout-btn" onclick="closeTermsModal()" style="width: auto; padding: 0.6rem 2rem; font-size: 0.95rem; background: linear-gradient(135deg, #10b981, #059669); border-radius: 10px;">Nimekuelewa</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=11"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
