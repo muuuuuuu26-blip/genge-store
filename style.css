@@ -69,13 +69,12 @@ html {
 /* Header */
 .header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem 5%;
+    flex-direction: column;
+    padding: 0.8rem 5%;
     position: sticky;
     top: 0;
-    z-index: 100;
-    background: rgba(15, 23, 42, 0.8);
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -240,34 +239,29 @@ html {
 }
 
 .hero-logo-img {
-    position: absolute;
-    width: 420px;
-    height: 420px;
+    position: relative;
+    width: 320px;
+    max-width: 85vw;
+    height: 320px;
     object-fit: cover;
-    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    border-radius: 35% 65% 60% 40% / 40% 50% 50% 60%;
     z-index: 2;
-    filter: drop-shadow(0 15px 40px rgba(16, 185, 129, 0.5));
+    filter: drop-shadow(0 15px 35px rgba(16, 185, 129, 0.5));
     animation: floatImg 4s ease-in-out infinite alternate, morphImg 8s ease-in-out infinite alternate;
 }
 
 @keyframes morphImg {
-    0%   { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    0%   { border-radius: 35% 65% 60% 40% / 40% 50% 50% 60%; }
+    100% { border-radius: 60% 40% 40% 60% / 50% 60% 40% 50%; }
 }
 
 @keyframes floatImg {
     0%   { transform: translateY(0px); }
-    100% { transform: translateY(-18px); }
+    100% { transform: translateY(-16px); }
 }
 
 .blob {
-    width: 500px;
-    height: 500px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(245, 158, 11, 0.5) 100%);
-    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
-    animation: morph 8s ease-in-out infinite alternate;
-    box-shadow: inset 0 0 50px rgba(255,255,255,0.1);
-    position: relative;
+    display: none; /* Removed blob container to eliminate unwanted offset shadow */
 }
 
 /* Cart emoji removed - replaced by hero image */
@@ -3295,27 +3289,25 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 65px;
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-    z-index: 9999;
+    height: 62px;
+    background: #0f172a !important;
+    border-top: 2px solid #10B981 !important;
+    z-index: 999999 !important;
     justify-content: space-around;
     align-items: center;
     padding: 0 0.5rem;
-    box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.7);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .mobile-bottom-nav {
-        display: flex;
+        display: flex !important;
     }
     body {
-        padding-bottom: 70px; /* Space for fixed bottom bar */
+        padding-bottom: 70px !important; /* Space for fixed bottom bar */
     }
     .header {
-        padding: 1rem 4%;
+        padding: 0.8rem 3%;
     }
     .hero {
         padding: 1rem 3%;
@@ -3323,7 +3315,7 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     }
     .hero-promo-card {
         flex-direction: column-reverse;
-        padding: 1.5rem 1.2rem;
+        padding: 1.5rem 1rem;
         text-align: center;
     }
     .hero-content {
@@ -3338,12 +3330,9 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     }
     .hero-logo-img {
         position: relative;
-        width: 220px;
-        height: 220px;
-    }
-    .blob {
-        width: 240px;
-        height: 240px;
+        width: 210px;
+        height: 210px;
+        margin: 0 auto 1rem auto;
     }
 }
 
