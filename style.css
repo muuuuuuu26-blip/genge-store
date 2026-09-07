@@ -70,14 +70,16 @@ html {
 .header {
     display: flex;
     flex-direction: column;
-    padding: 0.8rem 5%;
+    align-items: stretch;
+    padding: 0.9rem 5%;
     position: sticky;
     top: 0;
-    z-index: 1000;
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 0.5rem;
 }
 
 .logo-img {
@@ -181,13 +183,9 @@ html {
 
 /* Hero Section */
 .hero {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 80vh;
+    display: block;
     padding: 2rem 5%;
     position: relative;
-    overflow: hidden;
 }
 
 .hero-content {
@@ -230,38 +228,43 @@ html {
 }
 
 .hero-image {
-    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
     z-index: 1;
+    flex-shrink: 0;
 }
 
 .hero-logo-img {
-    position: relative;
-    width: 320px;
-    max-width: 85vw;
-    height: 320px;
+    position: absolute;
+    width: 420px;
+    height: 420px;
     object-fit: cover;
-    border-radius: 35% 65% 60% 40% / 40% 50% 50% 60%;
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
     z-index: 2;
-    filter: drop-shadow(0 15px 35px rgba(16, 185, 129, 0.5));
+    filter: drop-shadow(0 15px 40px rgba(16, 185, 129, 0.5));
     animation: floatImg 4s ease-in-out infinite alternate, morphImg 8s ease-in-out infinite alternate;
 }
 
 @keyframes morphImg {
-    0%   { border-radius: 35% 65% 60% 40% / 40% 50% 50% 60%; }
-    100% { border-radius: 60% 40% 40% 60% / 50% 60% 40% 50%; }
+    0%   { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
 }
 
 @keyframes floatImg {
     0%   { transform: translateY(0px); }
-    100% { transform: translateY(-16px); }
+    100% { transform: translateY(-18px); }
 }
 
 .blob {
-    display: none; /* Removed blob container to eliminate unwanted offset shadow */
+    width: 500px;
+    height: 500px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(245, 158, 11, 0.5) 100%);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    animation: morph 8s ease-in-out infinite alternate;
+    box-shadow: inset 0 0 50px rgba(255,255,255,0.1);
+    position: relative;
 }
 
 /* Cart emoji removed - replaced by hero image */
@@ -1017,9 +1020,8 @@ footer {
     }
     
     .hero {
-        flex-direction: column;
         text-align: center;
-        padding-top: 4rem;
+        padding-top: 1rem;
     }
     
     .hero h2 {
@@ -1029,7 +1031,6 @@ footer {
     .blob {
         width: 300px;
         height: 300px;
-        margin-top: 3rem;
     }
     
     .hero-logo-img {
@@ -1667,8 +1668,8 @@ footer {
 
 @media (max-width: 768px) {
     .header {
-        flex-wrap: wrap;
-        padding: 1rem 5%;
+        padding: 0.8rem 4%;
+        gap: 0.5rem;
         transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         will-change: transform;
     }
@@ -1678,16 +1679,11 @@ footer {
     }
     
     .nav-links {
-        order: 3;
-        width: 100%;
-        margin-top: 1rem;
-        justify-content: center;
-        gap: 1.5rem;
-        flex-wrap: wrap;
+        display: none; /* Hidden on mobile — bottom nav is used instead */
     }
     
     .logo-img {
-        height: 45px;
+        height: 42px;
     }
 
     .about-content {
@@ -3110,7 +3106,7 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     gap: 2rem;
     box-shadow: 0 20px 40px rgba(0,0,0,0.3);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .tag-badge {
@@ -3289,50 +3285,72 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 62px;
-    background: #0f172a !important;
-    border-top: 2px solid #10B981 !important;
-    z-index: 999999 !important;
+    height: 65px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    z-index: 9999;
     justify-content: space-around;
     align-items: center;
     padding: 0 0.5rem;
-    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
     .mobile-bottom-nav {
         display: flex !important;
     }
     body {
-        padding-bottom: 70px !important; /* Space for fixed bottom bar */
+        padding-bottom: 75px; /* Space for fixed bottom bar */
     }
     .header {
-        padding: 0.8rem 3%;
+        padding: 0.75rem 4%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
     }
     .hero {
-        padding: 1rem 3%;
+        padding: 0.5rem 3% 1.5rem;
         min-height: auto;
     }
     .hero-promo-card {
-        flex-direction: column-reverse;
-        padding: 1.5rem 1rem;
+        flex-direction: column;
+        padding: 1.5rem 1.2rem 1rem;
         text-align: center;
+        gap: 0;
     }
     .hero-content {
         max-width: 100%;
+        order: 1;
+    }
+    .hero-image {
+        order: 2;
+        margin-top: -10px;
     }
     .hero h2 {
-        font-size: 1.8rem;
+        font-size: 1.75rem;
     }
     .hero p {
-        font-size: 0.95rem;
-        margin-bottom: 1.2rem;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
     }
     .hero-logo-img {
         position: relative;
-        width: 210px;
-        height: 210px;
-        margin: 0 auto 1rem auto;
+        width: 200px;
+        height: 200px;
+    }
+    .blob {
+        width: 220px;
+        height: 220px;
+    }
+    /* Ensure search bar row is full width on mobile */
+    .search-bar-row {
+        margin-top: 0.4rem;
+    }
+    /* Hide desktop nav on mobile */
+    .header-top-row .nav-links {
+        display: none;
     }
 }
 
