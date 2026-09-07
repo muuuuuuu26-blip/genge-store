@@ -569,9 +569,15 @@ async function loadPackages() {
 
             packageCalculatedTotals[pkg.id] = marketTotal;
 
-            const sellingPrice = pkg.price || marketTotal;
-            const discountTsh = Math.max(0, marketTotal - sellingPrice);
-            const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
+            // Bei ya kuuzia iliyohifadhiwa kwenye DB
+            const savedPrice   = pkg.price || 0;
+            // Ziada = bei ya kuuzia - jumla ya sokoni (inaweza kuwa 0 au zaidi)
+            const savedMarkup  = savedPrice > marketTotal ? savedPrice - marketTotal : 0;
+            // Bei halisi ya kuuzia
+            const sellingPrice = marketTotal + savedMarkup;
+            // Punguzo (kama bei ya kuuzia ni chini ya sokoni)
+            const discountTsh  = Math.max(0, marketTotal - sellingPrice);
+            const discountPct  = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
 
             card.innerHTML = `
                 <div>
@@ -610,36 +616,63 @@ async function loadPackages() {
                         </div>
                     </div>
 
-                    <!-- Discount & Price Controls -->
+                    <!-- ── Bei Controls ── -->
                     <div style="background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:0.9rem;margin-bottom:1rem;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
-                            <div>
-                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bei ya Kuuzia (Tsh):</label>
-                                <input type="number" id="pkg-price-${pkg.id}" value="${sellingPrice}" min="0" step="500"
-                                    oninput="onPkgPriceInput('${pkg.id}')"
-                                    style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:2px solid #10b981;background:var(--bg-card);color:#10b981;font-size:1.1rem;font-weight:800;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">Punguzo (Tsh):</label>
-                                <input type="number" id="pkg-disc-tsh-${pkg.id}" value="${discountTsh}" min="0" step="500"
-                                    oninput="onPkgDiscountTshInput('${pkg.id}')"
-                                    style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:#f59e0b;font-size:1rem;font-weight:700;box-sizing:border-box;">
+
+                        <!-- ROW 1: Jumla ya Sokoni (Readonly) -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);margin-bottom:8px;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#059669;">🧮 Jumla ya Sokoni (Hesabu ya Moja kwa Moja):</span>
+                            <span id="pkg-market-total-${pkg.id}" style="font-size:1.05rem;font-weight:800;color:#059669;">${fmt(marketTotal)}</span>
+                        </div>
+
+                        <!-- ROW 2: Ziada ya Admin (Markup) -->
+                        <div style="margin-bottom:8px;">
+                            <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">➕ Ongeza Ziada ya Bei (Tsh) — kwa ajili ya faida/gharama:</label>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <input type="number" id="pkg-markup-${pkg.id}" value="${savedMarkup}" min="0" step="500"
+                                    oninput="onPkgMarkupInput('${pkg.id}')"
+                                    placeholder="0"
+                                    style="flex:1;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid #f59e0b;background:var(--bg-card);color:#d97706;font-size:1rem;font-weight:700;box-sizing:border-box;">
+                                <button onclick="setMarkupZero('${pkg.id}')" style="padding:0.4rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-muted);font-size:0.75rem;cursor:pointer;white-space:nowrap;">Bila Ziada</button>
                             </div>
                         </div>
 
-                        <!-- Quick Discount Buttons -->
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
-                            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">Weka Punguzo:</span>
-                            <button onclick="applyQuickDiscount('${pkg.id}', 0)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;font-weight:600;">0% (Full)</button>
-                            <button onclick="applyQuickDiscount('${pkg.id}', 5)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.1);color:#10b981;cursor:pointer;font-weight:700;">5% Off</button>
-                            <button onclick="applyQuickDiscount('${pkg.id}', 10)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.15);color:#10b981;cursor:pointer;font-weight:700;">10% Off</button>
-                            <button onclick="applyQuickDiscount('${pkg.id}', 15)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.2);color:#10b981;cursor:pointer;font-weight:700;">15% Off</button>
-                            <button onclick="applyQuickDiscount('${pkg.id}', 20)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #f59e0b;background:rgba(245,158,11,0.15);color:#d97706;cursor:pointer;font-weight:700;">20% Off</button>
+                        <!-- ROW 3: Bei ya Kuuzia (Auto = sokoni + ziada) -->
+                        <div style="margin-bottom:10px;">
+                            <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">🏷️ Bei ya Kuuzia kwa Mteja (Tsh):</label>
+                            <input type="number" id="pkg-price-${pkg.id}" value="${sellingPrice}" min="0" step="500"
+                                oninput="onPkgPriceInput('${pkg.id}')"
+                                style="width:100%;padding:0.6rem 0.8rem;border-radius:8px;border:2px solid #10b981;background:var(--bg-card);color:#10b981;font-size:1.15rem;font-weight:800;box-sizing:border-box;">
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">💡 Unaweza kubadilisha moja kwa moja hapa, au itakokotolewa (sokoni + ziada).</div>
+                        </div>
+
+                        <!-- ROW 4: Punguzo (kwa mteja) -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                            <div>
+                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">🎁 Punguzo (Tsh):</label>
+                                <input type="number" id="pkg-disc-tsh-${pkg.id}" value="${discountTsh}" min="0" step="500"
+                                    oninput="onPkgDiscountTshInput('${pkg.id}')"
+                                    style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid #f59e0b;background:var(--bg-card);color:#f59e0b;font-size:1rem;font-weight:700;box-sizing:border-box;">
+                            </div>
+                            <div style="display:flex;flex-direction:column;justify-content:flex-end;">
+                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">Punguzo la Haraka:</label>
+                                <div style="display:flex;gap:3px;flex-wrap:wrap;">
+                                    <button onclick="applyQuickDiscount('${pkg.id}', 0)" style="padding:2px 6px;font-size:0.72rem;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;">0%</button>
+                                    <button onclick="applyQuickDiscount('${pkg.id}', 5)" style="padding:2px 6px;font-size:0.72rem;border-radius:5px;border:1px solid #10b981;background:rgba(16,185,129,0.1);color:#10b981;cursor:pointer;">5%</button>
+                                    <button onclick="applyQuickDiscount('${pkg.id}', 10)" style="padding:2px 6px;font-size:0.72rem;border-radius:5px;border:1px solid #10b981;background:rgba(16,185,129,0.15);color:#10b981;cursor:pointer;">10%</button>
+                                    <button onclick="applyQuickDiscount('${pkg.id}', 15)" style="padding:2px 6px;font-size:0.72rem;border-radius:5px;border:1px solid #10b981;background:rgba(16,185,129,0.2);color:#10b981;cursor:pointer;">15%</button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Customer Savings Badge -->
-                        <div id="pkg-savings-badge-${pkg.id}" style="padding:6px 10px;border-radius:8px;background:${discountTsh > 0 ? '#dcfce7' : '#f1f5f9'};color:${discountTsh > 0 ? '#15803d' : '#64748b'};font-weight:700;font-size:0.82rem;text-align:center;">
-                            ${discountTsh > 0 ? `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)` : `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`}
+                        <div id="pkg-savings-badge-${pkg.id}" style="padding:6px 10px;border-radius:8px;background:${discountTsh > 0 ? '#dcfce7' : (savedMarkup > 0 ? '#fef9ec' : '#f1f5f9')};color:${discountTsh > 0 ? '#15803d' : (savedMarkup > 0 ? '#92400e' : '#64748b')};font-weight:700;font-size:0.82rem;text-align:center;">
+                            ${discountTsh > 0
+                                ? `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)`
+                                : savedMarkup > 0
+                                    ? `📈 Faida ya ziada: ${fmt(savedMarkup)} (Bei ya Kuuzia > Sokoni)`
+                                    : `✅ Bei ni sawa na thamani ya sokoni (Bila Punguzo, Bila Ziada)`
+                            }
                         </div>
                     </div>
 
@@ -666,66 +699,99 @@ async function loadPackages() {
 }
 
 // Live calculation triggers
-window.onPkgPriceInput = function(pkgId) {
-    const marketTotal = packageCalculatedTotals[pkgId] || 0;
-    const priceEl = document.getElementById('pkg-price-' + pkgId);
-    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
-    const badgeEl = document.getElementById('pkg-savings-badge-' + pkgId);
 
-    const sellingPrice = parseFloat(priceEl.value) || 0;
+const _fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+
+function _updateBadge(pkgId, marketTotal, sellingPrice, markup) {
+    const badgeEl = document.getElementById('pkg-savings-badge-' + pkgId);
+    if (!badgeEl) return;
     const discountTsh = Math.max(0, marketTotal - sellingPrice);
     const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
-
-    discTshEl.value = discountTsh;
-
-    const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
     if (discountTsh > 0) {
-        badgeEl.style.backgroundColor = '#dcfce7';
-        badgeEl.style.color = '#15803d';
-        badgeEl.innerText = `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)`;
+        badgeEl.style.backgroundColor = '#dcfce7'; badgeEl.style.color = '#15803d';
+        badgeEl.innerText = `🎁 Mteja anaokoa ${_fmt(discountTsh)} (${discountPct}%)`;
+    } else if (markup > 0) {
+        badgeEl.style.backgroundColor = '#fef9ec'; badgeEl.style.color = '#92400e';
+        badgeEl.innerText = `📈 Faida ya ziada: ${_fmt(markup)} (Bei ya Kuuzia > Sokoni)`;
     } else {
-        badgeEl.style.backgroundColor = '#f1f5f9';
-        badgeEl.style.color = '#64748b';
-        badgeEl.innerText = `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`;
+        badgeEl.style.backgroundColor = '#f1f5f9'; badgeEl.style.color = '#64748b';
+        badgeEl.innerText = `✅ Bei ni sawa na thamani ya sokoni (Bila Punguzo, Bila Ziada)`;
     }
+}
+
+// Mtumiaji anapobadilisha ZIADA (markup) → hesabu bei ya kuuzia = sokoni + ziada
+window.onPkgMarkupInput = function(pkgId) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const markupEl   = document.getElementById('pkg-markup-'   + pkgId);
+    const priceEl    = document.getElementById('pkg-price-'    + pkgId);
+    const discTshEl  = document.getElementById('pkg-disc-tsh-' + pkgId);
+
+    const markup      = Math.max(0, parseFloat(markupEl.value) || 0);
+    const sellingPrice = marketTotal + markup;
+
+    priceEl.value    = sellingPrice;
+    discTshEl.value  = 0; // ziada haina punguzo
+    _updateBadge(pkgId, marketTotal, sellingPrice, markup);
 };
 
+// Mtumiaji anapobadilisha BEI ya KUUZIA moja kwa moja → hesabu markup na punguzo
+window.onPkgPriceInput = function(pkgId) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const priceEl     = document.getElementById('pkg-price-'    + pkgId);
+    const markupEl    = document.getElementById('pkg-markup-'   + pkgId);
+    const discTshEl   = document.getElementById('pkg-disc-tsh-' + pkgId);
+
+    const sellingPrice = Math.max(0, parseFloat(priceEl.value) || 0);
+    const markup       = sellingPrice > marketTotal ? sellingPrice - marketTotal : 0;
+    const discountTsh  = Math.max(0, marketTotal - sellingPrice);
+
+    if (markupEl)   markupEl.value  = markup;
+    if (discTshEl)  discTshEl.value = discountTsh;
+    _updateBadge(pkgId, marketTotal, sellingPrice, markup);
+};
+
+// Mtumiaji anapobadilisha PUNGUZO → hesabu bei ya kuuzia = sokoni - punguzo
 window.onPkgDiscountTshInput = function(pkgId) {
     const marketTotal = packageCalculatedTotals[pkgId] || 0;
-    const priceEl = document.getElementById('pkg-price-' + pkgId);
-    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
-    const badgeEl = document.getElementById('pkg-savings-badge-' + pkgId);
+    const priceEl     = document.getElementById('pkg-price-'    + pkgId);
+    const discTshEl   = document.getElementById('pkg-disc-tsh-' + pkgId);
+    const markupEl    = document.getElementById('pkg-markup-'   + pkgId);
 
-    const discountTsh = parseFloat(discTshEl.value) || 0;
+    const discountTsh  = Math.max(0, parseFloat(discTshEl.value) || 0);
     const sellingPrice = Math.max(0, marketTotal - discountTsh);
-    const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
 
-    priceEl.value = sellingPrice;
-
-    const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
-    if (discountTsh > 0) {
-        badgeEl.style.backgroundColor = '#dcfce7';
-        badgeEl.style.color = '#15803d';
-        badgeEl.innerText = `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)`;
-    } else {
-        badgeEl.style.backgroundColor = '#f1f5f9';
-        badgeEl.style.color = '#64748b';
-        badgeEl.innerText = `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`;
-    }
+    priceEl.value   = sellingPrice;
+    if (markupEl) markupEl.value = 0;
+    _updateBadge(pkgId, marketTotal, sellingPrice, 0);
 };
 
+// Punguzo la Haraka kwa asilimia
 window.applyQuickDiscount = function(pkgId, pct) {
     const marketTotal = packageCalculatedTotals[pkgId] || 0;
-    const priceEl = document.getElementById('pkg-price-' + pkgId);
-    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
+    const priceEl    = document.getElementById('pkg-price-'    + pkgId);
+    const discTshEl  = document.getElementById('pkg-disc-tsh-' + pkgId);
+    const markupEl   = document.getElementById('pkg-markup-'   + pkgId);
 
-    const discountTsh = Math.round(marketTotal * (pct / 100));
+    const discountTsh  = Math.round(marketTotal * (pct / 100));
     const sellingPrice = marketTotal - discountTsh;
 
-    discTshEl.value = discountTsh;
-    priceEl.value = sellingPrice;
+    if (markupEl)  markupEl.value  = 0;
+    discTshEl.value  = discountTsh;
+    priceEl.value    = sellingPrice;
+    _updateBadge(pkgId, marketTotal, sellingPrice, 0);
+};
 
-    window.onPkgPriceInput(pkgId);
+// Futa ziada - rudi bei ya sokoni
+window.setMarkupZero = function(pkgId) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const priceEl    = document.getElementById('pkg-price-'    + pkgId);
+    const markupEl   = document.getElementById('pkg-markup-'   + pkgId);
+    const discTshEl  = document.getElementById('pkg-disc-tsh-' + pkgId);
+
+    if (markupEl)  markupEl.value  = 0;
+    discTshEl.value  = 0;
+    priceEl.value    = marketTotal;
+    _updateBadge(pkgId, marketTotal, marketTotal, 0);
 };
 
 window.updateFullPackage = async function(pkgId) {
