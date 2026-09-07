@@ -735,10 +735,12 @@ window.removeFromMainCart = function(cartId) {
 // Update Main Cart UI
 function updateMainCartUI() {
     const countEl = document.getElementById('cart-count');
+    const bnavCountEl = document.getElementById('bnav-cart-count');
     const container = document.getElementById('cart-items');
     const totalEl = document.getElementById('main-cart-total');
 
-    countEl.innerText = mainCart.length;
+    if (countEl) countEl.innerText = mainCart.length;
+    if (bnavCountEl) bnavCountEl.innerText = mainCart.length;
 
     const warningEl = document.getElementById('cart-min-warning');
     const checkoutBtn = document.getElementById('checkout-btn');
@@ -1387,3 +1389,86 @@ function closeTermsModal() {
 
 window.openTermsModal = openTermsModal;
 window.closeTermsModal = closeTermsModal;
+
+// Mobile Store Search & Category Filter Interactivity
+window.filterStoreProducts = function(query) {
+    const q = (query || '').trim().toLowerCase();
+    const grid = document.getElementById('products-grid');
+    if (!grid) return;
+
+    if (!q) {
+        renderCustomProducts('all');
+        return;
+    }
+
+    grid.innerHTML = '';
+    const filtered = customProducts.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.category.toLowerCase().includes(q)
+    );
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<p class="empty-msg" style="grid-column:1/-1;padding:2rem">Hakuna bidhaa iliyopatikana kwa jina "${query}".</p>`;
+        return;
+    }
+
+    filtered.forEach(prod => {
+        const card = document.createElement('div');
+        card.className = 'product-card-new';
+        const imgHtml = prod.isImage
+            ? `<img src="${prod.icon}" alt="${prod.name}" class="prod-card-img" onerror="this.src='pics/15.png'">`
+            : `<div class="prod-card-emoji">${prod.icon}</div>`;
+        card.innerHTML = `
+            <div class="prod-card-img-wrap">${imgHtml}</div>
+            <div class="prod-card-body">
+                <div class="prod-card-name">${prod.name}</div>
+                <div class="prod-card-footer">
+                    <span class="prod-card-price">${formatCurrency(prod.price)}</span>
+                    <button class="prod-add-btn" onclick="addToCustomBuilder('${prod.id}')" title="Ongeza">
+                        <ion-icon name="add-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+    refreshProductCardStates();
+};
+
+window.triggerSearch = function() {
+    const input = document.getElementById('store-search-input');
+    if (input) {
+        const val = input.value.trim();
+        filterStoreProducts(val);
+        const productsSec = document.getElementById('custom-builder');
+        if (productsSec) productsSec.scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+window.focusStoreSearch = function() {
+    const input = document.getElementById('store-search-input');
+    if (input) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => input.focus(), 300);
+    }
+};
+
+window.filterCategoryByTile = function(categoryName) {
+    if (categoryName === 'matunda_mboga') {
+        renderCustomProducts('matunda');
+    } else if (categoryName === 'all') {
+        renderCustomProducts('all');
+    } else {
+        renderCustomProducts(categoryName);
+    }
+
+    // Scroll smoothly to shop layout section
+    const productsSec = document.getElementById('custom-builder');
+    if (productsSec) productsSec.scrollIntoView({ behavior: 'smooth' });
+};
+
+window.setActiveNav = function(navId) {
+    document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById(navId);
+    if (item) item.classList.add('active');
+};
