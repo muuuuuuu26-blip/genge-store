@@ -421,54 +421,312 @@ window.deleteProduct = async function(productId, productName) {
 };
 
 // ── PACKAGES MANAGEMENT ──────────────────────────────────────────────────────
+
+// Smart Feature Matcher: Matches item description (e.g., "Mchele Kg 5") with products database
+function matchFeatureWithProduct(featureStr, productsList) {
+    if (!featureStr || featureStr.trim().startsWith('<i') || featureStr.toLowerCase().includes('motto:')) {
+        return { isMotto: true, text: featureStr };
+    }
+
+    const cleanStr = featureStr.trim();
+    
+    // Extract quantity / number from string
+    // Matches patterns like "Mchele Kg 5", "Mafuta Lita 3", "Kuku 2", "5kg Mchele", etc.
+    let quantity = 1;
+    const numMatch = cleanStr.match(/(\d+(?:\.\d+)?)/);
+    if (numMatch) {
+        quantity = parseFloat(numMatch[1]) || 1;
+    }
+
+    // Key search terms extraction
+    const lower = cleanStr.toLowerCase();
+    let bestProduct = null;
+
+    if (productsList && productsList.length > 0) {
+        // Try finding product by matching keywords
+        const keywords = lower.replace(/\b(\d+(?:\.\d+)?|kg|lita|litres|l|tray|pack|pakiti|pcs|fungu|mzima)\b/gi, '').trim().split(/\s+/).filter(k => k.length > 2);
+        
+        let highestScore = 0;
+        productsList.forEach(p => {
+            const pNameLower = p.name.toLowerCase();
+            let score = 0;
+            
+            // Check direct keyword match
+            keywords.forEach(kw => {
+                if (pNameLower.includes(kw)) score += 3;
+            });
+
+            // Specific commodity matching rules
+            if (lower.includes('mchele') && pNameLower.includes('mchele')) score += 5;
+            if (lower.includes('sembe') && pNameLower.includes('sembe')) score += 5;
+            if (lower.includes('dona') && pNameLower.includes('dona')) score += 5;
+            if (lower.includes('mafuta') && pNameLower.includes('mafuta')) score += 5;
+            if (lower.includes('sukari') && pNameLower.includes('sukari')) score += 5;
+            if (lower.includes('maharage') && pNameLower.includes('maharage')) score += 5;
+            if (lower.includes('ngano') && pNameLower.includes('ngano')) score += 5;
+            if (lower.includes('vitunguu') && pNameLower.includes('vitunguu')) score += 5;
+            if (lower.includes('nyanya') && pNameLower.includes('nyanya')) score += 5;
+            if (lower.includes('karoti') && pNameLower.includes('karoti')) score += 5;
+            if (lower.includes('kuku') && pNameLower.includes('kuku')) score += 5;
+            if (lower.includes('nyama') && pNameLower.includes('nyama')) score += 5;
+            if (lower.includes('mayai') && pNameLower.includes('mayai')) score += 5;
+
+            if (score > highestScore) {
+                highestScore = score;
+                bestProduct = p;
+            }
+        });
+    }
+
+    if (bestProduct && bestProduct.price) {
+        const subtotal = quantity * bestProduct.price;
+        return {
+            isMotto: false,
+            text: cleanStr,
+            matchedName: bestProduct.name,
+            quantity: quantity,
+            unitPrice: bestProduct.price,
+            subtotal: subtotal,
+            isMatched: true
+        };
+    } else {
+        // Fallback if not directly matched in DB (admin can still edit price)
+        return {
+            isMotto: false,
+            text: cleanStr,
+            matchedName: 'Haijapatikana sokoni',
+            quantity: quantity,
+            unitPrice: 0,
+            subtotal: 0,
+            isMatched: false
+        };
+    }
+}
+
+// Stores calculated market values in memory for live discount binding
+const packageCalculatedTotals = {};
+
 async function loadPackages() {
     const grid = document.getElementById('packages-grid');
-    grid.innerHTML = '<p style="color:var(--text-muted);">Inapakia vifurushi...</p>';
+    grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Inapakia vifurushi na kukokotoa bei za sokoni...</p>';
+    
     try {
+        // Fetch products first if not already loaded
+        if (allProducts.length === 0) {
+            const prodRes = await fetch(API_URL + '/api/products');
+            allProducts = await prodRes.json();
+        }
+
         const res = await fetch(API_URL + '/api/packages');
         const packages = await res.json();
         grid.innerHTML = '';
+        
         const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+
         packages.forEach(pkg => {
             const card = document.createElement('div');
-            card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,0.03);display:flex;flex-direction:column;justify-content:space-between;gap:1rem;';
-            
+            card.className = 'package-card-admin';
+            card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:1.4rem;box-shadow:0 8px 24px rgba(0,0,0,0.04);display:flex;flex-direction:column;justify-content:space-between;gap:1.2rem;position:relative;';
+
             let imgHtml = '';
             if (pkg.isImage && pkg.icon) {
-                imgHtml = `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:0.5rem;">`;
+                imgHtml = `<img src="${pkg.icon}" alt="${pkg.title}" style="width:100%;height:140px;object-fit:cover;border-radius:12px;margin-bottom:0.6rem;">`;
             } else {
-                imgHtml = `<div style="font-size:2.8rem;text-align:center;margin-bottom:0.5rem;">📦</div>`;
+                imgHtml = `<div style="font-size:3rem;text-align:center;margin-bottom:0.5rem;">📦</div>`;
             }
 
-            const featuresText = pkg.features ? pkg.features.join('\n') : '';
+            const features = pkg.features || [];
+            const featuresText = features.join('\n');
+
+            // Calculate auto itemized breakdown
+            let marketTotal = 0;
+            let breakdownRowsHtml = '';
+
+            features.forEach(fStr => {
+                const item = matchFeatureWithProduct(fStr, allProducts);
+                if (item.isMotto) return; // skip motto from breakdown table
+
+                if (item.isMatched) {
+                    marketTotal += item.subtotal;
+                    breakdownRowsHtml += `
+                        <tr style="border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.82rem;">
+                            <td style="padding:4px 6px;font-weight:600;">${item.text}</td>
+                            <td style="padding:4px 6px;text-align:center;color:#64748b;">${item.quantity}</td>
+                            <td style="padding:4px 6px;text-align:right;color:#64748b;">${fmt(item.unitPrice)}</td>
+                            <td style="padding:4px 6px;text-align:right;font-weight:700;color:#10b981;">${fmt(item.subtotal)}</td>
+                        </tr>
+                    `;
+                } else {
+                    breakdownRowsHtml += `
+                        <tr style="border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.82rem;">
+                            <td style="padding:4px 6px;font-weight:600;">${item.text}</td>
+                            <td style="padding:4px 6px;text-align:center;color:#64748b;">${item.quantity}</td>
+                            <td colspan="2" style="padding:4px 6px;text-align:right;color:#ef4444;font-size:0.75rem;">(Ingiza bei kwenye bidhaa)</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            packageCalculatedTotals[pkg.id] = marketTotal;
+
+            const sellingPrice = pkg.price || marketTotal;
+            const discountTsh = Math.max(0, marketTotal - sellingPrice);
+            const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
 
             card.innerHTML = `
                 <div>
-                    ${imgHtml}
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                        ${imgHtml}
+                        <button onclick="deletePackage('${pkg.id}', '${pkg.title.replace(/'/g, "\\'")}')" title="Futa Kifurushi" style="background:#fee2e2;color:#ef4444;border:none;padding:0.4rem 0.7rem;border-radius:8px;cursor:pointer;font-weight:700;margin-left:8px;">
+                            🗑️ Futa
+                        </button>
+                    </div>
+
+                    <!-- Title -->
                     <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Jina la Kifurushi:</label>
                     <input type="text" id="pkg-title-${pkg.id}" value="${pkg.title.replace(/"/g, '&quot;')}"
-                        style="width:100%;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;">
+                        style="width:100%;padding:0.5rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:1rem;font-weight:700;margin-bottom:1rem;box-sizing:border-box;">
 
-                    <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bei (Tsh):</label>
-                    <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price}" min="0" step="500"
-                        style="width:100%;padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:#10b981;font-size:1.1rem;font-weight:800;margin-bottom:0.8rem;">
+                    <!-- Automatic Breakdown Card -->
+                    <div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:0.8rem;margin-bottom:1rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-size:0.82rem;font-weight:700;color:#059669;">📊 Uchanganuzi wa Bei za Sokoni:</span>
+                            <span style="font-size:0.9rem;font-weight:800;color:#059669;">Jumla: ${fmt(marketTotal)}</span>
+                        </div>
+                        <div style="max-height:160px;overflow-y:auto;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f1f5f9;font-size:0.75rem;color:#64748b;text-align:left;">
+                                        <th style="padding:4px 6px;">Bidhaa</th>
+                                        <th style="padding:4px 6px;text-align:center;">Idadi</th>
+                                        <th style="padding:4px 6px;text-align:right;">Bei/Moja</th>
+                                        <th style="padding:4px 6px;text-align:right;">Jumla</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${breakdownRowsHtml || '<tr><td colspan="4" style="text-align:center;padding:6px;font-size:0.8rem;color:#94a3b8;">Hakuna bidhaa zilizotambuliwa.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
+                    <!-- Discount & Price Controls -->
+                    <div style="background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:0.9rem;margin-bottom:1rem;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+                            <div>
+                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bei ya Kuuzia (Tsh):</label>
+                                <input type="number" id="pkg-price-${pkg.id}" value="${sellingPrice}" min="0" step="500"
+                                    oninput="onPkgPriceInput('${pkg.id}')"
+                                    style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:2px solid #10b981;background:var(--bg-card);color:#10b981;font-size:1.1rem;font-weight:800;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-weight:700;font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:2px;">Punguzo (Tsh):</label>
+                                <input type="number" id="pkg-disc-tsh-${pkg.id}" value="${discountTsh}" min="0" step="500"
+                                    oninput="onPkgDiscountTshInput('${pkg.id}')"
+                                    style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:#f59e0b;font-size:1rem;font-weight:700;box-sizing:border-box;">
+                            </div>
+                        </div>
+
+                        <!-- Quick Discount Buttons -->
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+                            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">Weka Punguzo:</span>
+                            <button onclick="applyQuickDiscount('${pkg.id}', 0)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;font-weight:600;">0% (Full)</button>
+                            <button onclick="applyQuickDiscount('${pkg.id}', 5)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.1);color:#10b981;cursor:pointer;font-weight:700;">5% Off</button>
+                            <button onclick="applyQuickDiscount('${pkg.id}', 10)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.15);color:#10b981;cursor:pointer;font-weight:700;">10% Off</button>
+                            <button onclick="applyQuickDiscount('${pkg.id}', 15)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #10b981;background:rgba(16,185,129,0.2);color:#10b981;cursor:pointer;font-weight:700;">15% Off</button>
+                            <button onclick="applyQuickDiscount('${pkg.id}', 20)" style="padding:2px 8px;font-size:0.75rem;border-radius:6px;border:1px solid #f59e0b;background:rgba(245,158,11,0.15);color:#d97706;cursor:pointer;font-weight:700;">20% Off</button>
+                        </div>
+
+                        <!-- Customer Savings Badge -->
+                        <div id="pkg-savings-badge-${pkg.id}" style="padding:6px 10px;border-radius:8px;background:${discountTsh > 0 ? '#dcfce7' : '#f1f5f9'};color:${discountTsh > 0 ? '#15803d' : '#64748b'};font-weight:700;font-size:0.82rem;text-align:center;">
+                            ${discountTsh > 0 ? `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)` : `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`}
+                        </div>
+                    </div>
+
+                    <!-- Items List Textarea -->
                     <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px;">Bidhaa za Ndani (Kila moja kwenye mstari mpya):</label>
                     <textarea id="pkg-features-${pkg.id}" rows="5"
-                        style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.85rem;line-height:1.4;resize:vertical;">${featuresText}</textarea>
+                        style="width:100%;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-main);font-size:0.85rem;line-height:1.4;resize:vertical;box-sizing:border-box;">${featuresText}</textarea>
                 </div>
-                <div>
+
+                <div style="margin-top:0.8rem;">
                     <button onclick="updateFullPackage('${pkg.id}')"
-                        style="width:100%;padding:0.6rem 1rem;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.92rem;">
-                        💾 Hifadhi Taarifa Zote
+                        style="width:100%;padding:0.7rem 1rem;background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.95rem;box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+                        💾 Hifadhi Kifurushi Zote
                     </button>
-                    <div id="pkg-msg-${pkg.id}" style="margin-top:0.4rem;font-size:0.82rem;text-align:center;"></div>
+                    <div id="pkg-msg-${pkg.id}" style="margin-top:0.4rem;font-size:0.85rem;text-align:center;"></div>
                 </div>
             `;
             grid.appendChild(card);
         });
-    } catch (err) { grid.innerHTML = '<p style="color:red;">Tatizo la mtandao.</p>'; }
+    } catch (err) {
+        console.error(err);
+        grid.innerHTML = '<p style="color:red;grid-column:1/-1;text-align:center;">Tatizo la mtandao wakati wa kuvuta vifurushi.</p>';
+    }
 }
+
+// Live calculation triggers
+window.onPkgPriceInput = function(pkgId) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const priceEl = document.getElementById('pkg-price-' + pkgId);
+    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
+    const badgeEl = document.getElementById('pkg-savings-badge-' + pkgId);
+
+    const sellingPrice = parseFloat(priceEl.value) || 0;
+    const discountTsh = Math.max(0, marketTotal - sellingPrice);
+    const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
+
+    discTshEl.value = discountTsh;
+
+    const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+    if (discountTsh > 0) {
+        badgeEl.style.backgroundColor = '#dcfce7';
+        badgeEl.style.color = '#15803d';
+        badgeEl.innerText = `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)`;
+    } else {
+        badgeEl.style.backgroundColor = '#f1f5f9';
+        badgeEl.style.color = '#64748b';
+        badgeEl.innerText = `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`;
+    }
+};
+
+window.onPkgDiscountTshInput = function(pkgId) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const priceEl = document.getElementById('pkg-price-' + pkgId);
+    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
+    const badgeEl = document.getElementById('pkg-savings-badge-' + pkgId);
+
+    const discountTsh = parseFloat(discTshEl.value) || 0;
+    const sellingPrice = Math.max(0, marketTotal - discountTsh);
+    const discountPct = marketTotal > 0 ? ((discountTsh / marketTotal) * 100).toFixed(1) : 0;
+
+    priceEl.value = sellingPrice;
+
+    const fmt = (n) => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+    if (discountTsh > 0) {
+        badgeEl.style.backgroundColor = '#dcfce7';
+        badgeEl.style.color = '#15803d';
+        badgeEl.innerText = `🎁 Mteja anaokoa ${fmt(discountTsh)} (${discountPct}%)`;
+    } else {
+        badgeEl.style.backgroundColor = '#f1f5f9';
+        badgeEl.style.color = '#64748b';
+        badgeEl.innerText = `Bei ni sawa na thamani ya sokoni (Bila Punguzo)`;
+    }
+};
+
+window.applyQuickDiscount = function(pkgId, pct) {
+    const marketTotal = packageCalculatedTotals[pkgId] || 0;
+    const priceEl = document.getElementById('pkg-price-' + pkgId);
+    const discTshEl = document.getElementById('pkg-disc-tsh-' + pkgId);
+
+    const discountTsh = Math.round(marketTotal * (pct / 100));
+    const sellingPrice = marketTotal - discountTsh;
+
+    discTshEl.value = discountTsh;
+    priceEl.value = sellingPrice;
+
+    window.onPkgPriceInput(pkgId);
+};
 
 window.updateFullPackage = async function(pkgId) {
     const newTitle = document.getElementById('pkg-title-' + pkgId).value.trim();
@@ -493,13 +751,74 @@ window.updateFullPackage = async function(pkgId) {
         });
         if (res.ok) {
             msgEl.style.color = '#10b981';
-            msgEl.innerText = '✅ Taarifa za kifurushi zimesasishwa kikamilifu!';
-            setTimeout(() => msgEl.innerText = '', 3500);
+            msgEl.innerText = '✅ Taarifa na bei za kifurushi zimesasishwa kikamilifu!';
+            setTimeout(() => {
+                msgEl.innerText = '';
+                loadPackages(); // Reload to refresh breakdown table if features changed
+            }, 1800);
         } else { msgEl.style.color = '#ef4444'; msgEl.innerText = '❌ Imeshindwa kubadilisha.'; }
     } catch (err) { msgEl.style.color = '#ef4444'; msgEl.innerText = 'Tatizo la mtandao.'; }
 };
 
 window.updatePackagePrice = window.updateFullPackage;
+
+// Modal & Package Creation / Deletion Functions
+window.openAddPackageModal = function() {
+    document.getElementById('add-package-modal').style.display = 'flex';
+};
+
+window.closeAddPackageModal = function() {
+    document.getElementById('add-package-modal').style.display = 'none';
+    document.getElementById('add-package-form').reset();
+};
+
+window.submitNewPackage = async function(e) {
+    e.preventDefault();
+    const title = document.getElementById('new-pkg-title').value.trim();
+    const price = document.getElementById('new-pkg-price').value;
+    const featuresRaw = document.getElementById('new-pkg-features').value;
+
+    if (!title || !price) {
+        alert('Tafadhali jaza jina na bei ya kifurushi.');
+        return;
+    }
+
+    const features = featuresRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+    try {
+        const res = await fetch(API_URL + '/api/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, price: Number(price), features })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ Kifurushi kipya kimeongezwa kikamilifu!');
+            closeAddPackageModal();
+            loadPackages();
+        } else {
+            alert('❌ Kosa: ' + data.message);
+        }
+    } catch (err) {
+        alert('Tatizo la mtandao.');
+    }
+};
+
+window.deletePackage = async function(pkgId, pkgTitle) {
+    if (!confirm(`Onyo: Je, una uhakika unataka kufuta kifurushi "${pkgTitle}" kabisa?`)) return;
+
+    try {
+        const res = await fetch(API_URL + '/api/packages/' + pkgId, { method: 'DELETE' });
+        if (res.ok) {
+            alert('✅ Kifurushi kimefutwa.');
+            loadPackages();
+        } else {
+            alert('❌ Imeshindwa kufuta kifurushi.');
+        }
+    } catch (err) {
+        alert('Tatizo la mtandao.');
+    }
+};
 
 async function loadFeedbacks() {
     const container = document.getElementById('feedback-container');

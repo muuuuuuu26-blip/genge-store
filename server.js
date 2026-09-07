@@ -258,6 +258,41 @@ app.patch('/api/packages/:id', async (req, res) => {
     }
 });
 
+// 1c-2. Create a package
+app.post('/api/packages', async (req, res) => {
+    try {
+        const { title, price, features, icon } = req.body;
+        if (!title || !price) {
+            return res.status(400).json({ message: 'Tafadhali weka jina na bei ya kifurushi.' });
+        }
+        const id = 'pkg-' + Date.now();
+        const newPkg = new Package({
+            id: id,
+            title: title,
+            price: Number(price),
+            icon: icon || 'images/namba1.png',
+            isImage: true,
+            features: Array.isArray(features) ? features : []
+        });
+        await newPkg.save();
+        res.status(201).json({ message: 'Kifurushi kipya kimeundwa kikamilifu!', package: newPkg });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1c-3. Delete a package
+app.delete('/api/packages/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pkg = await Package.findOneAndDelete({ id: id });
+        if (!pkg) return res.status(404).json({ message: 'Kifurushi hakijapatikana.' });
+        res.json({ message: 'Kifurushi kimefutwa kikamilifu.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // 1d. Update product full details (Name, Category, Price)
 app.put('/api/products/:id', async (req, res) => {
     try {

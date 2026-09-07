@@ -31,7 +31,7 @@ echo Inatuma mabadiliko kwenye GitHub...
 echo.
 
 "%GIT_CMD%" add .
-"%GIT_CMD%" commit -m "Hide navigation bar on scroll down and reveal on scroll up"
+"%GIT_CMD%" commit -m "Boresha upande wa Admin: Calculator ya Vifurushi, Punguzo la Mteja, na Usimamizi wa Bei"
 "%GIT_CMD%" push origin main
 
 echo.
