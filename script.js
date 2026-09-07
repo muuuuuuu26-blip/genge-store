@@ -123,12 +123,20 @@ const formatCurrency = (amount) => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    renderPreMadePackages();
     renderCategoryTiles('all');
+    await loadPackagesFromAPI();
     await loadProductsFromAPI();
     setupEventListeners();
     setupHistoryListeners();
     setupStkPushListeners();
+
+    // Auto-refresh data when user re-focuses tab so admin edits show live immediately
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            loadPackagesFromAPI();
+            loadProductsFromAPI();
+        }
+    });
 });
 
 // ============================================
@@ -136,23 +144,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================
 window.openOrdersPage = function() {
     const overlay = document.getElementById('orders-page-overlay');
+    if (!overlay) return;
     overlay.classList.add('open');
-    // Prevent main page scroll while orders page is open
     document.body.style.overflow = 'hidden';
 
-    // Angalia kama amekaa zaidi ya sekunde 10 tangu afunge ukurasa wa oda
     const lastClosed = localStorage.getItem('genge_orders_closed_time');
     if (lastClosed) {
         const timeDiff = Date.now() - parseInt(lastClosed, 10);
-        if (timeDiff > 10000) { // Sekunde 10 zimepita
-            // Futa namba ili imtake aingize upya
+        if (timeDiff > 10000) {
             localStorage.removeItem('genge_customer_phone');
         }
-        // Futa muda uliorekodiwa
         localStorage.removeItem('genge_orders_closed_time');
     }
 
-    // Load orders when page opens
     const savedPhone = localStorage.getItem('genge_customer_phone');
     if (savedPhone) {
         const lookupInput = document.getElementById('lookup-phone');
@@ -166,18 +170,32 @@ window.openOrdersPage = function() {
 
 window.closeOrdersPage = function() {
     const overlay = document.getElementById('orders-page-overlay');
+    if (!overlay) return;
     overlay.classList.remove('open');
-    // Restore main page scroll
     document.body.style.overflow = '';
-
-    // Rekodi muda ambao ukurasa umefungwa (kwa ajili ya hesabu ya sekunde 10)
     localStorage.setItem('genge_orders_closed_time', Date.now().toString());
 };
 
+async function loadPackagesFromAPI() {
+    try {
+        const res = await fetch(API_URL + '/api/packages?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+            const livePackages = await res.json();
+            if (Array.isArray(livePackages) && livePackages.length > 0) {
+                preMadePackages.length = 0;
+                livePackages.forEach(pkg => preMadePackages.push(pkg));
+            }
+        }
+    } catch (err) {
+        console.error('Error fetching packages from server:', err);
+    } finally {
+        renderPreMadePackages();
+    }
+}
 
 async function loadProductsFromAPI() {
     try {
-        const res = await fetch(API_URL + '/api/products');
+        const res = await fetch(API_URL + '/api/products?t=' + Date.now(), { cache: 'no-store' });
         if (res.ok) {
             customProducts = await res.json();
             renderCustomProducts('all');
@@ -186,7 +204,6 @@ async function loadProductsFromAPI() {
         }
     } catch (error) {
         console.error('Error fetching products from server:', error);
-        // Fallback or show error
     }
 }
 

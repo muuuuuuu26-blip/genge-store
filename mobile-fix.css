@@ -140,17 +140,53 @@
 /* ---- SIMU NDOGO ZAIDI (480px na chini) ---- */
 @media (max-width: 480px) {
     .hero-logo-img {
-        width: 160px !important;
-        height: 160px !important;
+        width: 150px !important;
+        height: 150px !important;
     }
     .blob {
-        width: 180px !important;
-        height: 180px !important;
+        width: 170px !important;
+        height: 170px !important;
     }
     .hero h2 {
-        font-size: 1.5rem !important;
+        font-size: 1.45rem !important;
+        line-height: 1.25 !important;
+    }
+    .hero p {
+        font-size: 0.88rem !important;
+        line-height: 1.4 !important;
     }
     .hero-promo-card {
-        padding: 1rem 0.8rem !important;
+        padding: 1rem 0.75rem !important;
+        border-radius: 16px !important;
+    }
+    .tag-badge {
+        font-size: 0.72rem !important;
+        padding: 0.25rem 0.6rem !important;
+    }
+    .delivery-badge {
+        font-size: 0.8rem !important;
+        padding: 0.35rem 0.7rem !important;
+    }
+    /* Grid optimization for small mobile screens */
+    .packages-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    .products-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.6rem !important;
+    }
+    .product-card-new {
+        padding: 0.6rem !important;
+        border-radius: 12px !important;
+    }
+    .prod-card-img-wrap {
+        height: 85px !important;
+    }
+    .prod-card-name {
+        font-size: 0.82rem !important;
+    }
+    .prod-card-price {
+        font-size: 0.88rem !important;
     }
 }
