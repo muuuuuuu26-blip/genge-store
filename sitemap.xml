@@ -9,4 +9,10 @@
         <changefreq>daily</changefreq>
         <priority>1.00</priority>
     </url>
+    <url>
+        <loc>https://genge-online-shop.com/mall.html</loc>
+        <lastmod>2026-09-08</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.95</priority>
+    </url>
 </urlset>

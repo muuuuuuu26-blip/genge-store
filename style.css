@@ -3646,4 +3646,26 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     animation: categoryPulseGlow 1.5s ease-out;
 }
 
+.header-action-btn.btn-mall {
+    border-color: rgba(245, 158, 11, 0.6);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.4) 100%);
+    color: #fde68a;
+}
+
+.header-action-btn.btn-mall ion-icon {
+    color: #f59e0b;
+}
+
+.mall-flyer-highlight {
+    border: 1.5px solid rgba(245, 158, 11, 0.4) !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.3) 100%) !important;
+    position: relative;
+}
+
+.mall-flyer-highlight:hover {
+    border-color: #f59e0b !important;
+    transform: translateY(-5px) scale(1.02) !important;
+    box-shadow: 0 10px 25px rgba(245, 158, 11, 0.25) !important;
+}
+
 

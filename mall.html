@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genge Mall | Soko Kuu la Mtandaoni - Magari, Nyumba, Mitindo, Simu & Ujenzi</title>
+    <meta name="description" content="Genge Mall ni soko kuu mtandaoni linalokuletea Nyumba za kupangisha & kuuzwa, Magari, Mitindo ya kike na kiume, Viatu, Urembo, Simu, na Vifaa vya Kujengea.">
+    <link rel="canonical" href="https://genge-online-shop.com/mall.html">
+
+    <!-- PWA & Favicon -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10B981">
+    <link rel="apple-touch-icon" href="pics/12.png">
+
+    <!-- Google Fonts & Ionicons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <link rel="stylesheet" href="mall.css?v=1">
+</head>
+<body>
+
+    <!-- Mall Top Bar Notice -->
+    <div class="mall-top-announcement">
+        <span>✨ Karibu <strong>GENGE MALL</strong> — Jukwaa Lako Namba Moja la Bidhaa, Magari na Makazi Tanzania!</span>
+        <a href="https://wa.me/255799689961" target="_blank" class="top-wa-link">
+            <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp: +255 799 689 961
+        </a>
+    </div>
+
+    <!-- Main Header -->
+    <header class="mall-header" id="mall-header">
+        <div class="mall-header-container">
+            <!-- Brand Logo -->
+            <div class="mall-brand">
+                <a href="mall.html" class="mall-logo-link">
+                    <img src="pics/12.png" alt="Genge Mall Logo" class="mall-logo-img">
+                    <div class="mall-title-wrap">
+                        <span class="mall-name">GENGE <span class="mall-highlight">MALL</span></span>
+                        <span class="mall-tagline">Soko Kuu la Mtandaoni</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Switcher to Food Store -->
+            <div class="mall-switch-to-food">
+                <a href="index.html" class="switch-btn-food">
+                    <span class="food-icon">🥦</span>
+                    <div class="food-text-group">
+                        <span class="food-label-sub">Unahitaji Mboga & Chakula?</span>
+                        <span class="food-label-main">Rudi Genge Fresh &rsaquo;</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="mall-header-actions">
+                <button type="button" class="mall-terms-btn" onclick="openMallTermsModal()">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                    <span>Sheria &amp; Taratibu</span>
+                </button>
+                <div class="mall-cart-icon" id="mall-cart-btn" onclick="toggleMallCart()">
+                    <ion-icon name="cart-outline"></ion-icon>
+                    <span class="mall-cart-badge" id="mall-cart-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar Row -->
+        <div class="mall-search-bar-row">
+            <div class="mall-search-wrapper">
+                <ion-icon name="search-outline" class="mall-search-icon"></ion-icon>
+                <input type="text" id="mall-search-input" placeholder="Tafuta bidhaa, magari, viatu, simu, nyumba za kupangisha..." oninput="filterMallProducts()">
+                <button type="button" class="mall-search-clear" id="mall-search-clear" onclick="clearMallSearch()" style="display: none;">
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="mall-hero" id="mall-home">
+        <div class="mall-hero-card">
+            <div class="mall-hero-content">
+                <div class="mall-hero-badge">
+                    <span class="badge-fire">🛍️</span>
+                    <span>GENGE MALL SUPERSTORE</span>
+                </div>
+                <h1>Kila Kitu Unachohitaji <span class="mall-highlight">Chini ya Paa Moja</span></h1>
+                <p>Kuanzia Nyumba za Kupangisha &amp; Kuuzwa, Magari, Mitindo ya Kisasa, Viatu, Urembo, Simu hadi Vifaa vya Ujenzi na Usafi.</p>
+                
+                <div class="mall-hero-features">
+                    <div class="feature-chip">
+                        <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+                        <span>Bidhaa Zilizothibitishwa</span>
+                    </div>
+                    <div class="feature-chip">
+                        <ion-icon name="key-outline"></ion-icon>
+                        <span>Ukaguzi wa Nyumba &amp; Magari</span>
+                    </div>
+                    <div class="feature-chip">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <span>Dhamana &amp; Malipo Salama</span>
+                    </div>
+                    <div class="feature-chip">
+                        <ion-icon name="airplane-outline"></ion-icon>
+                        <span>Uwasilishaji Nchi Nzima</span>
+                    </div>
+                </div>
+
+                <div class="mall-hero-cta-row">
+                    <a href="#mall-products-sec" class="mall-primary-cta">
+                        Anza Kununua Sasa <ion-icon name="arrow-down-outline"></ion-icon>
+                    </a>
+                    <button type="button" class="mall-secondary-cta" onclick="openMallTermsModal()">
+                        <ion-icon name="information-circle-outline"></ion-icon> Soma Taratibu Zetu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Departments Quick Slider / Grid -->
+    <section class="mall-departments-sec" id="mall-departments">
+        <div class="mall-sec-header">
+            <div>
+                <h2>Chagua Idara / Kategoria</h2>
+                <p>Gusa kategoria ili uone bidhaa na huduma husika mara moja.</p>
+            </div>
+            <button class="mall-see-all-btn" onclick="selectDepartment('all')">Onyesha Zote</button>
+        </div>
+
+        <div class="mall-dept-pills-wrap" id="dept-pills-container">
+            <!-- Rendered by JS -->
+        </div>
+    </section>
+
+    <!-- Products & Listings Grid Section -->
+    <section class="mall-products-section" id="mall-products-sec">
+        <div class="mall-results-bar">
+            <div class="results-count-text">
+                Inaonyesha bidhaa: <strong id="results-count">0</strong> <span id="active-dept-label" style="color: #10B981; font-weight:700;"></span>
+            </div>
+            <div class="mall-quick-filters" id="subfilter-container" style="display: none;">
+                <!-- Sub-filters (e.g. Kupangisha vs Kuuzwa) injected by JS -->
+            </div>
+        </div>
+
+        <!-- Products Grid Container -->
+        <div class="mall-products-grid" id="mall-products-grid">
+            <!-- Injected by mall.js -->
+        </div>
+    </section>
+
+    <!-- Quick Real Estate & Car Inspection Banner -->
+    <section class="mall-inquiry-banner">
+        <div class="inquiry-banner-card glass-panel">
+            <div class="inquiry-text-col">
+                <div class="inquiry-badge">📍 HUDUMA YA UKAGUZI WA ENEO (SITE VISIT)</div>
+                <h3>Unahitaji Kukagua Nyumba, Kiwanja au Gari Kabla ya Malipo?</h3>
+                <p>Tunakupa fursa ya kuonana na msimamizi wetu kwenda kukagua nyumba/apartment, kuendesha gari (test-drive) na kuhakiki kadi ya gari (TRA) au hati miliki.</p>
+                <div class="inquiry-btns">
+                    <a href="https://wa.me/255799689961?text=Habari%20Genge%20Mall,%20nahitaji%20kufanya%20miadi%20ya%20ukaguzi%20wa%20(Nyumba/Gari)" target="_blank" class="inquiry-wa-btn">
+                        <ion-icon name="logo-whatsapp"></ion-icon> Weka Miadi ya Ukaguzi WhatsApp
+                    </a>
+                    <a href="tel:+255692970687" class="inquiry-call-btn">
+                        <ion-icon name="call-outline"></ion-icon> Piga Simu Moja kwa Moja
+                    </a>
+                </div>
+            </div>
+            <div class="inquiry-icon-col">
+                <span class="inquiry-big-emoji">🏡🚗</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mall Cart Drawer Overlay -->
+    <div class="mall-cart-overlay" id="mall-cart-overlay">
+        <div class="mall-cart-drawer glass-panel">
+            <div class="mall-cart-header">
+                <h3><ion-icon name="cart-outline"></ion-icon> Kapu Lako (Genge Mall)</h3>
+                <button type="button" class="mall-cart-close" onclick="toggleMallCart()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="mall-cart-items" id="mall-cart-items">
+                <div class="mall-cart-empty">
+                    <span class="empty-icon">🛒</span>
+                    <p>Bado hujaweka bidhaa yoyote kwenye kapu lako la Genge Mall.</p>
+                </div>
+            </div>
+            <div class="mall-cart-footer">
+                <div class="mall-cart-total-row">
+                    <span>Jumla Kuu:</span>
+                    <strong id="mall-cart-total">Tsh 0/=</strong>
+                </div>
+                <button type="button" class="mall-checkout-btn" id="mall-checkout-btn" onclick="proceedMallCheckout()">
+                    <ion-icon name="logo-whatsapp"></ion-icon> Kamilisha Oda Kupitia WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Details Modal -->
+    <div class="mall-modal-overlay" id="product-detail-modal" style="display: none;">
+        <div class="mall-modal-card glass-panel" id="product-detail-content">
+            <!-- Injected by JS -->
+        </div>
+    </div>
+
+    <!-- Terms & Guidelines Modal -->
+    <div class="mall-modal-overlay" id="mall-terms-modal" style="display: none;">
+        <div class="mall-modal-card glass-panel terms-modal-content">
+            <div class="mall-modal-header">
+                <h3><ion-icon name="shield-checkmark-outline"></ion-icon> Sheria &amp; Taratibu za Genge Mall</h3>
+                <button type="button" class="mall-cart-close" onclick="closeMallTermsModal()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="mall-terms-body">
+                <div class="terms-block">
+                    <h4>1. 🏡 Taratibu za Nyumba &amp; Makazi (Kupangisha &amp; Kuuzwa)</h4>
+                    <p>Mteja ana haki ya kufanya ukaguzi wa eneo (Site Visit) kabla ya kulipa kodi au kununua. Hakikisha unakagua nyumba, maji, umeme na mazingira kabla ya kusaini mkataba rasmi na mmiliki au wakala wetu.</p>
+                </div>
+                <div class="terms-block">
+                    <h4>2. 🚗 Taratibu za Magari &amp; Vyombo vya Moto</h4>
+                    <p>Magari yanaruhusiwa kufanyiwa ukaguzi kamili (Physical Inspection na Test Drive) pamoja na fundi wako, na kuhakiki kadi ya gari (Logbook) kupitia mfumo wa TRA kabla ya malipo kukamilika.</p>
+                </div>
+                <div class="terms-block">
+                    <h4>3. 📱 Simu &amp; Vifaa vya Umeme (Electronics)</h4>
+                    <p>Vifaa vyote vya umeme na simu vinapewa dhamana (Warranty) kulingana na mtengenezaji. Iwapo kifaa kina hitilafu ya kiwandani, kiripotiwe ndani ya saa 24 – 48 ili kubadilishiwa au kurekebishiwa.</p>
+                </div>
+                <div class="terms-block">
+                    <h4>4. 👗 Mitindo, Viatu &amp; Urembo</h4>
+                    <p>Mteja anaruhusiwa kuchagua size, rangi na mtindo sahihi. Bidhaa zinazoweza kubadilishwa zitaripotiwe mara moja baada ya kupokea kabla ya kutumika.</p>
+                </div>
+                <div class="terms-block">
+                    <h4>5. 🏗️ Vifaa vya Kujengea &amp; Usafirishaji</h4>
+                    <p>Vifaa vizito (Saruji, Mabati, Vigae) vinasafirishwa kwa gari la mizigo (Pick-up au Canter). Gharama ya usafiri inalipwa kulingana na umbali au makubaliano.</p>
+                </div>
+            </div>
+            <div class="mall-modal-footer">
+                <button type="button" class="terms-agree-btn" onclick="closeMallTermsModal()">Nimeelewa &amp; Nakubaliana &check;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sticky Mobile Bottom Navigation for Mall -->
+    <nav class="mall-bottom-nav">
+        <a href="#mall-home" class="mall-bnav-item active" id="mall-bnav-home" onclick="mallNavTo('home'); return false;">
+            <ion-icon name="storefront-outline"></ion-icon>
+            <span>Mall</span>
+        </a>
+        <a href="#mall-departments" class="mall-bnav-item" id="mall-bnav-dept" onclick="mallNavTo('dept'); return false;">
+            <ion-icon name="grid-outline"></ion-icon>
+            <span>Idara</span>
+        </a>
+        <a href="#mall-search-input" class="mall-bnav-item" id="mall-bnav-search" onclick="mallNavTo('search'); return false;">
+            <ion-icon name="search-outline"></ion-icon>
+            <span>Tafuta</span>
+        </a>
+        <a href="#" class="mall-bnav-item" id="mall-bnav-cart" onclick="toggleMallCart(); return false;">
+            <div class="mall-bnav-badge-wrap">
+                <ion-icon name="cart-outline"></ion-icon>
+                <span class="mall-bnav-badge" id="mall-bnav-count">0</span>
+            </div>
+            <span>Kapu</span>
+        </a>
+        <a href="index.html" class="mall-bnav-item bnav-food-link">
+            <span style="font-size: 1.3rem;">🥦</span>
+            <span>Genge</span>
+        </a>
+    </nav>
+
+    <!-- Floating WhatsApp Support -->
+    <a href="https://wa.me/255799689961?text=Habari%20Genge%20Mall,%20nina%20swali%20kuhusu%20huduma%20zenu" target="_blank" class="mall-float-whatsapp" title="Wasiliana Nasi WhatsApp">
+        <ion-icon name="logo-whatsapp"></ion-icon>
+        <span class="wa-tooltip">Tupo Hewani</span>
+    </a>
+
+    <!-- Footer -->
+    <footer class="mall-footer">
+        <div class="mall-footer-content">
+            <div class="footer-col">
+                <div class="mall-brand">
+                    <span class="mall-name">GENGE <span class="mall-highlight">MALL</span></span>
+                </div>
+                <p>Jukwaa kuu la ununuzi mtandaoni linalokuunganisha na bidhaa bora, magari, makazi, mitindo na ujenzi kote Tanzania.</p>
+                <p style="margin-top: 0.5rem; color: #10B981; font-weight:700;">📍 Dar es Salaam, Tanzania</p>
+            </div>
+            <div class="footer-col">
+                <h4>Idara Zetu Kuu</h4>
+                <ul class="footer-links">
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('nyumba')">🏠 Nyumba &amp; Makazi</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('magari')">🚗 Magari &amp; Pikipiki</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('mitindo')">👗 Mitindo &amp; Nguo</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('urembo')">💄 Urembo &amp; Mawigi</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('viatu')">👟 Viatu &amp; Raba</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('manukato')">🌸 Manukato &amp; Perfume</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('simu_umeme')">📱 Simu &amp; Vifaa vya Umeme</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('ujenzi')">🏗️ Vifaa vya Ujenzi</a></li>
+                    <li><a href="javascript:void(0)" onclick="selectDepartment('usafi_nyumbani')">🛋️ Vifaa vya Ndani &amp; Usafi</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Mawasiliano &amp; Usaidizi</h4>
+                <p>📞 Piga: <a href="tel:+255692970687" style="color:#10B981;font-weight:700;">+255 692 970 687</a></p>
+                <p>📞 Piga: <a href="tel:+255675583884" style="color:#10B981;font-weight:700;">+255 675 583 884</a></p>
+                <p>💬 WhatsApp: <a href="https://wa.me/255799689961" target="_blank" style="color:#10B981;font-weight:700;">+255 799 689 961</a></p>
+                <div style="margin-top: 1rem;">
+                    <a href="index.html" class="footer-food-switch-btn">🥦 Nenda Genge la Chakula &amp; Mboga</a>
+                </div>
+            </div>
+        </div>
+        <div class="mall-footer-bottom">
+            <p>&copy; 2026 GENGE MALL. Haki Zote Zimehifadhiwa.</p>
+        </div>
+    </footer>
+
+    <script src="mall.js?v=1"></script>
+</body>
+</html>
