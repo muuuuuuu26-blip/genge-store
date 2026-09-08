@@ -3524,4 +3524,27 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     justify-content: center;
 }
 
+/* Search focus glow when triggered from bottom nav */
+.search-input-wrapper.search-focus-glow {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.6), 0 0 22px rgba(16, 185, 129, 0.5) !important;
+    border-color: #10B981 !important;
+    transform: scale(1.02);
+    transition: all 0.35s ease;
+}
+
+@media (max-width: 768px) {
+    .checkout-modal-overlay {
+        padding-bottom: 72px;
+    }
+    .stk-modal-panel {
+        margin-bottom: 60px;
+    }
+    .orders-page-content {
+        padding-bottom: 85px !important;
+    }
+    .cart-footer {
+        padding-bottom: calc(1.5rem + 68px) !important;
+    }
+}
+
 

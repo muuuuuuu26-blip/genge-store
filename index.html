@@ -20,8 +20,8 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=9">
-    <link rel="stylesheet" href="mobile-fix.css?v=2">
+    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="mobile-fix.css?v=3">
 </head>
 <body>
 
@@ -787,23 +787,23 @@
 
     <!-- Sticky Bottom Navigation Bar for Mobile -->
     <nav class="mobile-bottom-nav">
-        <a href="#home" class="nav-item active" id="bnav-home" onclick="setActiveNav('bnav-home'); window.scrollTo({top:0, behavior:'smooth'}); return false;">
+        <a href="#home" class="nav-item active" id="bnav-home" onclick="handleBottomNav('home'); return false;">
             <ion-icon name="home-outline"></ion-icon>
             <span>Nyumbani</span>
         </a>
-        <a href="#kategoria-sec" class="nav-item" id="bnav-cat" onclick="setActiveNav('bnav-cat'); document.getElementById('kategoria-sec').scrollIntoView({behavior:'smooth'}); return false;">
+        <a href="#kategoria-sec" class="nav-item" id="bnav-cat" onclick="handleBottomNav('category'); return false;">
             <ion-icon name="grid-outline"></ion-icon>
             <span>Kategoria</span>
         </a>
-        <a href="#tafuta" class="nav-item" id="bnav-search" onclick="setActiveNav('bnav-search'); focusStoreSearch(); return false;">
+        <a href="#tafuta" class="nav-item" id="bnav-search" onclick="handleBottomNav('search'); return false;">
             <ion-icon name="search-outline"></ion-icon>
             <span>Tafuta</span>
         </a>
-        <a href="#" class="nav-item" id="bnav-account" onclick="setActiveNav('bnav-account'); openOrdersPage(); return false;">
+        <a href="#" class="nav-item" id="bnav-account" onclick="handleBottomNav('account'); return false;">
             <ion-icon name="person-outline"></ion-icon>
             <span>Akaunti</span>
         </a>
-        <a href="#" class="nav-item" id="bnav-cart" onclick="setActiveNav('bnav-cart'); document.getElementById('cart-icon').click(); return false;">
+        <a href="#" class="nav-item" id="bnav-cart" onclick="handleBottomNav('cart'); return false;">
             <div class="bnav-cart-wrapper">
                 <ion-icon name="cart-outline"></ion-icon>
                 <span class="bnav-cart-badge" id="bnav-cart-count">0</span>
@@ -812,12 +812,12 @@
         </a>
     </nav>
 
-    <script src="script.js?v=18"></script>
+    <script src="script.js?v=19"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=18')
+                navigator.serviceWorker.register('/sw.js?v=19')
                     .then(registration => {
                         registration.update();
                         console.log('ServiceWorker registration successful');

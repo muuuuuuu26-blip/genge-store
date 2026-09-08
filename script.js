@@ -174,6 +174,9 @@ window.closeOrdersPage = function() {
     overlay.classList.remove('open');
     document.body.style.overflow = '';
     localStorage.setItem('genge_orders_closed_time', Date.now().toString());
+    if (document.getElementById('bnav-account')?.classList.contains('active')) {
+        window.setActiveNav('bnav-home');
+    }
 };
 
 async function loadPackagesFromAPI() {
@@ -392,7 +395,24 @@ function setupEventListeners() {
     document.getElementById('close-cart').addEventListener('click', () => {
         document.getElementById('cart-overlay').classList.remove('active');
         if (feedbackBtn) feedbackBtn.style.display = 'flex';
+        if (document.getElementById('bnav-cart')?.classList.contains('active')) {
+            window.setActiveNav('bnav-home');
+        }
     });
+
+    // Close cart when clicking overlay background
+    const cartOverlayEl = document.getElementById('cart-overlay');
+    if (cartOverlayEl) {
+        cartOverlayEl.addEventListener('click', (e) => {
+            if (e.target.id === 'cart-overlay') {
+                cartOverlayEl.classList.remove('active');
+                if (feedbackBtn) feedbackBtn.style.display = 'flex';
+                if (document.getElementById('bnav-cart')?.classList.contains('active')) {
+                    window.setActiveNav('bnav-home');
+                }
+            }
+        });
+    }
 
     // Custom Builder Add to Main Cart
     document.getElementById('add-custom-btn').addEventListener('click', () => {
@@ -1489,3 +1509,142 @@ window.setActiveNav = function(navId) {
     const item = document.getElementById(navId);
     if (item) item.classList.add('active');
 };
+
+window.closeAllModalsAndOverlays = function() {
+    // 1. Close Orders Page Overlay
+    const ordersOverlay = document.getElementById('orders-page-overlay');
+    if (ordersOverlay && ordersOverlay.classList.contains('open')) {
+        ordersOverlay.classList.remove('open');
+        localStorage.setItem('genge_orders_closed_time', Date.now().toString());
+    }
+
+    // 2. Close STK Push Modal
+    if (typeof window.closeStkPushModal === 'function') {
+        window.closeStkPushModal();
+    } else {
+        const stk = document.getElementById('stk-modal-overlay');
+        if (stk) {
+            stk.classList.remove('active');
+            stk.style.display = 'none';
+        }
+    }
+
+    // 3. Close Checkout Modal
+    const checkoutModal = document.getElementById('checkout-modal');
+    if (checkoutModal) checkoutModal.classList.remove('active');
+
+    // 4. Close Cart Overlay
+    const cartOverlay = document.getElementById('cart-overlay');
+    if (cartOverlay) cartOverlay.classList.remove('active');
+
+    // 5. Close Feedback Modal
+    const feedbackModal = document.getElementById('feedback-modal');
+    if (feedbackModal) feedbackModal.classList.remove('active');
+
+    // 6. Close Terms Modal
+    const termsModal = document.getElementById('terms-modal-overlay');
+    if (termsModal) termsModal.style.display = 'none';
+
+    // 7. Close Reorder Modal & Popup
+    const reorderModal = document.getElementById('reorder-modal');
+    if (reorderModal) reorderModal.classList.remove('active');
+    const reorderPopup = document.getElementById('reorder-popup');
+    if (reorderPopup) reorderPopup.style.display = 'none';
+
+    // Restore body scrollability
+    document.body.style.overflow = '';
+
+    // Restore floating feedback button
+    const feedbackBtn = document.getElementById('open-feedback-btn');
+    if (feedbackBtn) feedbackBtn.style.display = 'flex';
+};
+
+window.handleBottomNav = function(action) {
+    if (action === 'home') {
+        window.closeAllModalsAndOverlays();
+        window.setActiveNav('bnav-home');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (action === 'category') {
+        window.closeAllModalsAndOverlays();
+        window.setActiveNav('bnav-cat');
+        const catSec = document.getElementById('kategoria-sec');
+        if (catSec) {
+            catSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } else if (action === 'search') {
+        window.closeAllModalsAndOverlays();
+        window.setActiveNav('bnav-search');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const input = document.getElementById('store-search-input');
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                const wrapper = input.closest('.search-input-wrapper');
+                if (wrapper) {
+                    wrapper.classList.add('search-focus-glow');
+                    setTimeout(() => {
+                        wrapper.classList.remove('search-focus-glow');
+                    }, 1800);
+                }
+            }, 300);
+        }
+    } else if (action === 'account') {
+        // Close other overlays first so they do not conflict
+        const cartOverlay = document.getElementById('cart-overlay');
+        if (cartOverlay) cartOverlay.classList.remove('active');
+        const checkoutModal = document.getElementById('checkout-modal');
+        if (checkoutModal) checkoutModal.classList.remove('active');
+        const stk = document.getElementById('stk-modal-overlay');
+        if (stk) {
+            stk.classList.remove('active');
+            stk.style.display = 'none';
+        }
+        window.setActiveNav('bnav-account');
+        window.openOrdersPage();
+    } else if (action === 'cart') {
+        // Close full-screen orders page and payment modal first
+        const ordersOverlay = document.getElementById('orders-page-overlay');
+        if (ordersOverlay) {
+            ordersOverlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        const checkoutModal = document.getElementById('checkout-modal');
+        if (checkoutModal) checkoutModal.classList.remove('active');
+        const stk = document.getElementById('stk-modal-overlay');
+        if (stk) {
+            stk.classList.remove('active');
+            stk.style.display = 'none';
+        }
+        window.setActiveNav('bnav-cart');
+        const cartOverlay = document.getElementById('cart-overlay');
+        if (cartOverlay) cartOverlay.classList.add('active');
+        const feedbackBtn = document.getElementById('open-feedback-btn');
+        if (feedbackBtn) feedbackBtn.style.display = 'none';
+    }
+};
+
+// Automatic ScrollSpy for bottom navigation bar
+window.addEventListener('scroll', () => {
+    const ordersOpen = document.getElementById('orders-page-overlay')?.classList.contains('open');
+    const cartOpen = document.getElementById('cart-overlay')?.classList.contains('active');
+    const checkoutOpen = document.getElementById('checkout-modal')?.classList.contains('active');
+    const stkOpen = document.getElementById('stk-modal-overlay')?.classList.contains('active');
+
+    if (ordersOpen || cartOpen || checkoutOpen || stkOpen) return;
+
+    const catSec = document.getElementById('kategoria-sec');
+    const scrollPos = window.scrollY || window.pageYOffset;
+
+    if (catSec) {
+        const catTop = catSec.offsetTop - 120;
+        const catBottom = catTop + catSec.offsetHeight;
+        if (scrollPos >= catTop && scrollPos < catBottom) {
+            window.setActiveNav('bnav-cat');
+            return;
+        }
+    }
+
+    if (scrollPos < 300) {
+        window.setActiveNav('bnav-home');
+    }
+}, { passive: true });
