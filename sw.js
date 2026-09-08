@@ -1,4 +1,4 @@
-const CACHE_NAME = 'genge-cache-v17'; // bump version kila unapobadilisha files
+const CACHE_NAME = 'genge-cache-v18'; // bump version kila unapobadilisha files
 
 const urlsToCache = [
   '/',
@@ -28,15 +28,23 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch - Network first kwa CSS/JS, cache first kwa picha
+// Fetch - Network first kwa HTML/CSS/JS, cache first kwa picha
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API requests: hata usiguse cache
   if (url.includes('/api/')) return;
 
-  // CSS na JS: tafuta mtandaoni kwanza (fresh), cache kama backup tu
-  if (url.endsWith('.css') || url.includes('.js') || url.includes('script') || url.includes('style')) {
+  // HTML / Navigation, CSS na JS: tafuta mtandaoni kwanza (fresh), cache kama backup tu
+  if (
+    event.request.mode === 'navigate' ||
+    url.endsWith('.html') ||
+    url.endsWith('/') ||
+    url.endsWith('.css') ||
+    url.includes('.js') ||
+    url.includes('script') ||
+    url.includes('style')
+  ) {
     event.respondWith(
       fetch(event.request)
         .then(response => {

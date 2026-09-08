@@ -27,6 +27,12 @@
     .mobile-bottom-nav {
         display: none !important;
     }
+    .hero-cta-desktop {
+        display: block !important;
+    }
+    .hero-cta-mobile {
+        display: none !important;
+    }
 }
 
 /* ---- MOBILE (768px na chini): Header ina column layout ---- */
@@ -76,9 +82,9 @@
 
     .hero-promo-card {
         flex-direction: column !important;
-        padding: 1.2rem 1rem 1rem !important;
+        padding: 1.2rem 1rem 1.2rem !important;
         text-align: center !important;
-        gap: 0.5rem !important;
+        gap: 0 !important;
     }
 
     .hero-content {
@@ -86,11 +92,23 @@
         order: 1 !important;
     }
 
+    .hero-cta-desktop {
+        display: none !important;
+    }
+
+    .delivery-badge {
+        margin-bottom: 0.5rem !important;
+    }
+
     .hero-image {
         order: 2 !important;
+        position: relative !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
+        width: 100% !important;
+        height: 220px !important;
+        margin: 0.4rem auto 0.2rem !important;
     }
 
     .hero h2 {
@@ -102,15 +120,42 @@
         margin-bottom: 0.8rem !important;
     }
 
-    .hero-logo-img {
-        position: relative !important;
-        width: 190px !important;
-        height: 190px !important;
+    .blob {
+        position: absolute !important;
+        width: 200px !important;
+        height: 200px !important;
+        z-index: 1 !important;
     }
 
-    .blob {
-        width: 210px !important;
-        height: 210px !important;
+    .hero-logo-img {
+        position: absolute !important;
+        width: 180px !important;
+        height: 180px !important;
+        object-fit: cover !important;
+        border-radius: 40% 60% 70% 30% / 40% 50% 60% 50% !important;
+        z-index: 2 !important;
+        filter: drop-shadow(0 12px 25px rgba(16, 185, 129, 0.45)) !important;
+        animation: floatImg 4s ease-in-out infinite alternate, morphImg 8s ease-in-out infinite alternate !important;
+    }
+
+    .hero-cta-mobile {
+        order: 3 !important;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        margin-top: 0.8rem !important;
+    }
+
+    .hero-cta-mobile .cta-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        padding: 0.85rem 2.4rem !important;
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        border-radius: 50px !important;
+        box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4) !important;
     }
 
     /* === 3. BOTTOM NAVIGATION BAR === */
@@ -139,13 +184,24 @@
 
 /* ---- SIMU NDOGO ZAIDI (480px na chini) ---- */
 @media (max-width: 480px) {
-    .hero-logo-img {
-        width: 150px !important;
-        height: 150px !important;
+    .hero-image {
+        height: 180px !important;
+        margin: 0.3rem auto 0.1rem !important;
     }
     .blob {
-        width: 170px !important;
-        height: 170px !important;
+        width: 165px !important;
+        height: 165px !important;
+    }
+    .hero-logo-img {
+        width: 145px !important;
+        height: 145px !important;
+    }
+    .hero-cta-mobile {
+        margin-top: 0.6rem !important;
+    }
+    .hero-cta-mobile .cta-btn {
+        padding: 0.75rem 2rem !important;
+        font-size: 0.95rem !important;
     }
     .hero h2 {
         font-size: 1.45rem !important;
