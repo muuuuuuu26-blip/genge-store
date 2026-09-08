@@ -1570,6 +1570,8 @@ window.handleBottomNav = function(action) {
         const catSec = document.getElementById('kategoria-sec');
         if (catSec) {
             catSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            catSec.classList.add('category-highlight-pulse');
+            setTimeout(() => catSec.classList.remove('category-highlight-pulse'), 1500);
         }
     } else if (action === 'search') {
         window.closeAllModalsAndOverlays();

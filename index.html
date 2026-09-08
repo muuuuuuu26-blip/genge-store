@@ -22,8 +22,8 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=10">
-    <link rel="stylesheet" href="mobile-fix.css?v=3">
+    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="mobile-fix.css?v=4">
 </head>
 <body>
 
@@ -33,6 +33,19 @@
             <div class="logo">
                 <img src="pics/12.png" alt="Genge Online Delivery Logo" class="logo-img">
             </div>
+
+            <!-- Quick Action Buttons: My Account & Kategoria -->
+            <div class="header-quick-actions">
+                <button type="button" class="header-action-btn btn-account" onclick="handleBottomNav('account'); return false;">
+                    <ion-icon name="person-circle-outline"></ion-icon>
+                    <span>My Account</span>
+                </button>
+                <button type="button" class="header-action-btn btn-categories" onclick="handleBottomNav('category'); return false;">
+                    <ion-icon name="grid-outline"></ion-icon>
+                    <span>Kategoria</span>
+                </button>
+            </div>
+
             <nav class="nav-links">
                 <a href="#vifurushi">Vifurushi</a>
                 <a href="#kategoria-sec">Kategoria</a>
@@ -814,12 +827,12 @@
         </a>
     </nav>
 
-    <script src="script.js?v=19"></script>
+    <script src="script.js?v=20"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=19')
+                navigator.serviceWorker.register('/sw.js?v=20')
                     .then(registration => {
                         registration.update();
                         console.log('ServiceWorker registration successful');

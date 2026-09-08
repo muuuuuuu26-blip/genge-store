@@ -3547,4 +3547,103 @@ body:has(.checkout-modal-overlay.active) .feedback-float-btn,
     }
 }
 
+/* Quick Action Buttons in Header Top Row */
+.header-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    margin: 0 0.4rem;
+    flex: 1;
+}
+
+@media (min-width: 992px) {
+    .header-quick-actions {
+        display: none; /* Desktop uses main nav-links */
+    }
+}
+
+.header-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+    padding: 6px 13px;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    border: 1.5px solid transparent;
+}
+
+.header-action-btn ion-icon {
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.header-action-btn.btn-account {
+    border-color: rgba(59, 130, 246, 0.45);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(30, 58, 138, 0.35) 100%);
+}
+
+.header-action-btn.btn-account ion-icon {
+    color: #60a5fa;
+}
+
+.header-action-btn.btn-categories {
+    border-color: rgba(16, 185, 129, 0.45);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(6, 78, 59, 0.35) 100%);
+}
+
+.header-action-btn.btn-categories ion-icon {
+    color: #10B981;
+}
+
+.header-action-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.2);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.header-action-btn:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 420px) {
+    .header-quick-actions {
+        gap: 5px;
+        margin: 0 3px;
+    }
+    .header-action-btn {
+        padding: 5px 9px;
+        font-size: 0.74rem;
+        gap: 4px;
+    }
+    .header-action-btn ion-icon {
+        font-size: 1rem;
+    }
+}
+
+@keyframes categoryPulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(16, 185, 129, 0.35);
+    }
+    100% {
+        box-shadow: none;
+    }
+}
+
+.category-highlight-pulse {
+    animation: categoryPulseGlow 1.5s ease-out;
+}
+
 
