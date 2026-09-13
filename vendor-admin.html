@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ya Muuzaji | Genge Mall Vendor Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="vendor-admin.css?v=1">
+</head>
+<body>
+
+    <!-- Vendor Login Overlay -->
+    <div id="vendor-login-overlay" class="vendor-login-overlay">
+        <div class="vendor-login-box">
+            <img src="pics/12.png" alt="Genge Logo" class="vendor-logo">
+            <h2>🏬 Porti ya Muuzaji (Vendor Portal)</h2>
+            <p class="sub-text">Ingia ili upakie na usimamie bidhaa zako sokoni Genge Mall</p>
+            
+            <form id="vendor-login-form" onsubmit="handleVendorLogin(event)">
+                <div class="form-group">
+                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu</label>
+                    <input type="tel" id="vlogin-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri</label>
+                    <input type="password" id="vlogin-password" placeholder="Neno la siri" required>
+                </div>
+                <button type="submit" class="vendor-btn-primary">Ingia Kwenye Dashboard &rsaquo;</button>
+                <div id="vlogin-error" class="vendor-error-msg"></div>
+            </form>
+            
+            <div class="vendor-login-footer">
+                <p>Hujaunganishwa kama Muuzaji? <a href="mall.html">Jisajili kwenye Genge Mall</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Vendor Dashboard Wrapper -->
+    <div id="vendor-dashboard-content" class="vendor-dashboard-content hidden">
+        
+        <!-- Header Bar -->
+        <header class="vendor-header">
+            <div class="vendor-brand">
+                <img src="pics/12.png" alt="Genge Mall Logo">
+                <div>
+                    <span class="v-shop-title" id="display-shop-name">Duka Langu</span>
+                    <span class="v-role-badge">✅ Muuzaji Aliyethibitishwa</span>
+                </div>
+            </div>
+            <div class="vendor-header-actions">
+                <a href="mall.html" target="_blank" class="v-header-link">
+                    <ion-icon name="bag-handle-outline"></ion-icon> Tazama Sokoni
+                </a>
+                <button class="v-logout-btn" onclick="handleVendorLogout()">
+                    <ion-icon name="log-out-outline"></ion-icon> Toka
+                </button>
+            </div>
+        </header>
+
+        <div class="vendor-container">
+            
+            <!-- Subscription Package Banner Card -->
+            <section class="vendor-package-card">
+                <div class="pkg-info-left">
+                    <span class="pkg-label">KIFURUSHI CHAKO CHA SASA:</span>
+                    <div class="pkg-name-row">
+                        <h2 id="display-pkg-name">Basic Vendor</h2>
+                        <span class="pkg-price-badge" id="display-pkg-price">Tsh 5,000/mwezi</span>
+                    </div>
+                    <p class="pkg-sub">NIDA/TIN: <strong id="display-nida-tin">-</strong> | Simu: <strong id="display-vendor-phone">-</strong></p>
+                </div>
+
+                <div class="pkg-stats-right">
+                    <div class="pkg-usage-box">
+                        <span class="usage-title">Idadi ya Bidhaa Ulizopost:</span>
+                        <div class="usage-progress-bar">
+                            <div class="usage-fill" id="usage-progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <span class="usage-text"><strong id="display-used-count">0</strong> / <strong id="display-max-count">25</strong> Bidhaa</span>
+                    </div>
+
+                    <button class="upgrade-pkg-btn" onclick="openUpgradePackageModal()">
+                        <ion-icon name="rocket-outline"></ion-icon> Boresha Kifurushi
+                    </button>
+                </div>
+            </section>
+
+            <!-- Upload Product & Inventory Section -->
+            <div class="vendor-grid-layout">
+                
+                <!-- Left Column: Upload New Product Form -->
+                <div class="vendor-card upload-card">
+                    <div class="card-header">
+                        <h3><ion-icon name="cloud-upload-outline"></ion-icon> Pakia Bidhaa Mpya</h3>
+                        <span class="badge-post-limit" id="badge-limit-left">Bidhaa zilizosalia: 25</span>
+                    </div>
+
+                    <form id="vendor-product-form" onsubmit="handleProductUpload(event)">
+                        <div class="form-group">
+                            <label>Jina la Bidhaa *</label>
+                            <input type="text" id="vp-name" placeholder="Mfano: Toyota IST 2016 au Gauni la Kitenge" required>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label>Kategoria / Idara *</label>
+                                <select id="vp-dept" required>
+                                    <option value="nyumba">🏠 Nyumba & Makazi</option>
+                                    <option value="magari">🚗 Magari & Vyombo</option>
+                                    <option value="mitindo">👗 Mitindo & Nguo</option>
+                                    <option value="urembo">💄 Urembo & Mawigi</option>
+                                    <option value="viatu">👟 Viatu & Raba</option>
+                                    <option value="manukato">🌸 Manukato & Perfume</option>
+                                    <option value="simu_umeme">📱 Simu & Umeme</option>
+                                    <option value="ujenzi">🏗️ Vifaa vya Ujenzi</option>
+                                    <option value="usafi_nyumbani">🛋️ Nyumba & Usafi</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Bei (Tsh) *</label>
+                                <input type="number" id="vp-price" placeholder="Mfano: 45000" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Eneo / Location *</label>
+                            <input type="text" id="vp-location" placeholder="Mfano: Kariakoo, Dar es Salaam" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Picha ya Bidhaa *</label>
+                            <input type="file" id="vp-image" accept="image/*" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Maelezo Mafupi ya Bidhaa</label>
+                            <textarea id="vp-desc" rows="3" placeholder="Eleza sifa za bidhaa yako, ubora, n.k."></textarea>
+                        </div>
+
+                        <button type="submit" class="vendor-submit-btn" id="upload-submit-btn">
+                            <ion-icon name="checkmark-circle-outline"></ion-icon> Chapisha Bidhaa Sokoni Genge Mall
+                        </button>
+                        <div id="upload-msg" class="upload-status-msg"></div>
+                    </form>
+                </div>
+
+                <!-- Right Column: My Uploaded Products -->
+                <div class="vendor-card my-products-card">
+                    <div class="card-header">
+                        <h3><ion-icon name="grid-outline"></ion-icon> Bidhaa Zangu Sokoni</h3>
+                        <button class="reload-btn" onclick="loadVendorProducts()"><ion-icon name="refresh-outline"></ion-icon></button>
+                    </div>
+
+                    <div id="vendor-products-container" class="vendor-products-grid">
+                        <div class="loading-state">
+                            <p>Inapakia bidhaa zako...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Upgrade Package Modal -->
+    <div id="upgrade-modal" class="upgrade-modal-overlay">
+        <div class="upgrade-modal-content">
+            <button class="modal-close-btn" onclick="closeUpgradePackageModal()">&times;</button>
+            <div class="modal-header">
+                <h2>🚀 Boresha Kifurushi Chako Cha Muuzaji</h2>
+                <p>Chagua kifurushi kinachokufaa ili kuongeza kikomo cha kutangaza bidhaa zaidi sokoni Genge Mall.</p>
+            </div>
+
+            <div class="packages-grid">
+                <!-- Package 1 -->
+                <div class="pkg-card">
+                    <span class="pkg-tag">BRONZE</span>
+                    <h3>Basic Vendor</h3>
+                    <div class="price">Tsh 5,000 <span>/ Mwezi</span></div>
+                    <ul>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Hadi Bidhaa <strong>25</strong></li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Muonekano Sokoni Siku 30</li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Social Profile ya Duka</li>
+                    </ul>
+                    <button class="select-pkg-btn" onclick="requestPackageUpgrade('Basic', 5000, 25)">Chagua Tsh 5,000</button>
+                </div>
+
+                <!-- Package 2 -->
+                <div class="pkg-card featured">
+                    <span class="pkg-tag popular">POPULAR</span>
+                    <h3>Silver Vendor</h3>
+                    <div class="price">Tsh 10,000 <span>/ Mwezi</span></div>
+                    <ul>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Hadi Bidhaa <strong>45</strong></li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Muonekano wa Juu Sokoni</li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Badge ya Silver Verified</li>
+                    </ul>
+                    <button class="select-pkg-btn" onclick="requestPackageUpgrade('Silver', 10000, 45)">Chagua Tsh 10,000</button>
+                </div>
+
+                <!-- Package 3 -->
+                <div class="pkg-card vip">
+                    <span class="pkg-tag vip-tag">VIP</span>
+                    <h3>Gold VIP Vendor</h3>
+                    <div class="price">Tsh 15,000 <span>/ Mwezi</span></div>
+                    <ul>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Hadi Bidhaa <strong>60</strong></li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Matangazo ya Mbele kabisa</li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> Badge ya VIP Gold Seller</li>
+                    </ul>
+                    <button class="select-pkg-btn" onclick="requestPackageUpgrade('Gold', 15000, 60)">Chagua Tsh 15,000</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="vendor-admin.js?v=1"></script>
+</body>
+</html>

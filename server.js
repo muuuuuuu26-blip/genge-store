@@ -8,6 +8,7 @@ const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
 const Package = require('./models/Package');
+const User = require('./models/User');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -125,7 +126,7 @@ const initialProducts = [
 // 1. Get all products (with auto-seed if database is empty)
 app.get('/api/products', async (req, res) => {
     try {
-        let products = await Product.find();
+        let products = await Product.find({ isVendorActive: { $ne: false } });
         if (products.length === 0) {
             console.log('[AUTO-SEED] Seeding initial products into database...');
             products = await Product.insertMany(initialProducts);
@@ -657,6 +658,405 @@ app.post('/api/harakapay/webhook', async (req, res) => {
     } catch (err) {
         console.error('[HARAKAPAY WEBHOOK ERROR]:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================================================
+// 11. GENGE MALL AUTH & SOCIAL MARKETPLACE ENDPOINTS
+// ==========================================================================
+
+// A. Dynamic Member Count Endpoint (Base 105,000+ with 24h increments)
+app.get('/api/stats/member-count', async (req, res) => {
+    try {
+        const realCount = await User.countDocuments();
+        const epochDays = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+        // Base starting count 105,000 + steady increment of ~340 per day
+        const simulatedDynamicGrowth = 105000 + ((epochDays % 365) * 340);
+        const totalDisplayCount = simulatedDynamicGrowth + realCount;
+        
+        res.json({
+            count: totalDisplayCount,
+            formatted: totalDisplayCount.toLocaleString() + '+',
+            message: 'Wanachama Wanaongezeka Kila Baada ya Saa 24'
+        });
+    } catch (err) {
+        res.status(500).json({ count: 105420, formatted: '105,420+' });
+    }
+});
+
+// B. User Registration Endpoint
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { name, phone, password, role, nidaOrTin, shopName, packageName } = req.body;
+
+        if (!name || !phone || !password) {
+            return res.status(400).json({ message: 'Tafadhali jaza majina yako, namba ya simu na neno la siri.' });
+        }
+
+        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+
+        // Check if user already exists
+        const existing = await User.findOne({ phone: cleanPhone });
+        if (existing) {
+            return res.status(400).json({ message: 'Namba hii ya simu imekwisha kusajiliwa tayari.' });
+        }
+
+        // Setup vendor package rules
+        let userPackage = { name: 'Basic', price: 5000, maxProducts: 25, status: 'active' };
+        if (packageName === 'Silver') {
+            userPackage = { name: 'Silver', price: 10000, maxProducts: 45, status: 'active' };
+        } else if (packageName === 'Gold') {
+            userPackage = { name: 'Gold', price: 15000, maxProducts: 60, status: 'active' };
+        }
+
+        if (role === 'vendor' && !nidaOrTin) {
+            return res.status(400).json({ message: 'Muuzaji anahitajika kujaza Namba ya NIDA au TIN Number.' });
+        }
+
+        const newUser = new User({
+            name: name.trim(),
+            phone: cleanPhone,
+            password: password,
+            role: role || 'customer',
+            nidaOrTin: nidaOrTin ? nidaOrTin.trim() : '',
+            shopName: shopName ? shopName.trim() : (name + ' Shop'),
+            package: userPackage
+        });
+
+        await newUser.save();
+
+        res.status(201).json({
+            message: 'Usajili umekamilika kikamilifu! Karibu Genge Mall.',
+            user: {
+                name: newUser.name,
+                phone: newUser.phone,
+                role: newUser.role,
+                shopName: newUser.shopName,
+                nidaOrTin: newUser.nidaOrTin,
+                package: newUser.package,
+                status: newUser.status
+            }
+        });
+    } catch (err) {
+        console.error('[AUTH REGISTER ERROR]:', err);
+        res.status(500).json({ message: 'Kosa wakati wa kusajili akaunti.', error: err.message });
+    }
+});
+
+// C. User Login Endpoint
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+        if (!phone || !password) {
+            return res.status(400).json({ message: 'Tafadhali weka namba ya simu na neno la siri.' });
+        }
+
+        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+        const user = await User.findOne({ phone: cleanPhone });
+
+        if (!user || user.password !== password) {
+            return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
+        }
+
+        // Check if user is suspended or blocked by Super Admin
+        if (user.status === 'suspended' || user.status === 'blocked') {
+            return res.status(403).json({
+                message: `🚫 Akaunti yako imesimamishwa/kufungiwa na Utawala wa Genge. ${user.blockReason ? 'Sababu: ' + user.blockReason : 'Tafadhali wasiliana na Usimamizi.'}`
+            });
+        }
+
+        res.json({
+            message: 'Kuingia kumefanikiwa!',
+            user: {
+                name: user.name,
+                phone: user.phone,
+                role: user.role,
+                shopName: user.shopName,
+                nidaOrTin: user.nidaOrTin,
+                package: user.package,
+                avatar: user.avatar,
+                bio: user.bio,
+                status: user.status
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// D. Get Current User Info
+app.get('/api/auth/me/:phone', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const user = await User.findOne({ phone: cleanPhone });
+        if (!user) return res.status(404).json({ message: 'Mtumiaji hajapatikana.' });
+
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// E. Vendor Product Upload with Package Limit Checks (25, 45, 60)
+app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
+    try {
+        const { name, price, category, dept, subType, desc, location, specs, vendorPhone } = req.body;
+
+        if (!vendorPhone) {
+            return res.status(400).json({ message: 'Namba ya simu ya muuzaji inahitajika.' });
+        }
+
+        const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
+        const vendor = await User.findOne({ phone: cleanPhone, role: 'vendor' });
+
+        if (!vendor) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        if (vendor.status === 'suspended' || vendor.status === 'blocked') {
+            return res.status(403).json({ message: 'Akaunti yako imefungiwa. Huwezi kupost bidhaa kwa sasa.' });
+        }
+
+        // Check Product Limit for Vendor's Package
+        const currentProductsCount = await Product.countDocuments({ vendorPhone: cleanPhone });
+        const maxAllowed = vendor.package ? (vendor.package.maxProducts || 25) : 25;
+
+        if (currentProductsCount >= maxAllowed) {
+            return res.status(400).json({
+                message: `⚠️ Umehatimisha kikomo cha bidhaa ${maxAllowed} cha kifurushi chako cha (${vendor.package ? vendor.package.name : 'Basic'}). Tafadhali boresha kifurushi chako ili kupost zaidi.`
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Tafadhali pakia picha ya bidhaa.' });
+        }
+
+        const iconPath = 'pics/' + req.file.filename;
+        const id = 'vprod_' + Date.now();
+
+        const specsArray = specs ? (Array.isArray(specs) ? specs : specs.split(',').map(s => s.trim())) : [];
+
+        const newProduct = new Product({
+            id: id,
+            name: name,
+            price: Number(price),
+            priceUnit: 'Tsh',
+            category: category || 'General',
+            dept: dept || 'all',
+            subType: subType || '',
+            icon: iconPath,
+            isImage: true,
+            desc: desc || '',
+            location: location || 'Dar es Salaam',
+            specs: specsArray,
+            vendorPhone: cleanPhone,
+            vendorName: vendor.name,
+            vendorShopName: vendor.shopName || vendor.name,
+            vendorAvatar: vendor.avatar || 'pics/12.png',
+            vendorNidaOrTin: vendor.nidaOrTin || '',
+            isVendorActive: true
+        });
+
+        await newProduct.save();
+
+        res.status(201).json({
+            message: `Bidhaa imepakiwa kikamilifu! (${currentProductsCount + 1}/${maxAllowed} zimetumika)`,
+            product: newProduct,
+            usedCount: currentProductsCount + 1,
+            maxAllowed: maxAllowed
+        });
+    } catch (err) {
+        console.error('[VENDOR PRODUCT UPLOAD ERROR]:', err);
+        res.status(500).json({ message: 'Kosa wakati wa kupakia bidhaa.', error: err.message });
+    }
+});
+
+// F. Get Vendor Profile & Products
+app.get('/api/vendor/profile/:phone', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const vendor = await User.findOne({ phone: cleanPhone });
+
+        if (!vendor) {
+            return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+        }
+
+        const products = await Product.find({ vendorPhone: cleanPhone });
+
+        res.json({
+            vendor: {
+                name: vendor.name,
+                shopName: vendor.shopName,
+                phone: vendor.phone,
+                nidaOrTin: vendor.nidaOrTin,
+                avatar: vendor.avatar,
+                bio: vendor.bio,
+                package: vendor.package,
+                status: vendor.status,
+                followersCount: vendor.followers ? vendor.followers.length : 0
+            },
+            productCount: products.length,
+            products: products
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// G. Social Like Toggle Endpoint
+app.post('/api/social/like', async (req, res) => {
+    try {
+        const { productId, userPhone } = req.body;
+        if (!productId || !userPhone) {
+            return res.status(400).json({ message: 'Missing parameters.' });
+        }
+
+        const product = await Product.findOne({ id: productId });
+        if (!product) return res.status(404).json({ message: 'Product not found.' });
+
+        const cleanPhone = userPhone.trim().replace(/[\s\-]/g, '');
+        const index = product.likes.indexOf(cleanPhone);
+
+        let liked = false;
+        if (index > -1) {
+            product.likes.splice(index, 1);
+            liked = false;
+        } else {
+            product.likes.push(cleanPhone);
+            liked = true;
+        }
+
+        product.likeCount = product.likes.length;
+        await product.save();
+
+        res.json({ liked, likeCount: product.likeCount });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// H. Social Follow Toggle Endpoint
+app.post('/api/social/follow', async (req, res) => {
+    try {
+        const { vendorPhone, userPhone } = req.body;
+        if (!vendorPhone || !userPhone) {
+            return res.status(400).json({ message: 'Missing parameters.' });
+        }
+
+        const cleanVendor = vendorPhone.trim().replace(/[\s\-]/g, '');
+        const cleanUser = userPhone.trim().replace(/[\s\-]/g, '');
+
+        const vendor = await User.findOne({ phone: cleanVendor });
+        const user = await User.findOne({ phone: cleanUser });
+
+        if (!vendor || !user) {
+            return res.status(404).json({ message: 'User or Vendor not found.' });
+        }
+
+        const idx = vendor.followers.indexOf(cleanUser);
+        let following = false;
+
+        if (idx > -1) {
+            vendor.followers.splice(idx, 1);
+            const uIdx = user.following.indexOf(cleanVendor);
+            if (uIdx > -1) user.following.splice(uIdx, 1);
+            following = false;
+        } else {
+            vendor.followers.push(cleanUser);
+            if (!user.following.includes(cleanVendor)) {
+                user.following.push(cleanVendor);
+            }
+            following = true;
+        }
+
+        await vendor.save();
+        await user.save();
+
+        res.json({ following, followersCount: vendor.followers.length });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// I. SUPER ADMIN: Get All Vendors with Products Count & NIDA Info
+app.get('/api/admin/vendors', async (req, res) => {
+    try {
+        const vendors = await User.find({ role: 'vendor' }).sort({ createdAt: -1 });
+
+        const vendorList = await Promise.all(vendors.map(async (v) => {
+            const productCount = await Product.countDocuments({ vendorPhone: v.phone });
+            return {
+                _id: v._id,
+                name: v.name,
+                shopName: v.shopName,
+                phone: v.phone,
+                nidaOrTin: v.nidaOrTin,
+                package: v.package,
+                status: v.status,
+                blockReason: v.blockReason,
+                productCount: productCount,
+                createdAt: v.createdAt
+            };
+        }));
+
+        res.json(vendorList);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// J. SUPER ADMIN: Block / Suspend / Unblock Vendor
+app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const { status, reason } = req.body; // status: 'active' or 'suspended'
+
+        const vendor = await User.findOne({ phone: cleanPhone, role: 'vendor' });
+        if (!vendor) {
+            return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+        }
+
+        vendor.status = status;
+        vendor.blockReason = reason || '';
+        await vendor.save();
+
+        // Update all vendor's products active state so they hide/show in public feed
+        const isActive = (status === 'active');
+        await Product.updateMany({ vendorPhone: cleanPhone }, { isVendorActive: isActive });
+
+        res.json({
+            message: `Hali ya akaunti ya ${vendor.shopName || vendor.name} imebadilishwa kuwa ${status.toUpperCase()}.`,
+            vendor: vendor
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// K. SUPER ADMIN: Upgrade / Change Vendor Subscription Package
+app.patch('/api/admin/vendors/:phone/package', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const { packageName } = req.body; // Basic, Silver, Gold
+
+        let newPackage = { name: 'Basic', price: 5000, maxProducts: 25, status: 'active' };
+        if (packageName === 'Silver') {
+            newPackage = { name: 'Silver', price: 10000, maxProducts: 45, status: 'active' };
+        } else if (packageName === 'Gold') {
+            newPackage = { name: 'Gold', price: 15000, maxProducts: 60, status: 'active' };
+        }
+
+        const vendor = await User.findOneAndUpdate(
+            { phone: cleanPhone, role: 'vendor' },
+            { package: newPackage },
+            { new: true }
+        );
+
+        if (!vendor) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+
+        res.json({ message: `Kifurushi cha ${vendor.shopName} kimesasishwa kuwa ${packageName}.`, vendor });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 

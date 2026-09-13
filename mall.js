@@ -466,6 +466,10 @@ let currentSubfilter = 'all';
 let searchQuery = '';
 let mallCart = [];
 
+let currentUser = null;
+let serverMallProducts = [];
+let modalVendorPhone = null;
+
 // Format Currency TZS
 function formatTZS(amount) {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
@@ -473,11 +477,214 @@ function formatTZS(amount) {
 
 // Initialize on DOM Loaded
 document.addEventListener('DOMContentLoaded', () => {
+    checkUserSession();
+    fetchLiveMemberCount();
     loadMallCartFromStorage();
     renderDepartmentPills();
-    renderMallProducts();
+    fetchServerMallProducts();
     updateMallCartUI();
 });
+
+// A. Fetch Live Dynamic Member Count (Base 105,000+)
+async function fetchLiveMemberCount() {
+    try {
+        const res = await fetch('/api/stats/member-count');
+        if (res.ok) {
+            const data = await res.json();
+            const el = document.getElementById('live-member-count');
+            if (el) el.textContent = data.formatted || '105,420+';
+        }
+    } catch (e) {
+        console.error('Member count error:', e);
+    }
+}
+
+// B. Check Current User Session
+function checkUserSession() {
+    const saved = localStorage.getItem('genge_user');
+    if (saved) {
+        try {
+            currentUser = JSON.parse(saved);
+            updateHeaderAuthUI();
+        } catch (e) {
+            localStorage.removeItem('genge_user');
+        }
+    }
+}
+
+function updateHeaderAuthUI() {
+    const btnText = document.getElementById('auth-btn-text');
+    const authBtn = document.getElementById('mall-auth-btn');
+    if (!btnText || !authBtn) return;
+
+    if (currentUser) {
+        btnText.textContent = currentUser.name.split(' ')[0] + (currentUser.role === 'vendor' ? ' (Muuzaji 🏬)' : '');
+        authBtn.onclick = openUserDropdownOrDashboard;
+    } else {
+        btnText.textContent = 'Ingia / Sajili';
+        authBtn.onclick = openAuthModal;
+    }
+}
+
+function openUserDropdownOrDashboard() {
+    if (!currentUser) return openAuthModal();
+
+    if (currentUser.role === 'vendor') {
+        const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kwenda kwenye "Dashboard ya Muuzaji (Vendor Portal)" kupakia na kusimamia bidhaa zako?\n\n[OK] = Dashboard ya Muuzaji\n[CANCEL] = Toka (Logout)`);
+        if (choice) {
+            window.location.href = 'vendor-admin.html';
+        } else {
+            logoutUser();
+        }
+    } else {
+        const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kutoka kwenye akaunti yako?\n\n[OK] = Toka (Logout)\n[CANCEL] = Rudi Sokoni`);
+        if (choice) {
+            logoutUser();
+        }
+    }
+}
+
+function logoutUser() {
+    localStorage.removeItem('genge_user');
+    localStorage.removeItem('genge_vendor');
+    currentUser = null;
+    updateHeaderAuthUI();
+    alert('Umetoka kwenye akaunti yako.');
+}
+
+// C. Auth Modal Controls
+window.openAuthModal = function() {
+    const modal = document.getElementById('auth-modal-overlay');
+    if (modal) modal.classList.add('open');
+};
+
+window.closeAuthModal = function() {
+    const modal = document.getElementById('auth-modal-overlay');
+    if (modal) modal.classList.remove('open');
+};
+
+window.switchAuthMode = function(mode) {
+    document.getElementById('tab-btn-login').classList.toggle('active', mode === 'login');
+    document.getElementById('tab-btn-register').classList.toggle('active', mode === 'register');
+    document.getElementById('auth-login-form').classList.toggle('hidden', mode !== 'login');
+    document.getElementById('auth-register-form').classList.toggle('hidden', mode !== 'register');
+};
+
+window.selectRegisterRole = function(role) {
+    document.getElementById('role-opt-customer').classList.toggle('active', role === 'customer');
+    document.getElementById('role-opt-vendor').classList.toggle('active', role === 'vendor');
+    document.getElementById('vendor-fields-wrap').classList.toggle('hidden', role !== 'vendor');
+
+    document.getElementById('lbl-reg-name').textContent = role === 'vendor' ? 'Majina Kamili Yaliyo Kwenye NIDA *' : 'Majina Kamili *';
+};
+
+window.handleMallRegister = async function(e) {
+    e.preventDefault();
+    const roleOpt = document.querySelector('input[name="reg-role"]:checked');
+    const role = roleOpt ? roleOpt.value : 'customer';
+    const name = document.getElementById('reg-name').value;
+    const phone = document.getElementById('reg-phone').value;
+    const password = document.getElementById('reg-password').value;
+    const nidaOrTin = document.getElementById('reg-nida') ? document.getElementById('reg-nida').value : '';
+    const shopName = document.getElementById('reg-shop-name') ? document.getElementById('reg-shop-name').value : '';
+    const packageName = document.getElementById('reg-package-select') ? document.getElementById('reg-package-select').value : 'Basic';
+    const msgDiv = document.getElementById('reg-form-msg');
+
+    msgDiv.textContent = '';
+    msgDiv.style.color = '#fff';
+
+    try {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, password, role, nidaOrTin, shopName, packageName })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            msgDiv.textContent = data.message || 'Kosa wakati wa kusajili.';
+            msgDiv.style.color = '#EF4444';
+        } else {
+            msgDiv.textContent = '✅ ' + data.message;
+            msgDiv.style.color = '#10B981';
+            currentUser = data.user;
+            localStorage.setItem('genge_user', JSON.stringify(currentUser));
+            if (role === 'vendor') {
+                localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
+            }
+            updateHeaderAuthUI();
+            setTimeout(() => {
+                closeAuthModal();
+                if (role === 'vendor') {
+                    if (confirm('Usajili wa muuzaji umefanikiwa! Unataka kwenda kwenye Vendor Portal sasa?')) {
+                        window.location.href = 'vendor-admin.html';
+                    }
+                }
+            }, 800);
+        }
+    } catch (err) {
+        msgDiv.textContent = 'Kosa la mtandao. Jaribu tena.';
+        msgDiv.style.color = '#EF4444';
+    }
+};
+
+window.handleMallLogin = async function(e) {
+    e.preventDefault();
+    const phone = document.getElementById('login-phone').value;
+    const password = document.getElementById('login-password').value;
+    const msgDiv = document.getElementById('login-form-msg');
+
+    msgDiv.textContent = '';
+    msgDiv.style.color = '#fff';
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            msgDiv.textContent = data.message || 'Namba ya simu au neno la siri si sahihi.';
+            msgDiv.style.color = '#EF4444';
+        } else {
+            msgDiv.textContent = '✅ Login imefanikiwa!';
+            msgDiv.style.color = '#10B981';
+            currentUser = data.user;
+            localStorage.setItem('genge_user', JSON.stringify(currentUser));
+            if (currentUser.role === 'vendor') {
+                localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
+            }
+            updateHeaderAuthUI();
+            setTimeout(() => {
+                closeAuthModal();
+                if (currentUser.role === 'vendor') {
+                    if (confirm('Karibu Muuzaji! Unataka kwenda kwenye Vendor Dashboard?')) {
+                        window.location.href = 'vendor-admin.html';
+                    }
+                }
+            }, 800);
+        }
+    } catch (err) {
+        msgDiv.textContent = 'Kosa la mtandao. Jaribu tena.';
+        msgDiv.style.color = '#EF4444';
+    }
+};
+
+// D. Fetch Products Uploaded via API & Combine with Catalog
+async function fetchServerMallProducts() {
+    try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+            const data = await res.json();
+            serverMallProducts = data.filter(p => p.vendorPhone || p.id.startsWith('vprod_'));
+            renderMallProducts();
+        }
+    } catch (e) {
+        console.error('Error fetching server products:', e);
+    }
+}
 
 // Render Department Pills
 function renderDepartmentPills() {
@@ -580,7 +787,7 @@ window.clearMallSearch = function() {
     renderMallProducts();
 };
 
-// Render Products to Grid
+// Render Products to Grid (Instagram Style Social Cards)
 function renderMallProducts() {
     const grid = document.getElementById('mall-products-grid');
     const countEl = document.getElementById('results-count');
@@ -588,21 +795,28 @@ function renderMallProducts() {
 
     if (!grid) return;
 
+    // Combine static catalog and server vendor products
+    const combinedAll = [...serverMallProducts, ...mallProducts];
+
     // Filter logic
-    let filtered = mallProducts.filter(item => {
+    let filtered = combinedAll.filter(item => {
         // Department filter
-        if (currentDepartment !== 'all' && item.dept !== currentDepartment) return false;
+        if (currentDepartment !== 'all') {
+            const itemDept = item.dept || item.category;
+            if (itemDept !== currentDepartment) return false;
+        }
 
         // Subfilter (e.g. kupangisha vs kuuzwa)
         if (currentSubfilter !== 'all' && item.subType !== currentSubfilter) return false;
 
         // Search query filter
         if (searchQuery) {
-            const matchTitle = item.title.toLowerCase().includes(searchQuery);
-            const matchDesc = item.desc.toLowerCase().includes(searchQuery);
+            const matchTitle = (item.title || item.name || '').toLowerCase().includes(searchQuery);
+            const matchDesc = (item.desc || '').toLowerCase().includes(searchQuery);
             const matchLoc = (item.location || '').toLowerCase().includes(searchQuery);
             const matchSpecs = (item.specs || []).join(' ').toLowerCase().includes(searchQuery);
-            if (!matchTitle && !matchDesc && !matchLoc && !matchSpecs) return false;
+            const matchVendor = (item.vendorShopName || item.vendorName || '').toLowerCase().includes(searchQuery);
+            if (!matchTitle && !matchDesc && !matchLoc && !matchSpecs && !matchVendor) return false;
         }
 
         return true;
@@ -629,25 +843,179 @@ function renderMallProducts() {
     grid.innerHTML = '';
     filtered.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'mall-card';
+        card.className = 'mall-card glass-panel';
+
+        const itemTitle = item.title || item.name;
+        const itemImage = item.image || item.icon;
+        const vendorShop = item.vendorShopName || 'Genge Official Store';
+        const vendorPhone = item.vendorPhone || '255799689961';
+        const vendorAvatar = item.vendorAvatar || 'pics/12.png';
+        const likeCount = item.likeCount || (item.likes ? item.likes.length : Math.floor(Math.random() * 18) + 5);
+        const isLiked = currentUser && item.likes && item.likes.includes(currentUser.phone);
+
+        // Instagram Card Header
+        const instHeaderHtml = `
+            <div class="inst-card-header">
+                <div class="inst-vendor-info" onclick="openVendorProfileModal('${vendorPhone}')">
+                    <img src="${vendorAvatar}" alt="${vendorShop}" class="inst-avatar">
+                    <div class="inst-vendor-name">
+                        <span>${vendorShop}</span>
+                        <ion-icon name="checkmark-circle" class="inst-verified-icon"></ion-icon>
+                    </div>
+                </div>
+                <button class="inst-follow-btn" onclick="event.stopPropagation(); toggleFollowVendor('${vendorPhone}')">
+                    + Follow
+                </button>
+            </div>
+        `;
 
         // Specs list HTML
         const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${s}</span>`).join('');
 
-        // Action Buttons based on product type
-        let actionButtonsHtml = '';
+        // Action Buttons
+        const waMsg = encodeURIComponent(`Habari ${vendorShop}, nimevutiwa na bidhaa hii Genge Mall: ${itemTitle} ya ${formatTZS(item.price)}. Namba yangu ni ${currentUser ? currentUser.phone : ''}.`);
 
-        if (item.actionType === 'inquire') {
-            // Real Estate: WhatsApp site visit + Call
-            const waMsg = encodeURIComponent(`Habari Genge Mall, nimevutiwa na: ${item.title} ya ${formatTZS(item.price)} (${item.location}). Nahitaji kufanya ukaguzi wa eneo (Site Visit).`);
-            actionButtonsHtml = `
-                <div class="mall-card-actions">
-                    <a href="https://wa.me/${MALL_WHATSAPP_PHONE}?text=${waMsg}" target="_blank" class="btn-card-wa">
-                        <ion-icon name="logo-whatsapp"></ion-icon> Kagua WhatsApp
+        const actionButtonsHtml = `
+            <div class="inst-card-actions">
+                <button class="inst-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLikeProduct('${item.id}', this)">
+                    <ion-icon name="${isLiked ? 'heart' : 'heart-outline'}"></ion-icon>
+                    <span class="like-count">${likeCount}</span> Likes
+                </button>
+                <div style="display:flex;gap:6px;">
+                    <a href="https://wa.me/${vendorPhone}?text=${waMsg}" target="_blank" class="btn-card-wa" style="padding:0.45rem 0.8rem;font-size:0.8rem;">
+                        <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp
                     </a>
-                    <a href="tel:${MALL_CALL_PHONE}" class="btn-card-call">
-                        <ion-icon name="call-outline"></ion-icon> Piga Simu
-                    </a>
+                    <button type="button" class="btn-card-cart" style="padding:0.45rem 0.8rem;font-size:0.8rem;" onclick="addMallCartItem('${item.id}')">
+                        <ion-icon name="cart-outline"></ion-icon> Kapu
+                    </button>
+                </div>
+            </div>
+        `;
+
+        card.innerHTML = `
+            ${instHeaderHtml}
+            <div class="mall-card-img-wrap">
+                <img src="${itemImage}" alt="${itemTitle}" loading="lazy" class="mall-card-img">
+                ${item.badge ? `<span class="mall-badge ${item.badgeClass || 'badge-rent'}">${item.badge}</span>` : ''}
+            </div>
+            <div class="mall-card-body">
+                <span class="location-tag"><ion-icon name="location-outline"></ion-icon> ${item.location || 'Dar es Salaam'}</span>
+                <h3 class="mall-card-title">${itemTitle}</h3>
+                <p class="mall-card-desc">${item.desc || ''}</p>
+                ${specsHtml ? `<div class="specs-wrap">${specsHtml}</div>` : ''}
+                <div class="mall-price-row">
+                    <span class="price-amount">${formatTZS(item.price)}</span>
+                    ${item.priceUnit ? `<span class="price-unit">${item.priceUnit}</span>` : ''}
+                </div>
+            </div>
+            ${actionButtonsHtml}
+        `;
+
+        grid.appendChild(card);
+    });
+}
+
+// Social Like Action Handler
+window.toggleLikeProduct = async function(productId, btnElement) {
+    if (!currentUser) {
+        alert('Tafadhali ingia au sajili akaunti ili uweze ku-like bidhaa!');
+        return openAuthModal();
+    }
+
+    try {
+        const res = await fetch('/api/social/like', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, userPhone: currentUser.phone })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const icon = btnElement.querySelector('ion-icon');
+            const countEl = btnElement.querySelector('.like-count');
+
+            btnElement.classList.toggle('liked', data.liked);
+            icon.setAttribute('name', data.liked ? 'heart' : 'heart-outline');
+            countEl.textContent = data.likeCount;
+        }
+    } catch (e) {
+        console.error('Like error:', e);
+    }
+};
+
+// Social Follow Action Handler
+window.toggleFollowVendor = async function(vendorPhone) {
+    if (!currentUser) {
+        alert('Tafadhali ingia au sajili akaunti ili uweze ku-follow duka!');
+        return openAuthModal();
+    }
+
+    try {
+        const res = await fetch('/api/social/follow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vendorPhone, userPhone: currentUser.phone })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(data.following ? '✅ Sasa unafuata (Follow) duka hili!' : 'Umeacha kufuata duka hili.');
+        }
+    } catch (e) {
+        console.error('Follow error:', e);
+    }
+};
+
+// Vendor Profile Modal Handler
+window.openVendorProfileModal = async function(phone) {
+    const modal = document.getElementById('vendor-profile-modal');
+    modalVendorPhone = phone;
+
+    try {
+        const res = await fetch(`/api/vendor/profile/${phone}`);
+        if (res.ok) {
+            const data = await res.json();
+            const v = data.vendor;
+
+            document.getElementById('vp-modal-avatar').src = v.avatar || 'pics/12.png';
+            document.getElementById('vp-modal-shop').textContent = v.shopName || v.name;
+            document.getElementById('vp-modal-owner').textContent = 'Mwenye Duka: ' + v.name;
+            document.getElementById('vp-modal-bio').textContent = v.bio || 'Wauzaji waaminifu Genge Mall';
+            document.getElementById('vp-modal-prod-count').textContent = data.productCount || 0;
+            document.getElementById('vp-modal-followers-count').textContent = v.followersCount || 0;
+            document.getElementById('vp-modal-wa-btn').href = `https://wa.me/${v.phone}`;
+
+            const grid = document.getElementById('vp-modal-products-grid');
+            if (data.products && data.products.length > 0) {
+                grid.innerHTML = data.products.map(p => `
+                    <div style="background:rgba(255,255,255,0.05);border-radius:12px;overflow:hidden;padding:0.8rem;">
+                        <img src="${p.icon}" alt="${p.name}" style="width:100%;height:130px;object-fit:cover;border-radius:8px;">
+                        <h4 style="font-size:0.88rem;margin:0.4rem 0;">${p.name}</h4>
+                        <div style="color:var(--primary);font-weight:800;font-size:0.95rem;">${formatTZS(p.price)}</div>
+                    </div>
+                `).join('');
+            } else {
+                grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);">Bado hakuna bidhaa zilizopakiwa na duka hili.</p>';
+            }
+
+            modal.classList.add('open');
+        } else {
+            alert('Taarifa za duka hazijapatikana.');
+        }
+    } catch (e) {
+        alert('Kosa la mtandao wakati wa kuleta profile ya duka.');
+    }
+};
+
+window.closeVendorProfileModal = function() {
+    document.getElementById('vendor-profile-modal').classList.remove('open');
+};
+
+window.toggleFollowVendorModal = function() {
+    if (modalVendorPhone) {
+        toggleFollowVendor(modalVendorPhone);
+    }
+};
                 </div>
             `;
         } else if (item.actionType === 'car-inquire') {

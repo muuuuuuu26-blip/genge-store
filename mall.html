@@ -23,7 +23,13 @@
 
     <!-- Mall Top Bar Notice -->
     <div class="mall-top-announcement">
-        <span>✨ Karibu <strong>GENGE MALL</strong> — Jukwaa Lako Namba Moja la Bidhaa, Magari na Makazi Tanzania!</span>
+        <div class="top-announcement-content">
+            <span>✨ Karibu <strong>GENGE MALL</strong> — Jukwaa Lako Namba Moja la Bidhaa, Magari na Makazi!</span>
+            <div class="live-member-counter-badge">
+                <span class="live-dot"></span>
+                <span>🔥 Wanachama Waliojisajili: <strong id="live-member-count">105,420+</strong></span>
+            </div>
+        </div>
         <a href="https://wa.me/255799689961" target="_blank" class="top-wa-link">
             <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp: +255 799 689 961
         </a>
@@ -56,9 +62,13 @@
 
             <!-- Header Actions -->
             <div class="mall-header-actions">
+                <button type="button" class="mall-auth-btn" id="mall-auth-btn" onclick="openAuthModal()">
+                    <ion-icon name="person-circle-outline"></ion-icon>
+                    <span id="auth-btn-text">Ingia / Sajili</span>
+                </button>
                 <button type="button" class="mall-terms-btn" onclick="openMallTermsModal()">
                     <ion-icon name="document-text-outline"></ion-icon>
-                    <span>Sheria &amp; Taratibu</span>
+                    <span>Taratibu</span>
                 </button>
                 <div class="mall-cart-icon" id="mall-cart-btn" onclick="toggleMallCart()">
                     <ion-icon name="cart-outline"></ion-icon>
@@ -316,8 +326,139 @@
         <div class="mall-footer-bottom">
             <p>&copy; 2026 GENGE MALL. Haki Zote Zimehifadhiwa.</p>
         </div>
-    </footer>
+    <!-- Auth Modal (Login / Usajili wa Mnunuzi na Muuzaji) -->
+    <div class="auth-modal-overlay" id="auth-modal-overlay">
+        <div class="auth-modal-card glass-panel">
+            <button class="auth-modal-close" onclick="closeAuthModal()">&times;</button>
 
-    <script src="mall.js?v=1"></script>
+            <!-- Tabs: Ingia vs Sajili -->
+            <div class="auth-mode-tabs">
+                <button class="auth-tab-btn active" id="tab-btn-login" onclick="switchAuthMode('login')">Ingia (Login)</button>
+                <button class="auth-tab-btn" id="tab-btn-register" onclick="switchAuthMode('register')">Sajili Akaunti</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="auth-login-form" class="auth-form" onsubmit="handleMallLogin(event)">
+                <h3>🔐 Ingia Kwenye Akaunti Yako</h3>
+                <div class="auth-field">
+                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu</label>
+                    <input type="tel" id="login-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required>
+                </div>
+                <div class="auth-field">
+                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri</label>
+                    <input type="password" id="login-password" placeholder="Neno la siri" required>
+                </div>
+                <button type="submit" class="auth-submit-btn">Ingia Sasa &rsaquo;</button>
+                <div id="login-form-msg" class="auth-status-msg"></div>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="auth-register-form" class="auth-form hidden" onsubmit="handleMallRegister(event)">
+                <h3>✨ Sajili Akaunti Mpya Genge Mall</h3>
+
+                <!-- Role Selector: Mnunuzi vs Muuzaji -->
+                <div class="role-selector-wrap">
+                    <label class="role-option active" id="role-opt-customer" onclick="selectRegisterRole('customer')">
+                        <input type="radio" name="reg-role" value="customer" checked style="display:none;">
+                        <span class="role-icon">🛒</span>
+                        <span class="role-title">Mnunuzi (Customer)</span>
+                    </label>
+                    <label class="role-option" id="role-opt-vendor" onclick="selectRegisterRole('vendor')">
+                        <input type="radio" name="reg-role" value="vendor" style="display:none;">
+                        <span class="role-icon">🏬</span>
+                        <span class="role-title">Muuzaji (Vendor)</span>
+                    </label>
+                </div>
+
+                <div class="auth-field">
+                    <label id="lbl-reg-name">Majina Kamili *</label>
+                    <input type="text" id="reg-name" placeholder="Mfano: Juma Rashid Bakari" required>
+                </div>
+
+                <!-- Vendor Specific Fields -->
+                <div id="vendor-fields-wrap" class="hidden">
+                    <div class="auth-field">
+                        <label><ion-icon name="card-outline"></ion-icon> Namba ya NIDA au TIN Number *</label>
+                        <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789">
+                    </div>
+                    <div class="auth-field">
+                        <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka / Biashara *</label>
+                        <input type="text" id="reg-shop-name" placeholder="Mfano: Juma Fashion Store">
+                    </div>
+                    
+                    <!-- Package Selection -->
+                    <div class="auth-field">
+                        <label><ion-icon name="cube-outline"></ion-icon> Chagua Kifurushi cha Muuzaji *</label>
+                        <select id="reg-package-select">
+                            <option value="Basic">Basic Vendor — Tsh 5,000/= (Hadi Bidhaa 25)</option>
+                            <option value="Silver">Silver Vendor — Tsh 10,000/= (Hadi Bidhaa 45)</option>
+                            <option value="Gold">Gold VIP Vendor — Tsh 15,000/= (Hadi Bidhaa 60)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="auth-field">
+                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu *</label>
+                    <input type="tel" id="reg-phone" placeholder="07XXXXXXXX" required>
+                </div>
+
+                <div class="auth-field">
+                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri *</label>
+                    <input type="password" id="reg-password" placeholder="Tengeneza neno la siri" required>
+                </div>
+
+                <button type="submit" class="auth-submit-btn">Tengeneza Akaunti &rsaquo;</button>
+                <div id="reg-form-msg" class="auth-status-msg"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vendor Public Profile Modal (Instagram Style) -->
+    <div class="vendor-profile-modal-overlay" id="vendor-profile-modal">
+        <div class="vendor-profile-card glass-panel">
+            <button class="auth-modal-close" onclick="closeVendorProfileModal()">&times;</button>
+            <div class="vprofile-header">
+                <img src="pics/12.png" alt="Avatar" id="vp-modal-avatar" class="vprofile-avatar">
+                <div class="vprofile-details">
+                    <div class="vprofile-title-row">
+                        <h2 id="vp-modal-shop">Jina la Duka</h2>
+                        <span class="vprofile-verified-badge"><ion-icon name="checkmark-circle"></ion-icon> NIDA Verified</span>
+                    </div>
+                    <p class="vprofile-owner" id="vp-modal-owner">Mwenye Duka</p>
+                    <p class="vprofile-bio" id="vp-modal-bio">Wauzaji waaminifu Genge Mall</p>
+                    
+                    <div class="vprofile-stats-row">
+                        <div class="vp-stat-item">
+                            <strong id="vp-modal-prod-count">0</strong>
+                            <span>Bidhaa</span>
+                        </div>
+                        <div class="vp-stat-item">
+                            <strong id="vp-modal-followers-count">0</strong>
+                            <span>Wafuasi</span>
+                        </div>
+                    </div>
+
+                    <div class="vprofile-actions">
+                        <button class="vp-follow-btn" id="vp-modal-follow-btn" onclick="toggleFollowVendorModal()">
+                            <ion-icon name="person-add-outline"></ion-icon> Follow Duka Hili
+                        </button>
+                        <a href="#" id="vp-modal-wa-btn" target="_blank" class="vp-wa-btn">
+                            <ion-icon name="logo-whatsapp"></ion-icon> Chat WhatsApp
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vendor Products Grid -->
+            <div class="vprofile-products-sec">
+                <h3>Bidhaa Zote za Duka Hili</h3>
+                <div class="vprofile-products-grid" id="vp-modal-products-grid">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="mall.js?v=2"></script>
 </body>
 </html>

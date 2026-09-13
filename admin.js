@@ -259,10 +259,128 @@ window.showSection = function(section, anchor) {
         document.getElementById('feedback-section').style.display = 'none';
         document.getElementById('products-section').style.display = 'none';
         document.getElementById('packages-section').style.display = 'block';
+        if (document.getElementById('mall-control-section')) document.getElementById('mall-control-section').style.display = 'none';
         document.querySelector('.top-header h1').innerText = 'Vifurushi vya Familia';
         loadPackages();
+    } else if (section === 'mall-control') {
+        document.getElementById('orders-section').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'none';
+        document.getElementById('feedback-section').style.display = 'none';
+        document.getElementById('products-section').style.display = 'none';
+        document.getElementById('packages-section').style.display = 'none';
+        if (document.getElementById('mall-control-section')) document.getElementById('mall-control-section').style.display = 'block';
+        document.querySelector('.top-header h1').innerText = '🛍️ Genge Mall Control Panel';
+        loadMallAdminVendors();
     }
 };
+
+// ── SUPER ADMIN: GENGE MALL VENDOR CONTROL ─────────────────────────
+async function loadMallAdminVendors() {
+    const tbody = document.getElementById('admin-vendors-tbody');
+    const noMsg = document.getElementById('no-admin-vendors-msg');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text-muted);">Inavuta data ya wauzaji...</td></tr>';
+
+    try {
+        const res = await fetch('/api/admin/vendors');
+        const vendors = await res.json();
+
+        if (!vendors || vendors.length === 0) {
+            tbody.innerHTML = '';
+            if (noMsg) noMsg.style.display = 'block';
+            return;
+        }
+
+        if (noMsg) noMsg.style.display = 'none';
+
+        tbody.innerHTML = vendors.map(v => {
+            const isSuspended = (v.status === 'suspended' || v.status === 'blocked');
+            const pkg = v.package || { name: 'Basic', price: 5000, maxProducts: 25 };
+            const statusBadge = isSuspended
+                ? `<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:4px 10px;border-radius:12px;font-weight:700;font-size:0.8rem;">🚫 IMEFUNGIWA</span>`
+                : `<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:12px;font-weight:700;font-size:0.8rem;">✅ ACTIVE</span>`;
+
+            return `
+                <tr>
+                    <td>
+                        <strong>${v.shopName || v.name}</strong><br>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">${v.name}</span>
+                    </td>
+                    <td><code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;color:#f59e0b;">${v.nidaOrTin || 'Bila NIDA/TIN'}</code></td>
+                    <td><strong>${v.phone}</strong></td>
+                    <td>
+                        <strong style="color:#10B981;">${pkg.name}</strong><br>
+                        <span style="font-size:0.78rem;color:var(--text-muted);">(Tsh ${pkg.price.toLocaleString()}/mwezi - max ${pkg.maxProducts})</span>
+                    </td>
+                    <td><strong>${v.productCount || 0} / ${pkg.maxProducts || 25}</strong> Bidhaa</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button onclick="toggleVendorStatus('${v.phone}', '${v.status}')" style="background:${isSuspended ? '#10B981' : '#EF4444'};color:#fff;border:none;padding:5px 10px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.8rem;">
+                                ${isSuspended ? '✅ Fungulia' : '🚫 Fungia'}
+                            </button>
+                            <button onclick="changeVendorPackage('${v.phone}')" style="background:#F59E0B;color:#000;border:none;padding:5px 10px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.8rem;">
+                                🚀 Kifurushi
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#EF4444;">Imefeli kuleta wauzaji.</td></tr>';
+    }
+}
+
+async function toggleVendorStatus(phone, currentStatus) {
+    const isBlocking = (currentStatus === 'active');
+    let reason = '';
+    
+    if (isBlocking) {
+        reason = prompt('Weka sababu ya kumfungia/kumsimamisha muuzaji huyu:', 'Ukiukaji wa taratibu za Genge Mall');
+        if (reason === null) return;
+    }
+
+    const newStatus = isBlocking ? 'suspended' : 'active';
+
+    try {
+        const res = await fetch(`/api/admin/vendors/${phone}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus, reason: reason })
+        });
+
+        const data = await res.json();
+        alert(data.message || 'Hali imebadilishwa!');
+        loadMallAdminVendors();
+    } catch (err) {
+        alert('Kosa wakati wa kubadilisha status ya muuzaji.');
+    }
+}
+
+async function changeVendorPackage(phone) {
+    const pkgChoice = prompt('Chagua Kifurushi kipya kwa muuzaji huyu:\n1 = Basic (Tsh 5,000 / 25 Bidhaa)\n2 = Silver (Tsh 10,000 / 45 Bidhaa)\n3 = Gold (Tsh 15,000 / 60 Bidhaa)', '1');
+    if (!pkgChoice) return;
+
+    let packageName = 'Basic';
+    if (pkgChoice === '2' || pkgChoice.toLowerCase() === 'silver') packageName = 'Silver';
+    if (pkgChoice === '3' || pkgChoice.toLowerCase() === 'gold') packageName = 'Gold';
+
+    try {
+        const res = await fetch(`/api/admin/vendors/${phone}/package`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ packageName: packageName })
+        });
+
+        const data = await res.json();
+        alert(data.message || 'Kifurushi kimbadilishwa!');
+        loadMallAdminVendors();
+    } catch (err) {
+        alert('Kosa wakati wa kubadilisha kifurushi.');
+    }
+}
 
 // --- Product Upload Logic ---
 document.addEventListener('DOMContentLoaded', () => {
