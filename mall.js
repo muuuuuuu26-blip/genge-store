@@ -604,6 +604,15 @@ function formatTZS(amount) {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
 }
 
+// Global State Variables
+let currentUser = null;
+let currentDepartment = 'all';
+let currentSubfilter = 'all';
+let searchQuery = '';
+let serverMallProducts = [];
+let mallCart = [];
+let modalVendorPhone = null;
+
 // Initialize on DOM Loaded
 document.addEventListener('DOMContentLoaded', () => {
     checkUserSession();
@@ -1642,6 +1651,8 @@ window.openVendorProfileModal = async function(phone, deptKey) {
     const followersEl = document.getElementById('vp-modal-followers-count');
     if (followersEl) followersEl.textContent = v.followersCount || '3.5k';
 
+    const waBtn = document.getElementById('vp-modal-wa-btn');
+    if (waBtn) {
         const cleanVPhone = formatWhatsAppPhone(v.phone || phone);
         const waHello = encodeURIComponent(`Habari ${v.shopName}, nimeona duka lenu Genge Mall na nina maswali kuhusu bidhaa zenu.`);
         waBtn.href = `https://wa.me/${cleanVPhone}?text=${waHello}`;
