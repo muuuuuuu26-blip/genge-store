@@ -17,7 +17,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=1">
+    <link rel="stylesheet" href="mall.css?v=3">
 </head>
 <body>
 
@@ -326,6 +326,72 @@
         <div class="mall-footer-bottom">
             <p>&copy; 2026 GENGE MALL. Haki Zote Zimehifadhiwa.</p>
         </div>
+    </footer>
+
+    <!-- Modal ya Sheria & Taratibu za Genge Mall -->
+    <div id="mall-terms-modal" class="mall-terms-modal-overlay" style="display: none;">
+        <div class="mall-terms-modal-content glass-panel">
+            <div class="terms-modal-header">
+                <div class="terms-title-wrap">
+                    <ion-icon name="shield-checkmark-outline" class="terms-header-icon"></ion-icon>
+                    <div>
+                        <h2>Sheria, Taratibu &amp; Ulinzi wa Mteja</h2>
+                        <span class="terms-sub">Genge Mall — Soko Salama la Mtandaoni Tanzania</span>
+                    </div>
+                </div>
+                <button type="button" class="terms-modal-close" onclick="closeMallTermsModal()">&times;</button>
+            </div>
+
+            <div class="terms-modal-body">
+                <div class="terms-rule-card">
+                    <div class="rule-icon">🏡🚗</div>
+                    <div class="rule-text">
+                        <h4>1. Ukaguzi wa Nyumba &amp; Magari (Physical Site Visit)</h4>
+                        <p>Kwa bidhaa za Nyumba (kupangisha/kuuzwa) na Magari, <strong>HAKUNA MALIPO YANAYOFANYIKA MTANDAONI</strong> kabla ya kufanya ukaguzi wa kimwili. Mteja anaruhusiwa kwenda kuona eneo, kuendesha gari (test-drive), na kuhakiki kadi ya TRA au Hati Miliki kwa kushirikiana na msimamizi wetu.</p>
+                    </div>
+                </div>
+
+                <div class="terms-rule-card">
+                    <div class="rule-icon">🛍️🚚</div>
+                    <div class="rule-text">
+                        <h4>2. Uwasilishaji wa Bidhaa za Rejareja (Delivery)</h4>
+                        <p>Bidhaa za Mitindo, Viatu, Urembo, Manukato, Simu, Vifaa vya Ujenzi na Usafi huwasilishwa mlangoni kwako nchi nzima. Dar es Salaam ni ndani ya masaa 2–6, na mikoani ndani ya masaa 24 kupitia mabasi ya uhakika.</p>
+                    </div>
+                </div>
+
+                <div class="terms-rule-card">
+                    <div class="rule-icon">🛡️↩️</div>
+                    <div class="rule-text">
+                        <h4>3. Dhamana &amp; Urejeshaji wa Fedha (Money Back Guarantee)</h4>
+                        <p>Ikiwa bidhaa itafika ikiwa na tatizo au ikiwa tofauti na ilivyoelezwa kwenye picha, mteja ana haki ya kubadilishiwa au kurejeshewa fedha zake ndani ya masaa 24 tangu kupokea mzigo.</p>
+                    </div>
+                </div>
+
+                <div class="terms-rule-card">
+                    <div class="rule-icon">✅🏬</div>
+                    <div class="rule-text">
+                        <h4>4. Uhakiki wa Wauzaji (NIDA / TIN Verification)</h4>
+                        <p>Wauzaji wote wa Genge Mall wanathibitishwa kupitia namba zao za <strong>NIDA</strong> au <strong>TIN</strong>. Muuzaji yeyote atakayekiuka uaminifu atafungiwa akaunti yake mara moja na Utawala wa Genge.</p>
+                    </div>
+                </div>
+
+                <div class="terms-rule-card">
+                    <div class="rule-icon">📞💬</div>
+                    <div class="rule-text">
+                        <h4>5. Huduma kwa Wateja Masaa 24/7</h4>
+                        <p>Mawasiliano rasmi: WhatsApp <strong>+255 799 689 961</strong> au Piga simu <strong>+255 692 970 687</strong> / <strong>+255 675 583 884</strong>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terms-modal-footer">
+                <button type="button" class="terms-agree-btn" onclick="closeMallTermsModal()">
+                    <ion-icon name="checkmark-done-circle-outline"></ion-icon> Nimeelewa &amp; Nakubaliana na Taratibu
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Auth Modal (Login / Usajili wa Mnunuzi na Muuzaji) -->
     <div class="auth-modal-overlay" id="auth-modal-overlay">
         <div class="auth-modal-card glass-panel">
@@ -459,6 +525,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=2"></script>
+    <script src="mall.js?v=3"></script>
 </body>
 </html>
