@@ -461,7 +461,6 @@ const mallProducts = [
 ];
 
 // App State & Constants
-const MALL_WHATSAPP_PHONE = '255799689961';
 let currentDepartment = 'all';
 let currentSubfilter = 'all';
 let searchQuery = '';
@@ -674,14 +673,27 @@ function logoutUser() {
 }
 
 // C. Auth Modal Controls
-window.openAuthModal = function() {
+window.openAuthModal = function(mode) {
     const modal = document.getElementById('auth-modal-overlay');
-    if (modal) modal.classList.add('open');
+    if (modal) {
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+    }
+    if (mode) {
+        switchAuthMode(mode);
+    }
 };
 
 window.closeAuthModal = function() {
     const modal = document.getElementById('auth-modal-overlay');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+    }
 };
 
 window.switchAuthMode = function(mode) {
@@ -1310,11 +1322,19 @@ window.openVendorProfileModal = async function(phone, deptKey) {
     }
 
     modal.classList.add('open');
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
 };
 
 window.closeVendorProfileModal = function() {
     const modal = document.getElementById('vendor-profile-modal');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+    }
 };
 
 window.toggleFollowVendorModal = function() {
