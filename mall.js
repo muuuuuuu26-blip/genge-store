@@ -1010,6 +1010,7 @@ function initSponsoredSlider() {
 
     renderSponsoredSlides();
     startSponsoredSliderAutoplay();
+    initSponsoredSliderGestures();
 }
 
 function renderSponsoredSlides() {
@@ -1018,16 +1019,17 @@ function renderSponsoredSlides() {
     if (!track) return;
 
     track.innerHTML = sponsoredSliderItems.map((item, idx) => {
+        const cleanPhone = formatWhatsAppPhone(item.vendorPhone);
         const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall VIP Showcase. Naomba kujua zaidi.`);
-        const waLink = `https://wa.me/${item.vendorPhone}?text=${waMsg}`;
-        const telLink = `tel:+${item.vendorPhone}`;
+        const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
+        const telLink = `tel:+${cleanPhone}`;
 
         const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${s}</span>`).join('');
 
         return `
             <div class="sponsored-slide-card" data-index="${idx}">
                 <div class="slide-img-box">
-                    <img src="${item.image}" alt="${item.title}" loading="lazy">
+                    <img src="${item.image}" alt="${item.title}" loading="lazy" onerror="this.src='pics/15.png'">
                     <div class="slide-gold-ribbon">
                         <ion-icon name="sparkles"></ion-icon> ${item.badgeText}
                     </div>
@@ -1085,19 +1087,26 @@ function startSponsoredSliderAutoplay() {
     }, 4500);
 }
 
+function getMaxSponsoredIndex() {
+    const isDesktop = window.innerWidth >= 1024;
+    return isDesktop ? Math.max(0, sponsoredSliderItems.length - 2) : sponsoredSliderItems.length - 1;
+}
+
 window.moveSponsoredSlide = function(direction) {
     if (sponsoredSliderItems.length <= 1) return;
+    const maxIndex = getMaxSponsoredIndex();
     sponsoredSliderIndex += direction;
-    if (sponsoredSliderIndex >= sponsoredSliderItems.length) {
+    if (sponsoredSliderIndex > maxIndex) {
         sponsoredSliderIndex = 0;
     } else if (sponsoredSliderIndex < 0) {
-        sponsoredSliderIndex = sponsoredSliderItems.length - 1;
+        sponsoredSliderIndex = maxIndex;
     }
     updateSponsoredSliderPosition();
 };
 
 window.goToSponsoredSlide = function(index) {
-    sponsoredSliderIndex = index;
+    const maxIndex = getMaxSponsoredIndex();
+    sponsoredSliderIndex = Math.min(index, maxIndex);
     updateSponsoredSliderPosition();
 };
 
@@ -1106,16 +1115,44 @@ function updateSponsoredSliderPosition() {
     const dots = document.querySelectorAll('.sponsored-dot');
     if (!track) return;
 
-    const firstCard = track.querySelector('.sponsored-slide-card');
-    if (firstCard) {
-        const cardWidth = firstCard.offsetWidth;
-        const gap = 19.2;
-        const offset = (cardWidth + gap) * sponsoredSliderIndex;
+    const cards = track.querySelectorAll('.sponsored-slide-card');
+    if (cards && cards[sponsoredSliderIndex] && cards[0]) {
+        const offset = cards[sponsoredSliderIndex].offsetLeft - cards[0].offsetLeft;
         track.style.transform = `translateX(-${offset}px)`;
     }
 
     dots.forEach((dot, i) => {
         dot.classList.toggle('active', i === sponsoredSliderIndex);
+    });
+}
+
+function initSponsoredSliderGestures() {
+    const container = document.getElementById('sponsored-slider-container');
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    container.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        pauseSponsoredSlider();
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 40) {
+            if (diff > 0) {
+                moveSponsoredSlide(1); // Swipe left -> Next
+            } else {
+                moveSponsoredSlide(-1); // Swipe right -> Prev
+            }
+        }
+        setTimeout(resumeSponsoredSlider, 1200);
+    }, { passive: true });
+
+    window.addEventListener('resize', () => {
+        updateSponsoredSliderPosition();
     });
 }
 
