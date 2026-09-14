@@ -17,7 +17,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=4">
+    <link rel="stylesheet" href="mall.css?v=5">
 </head>
 <body>
 
@@ -63,8 +63,8 @@
             <!-- Header Actions -->
             <div class="mall-header-actions">
                 <button type="button" class="mall-auth-btn" id="mall-auth-btn" onclick="openAuthModal()">
-                    <ion-icon name="person-circle-outline"></ion-icon>
-                    <span id="auth-btn-text">Ingia / Sajili</span>
+                    <ion-icon name="storefront-outline"></ion-icon>
+                    <span id="auth-btn-text">Muuzaji: Ingia / Sajili</span>
                 </button>
                 <button type="button" class="mall-terms-btn" onclick="openMallTermsModal()">
                     <ion-icon name="document-text-outline"></ion-icon>
@@ -392,89 +392,88 @@
         </div>
     </div>
 
-    <!-- Auth Modal (Login / Usajili wa Mnunuzi na Muuzaji) -->
+    <!-- Auth Modal (Portal ya Muuzaji tu) -->
     <div class="auth-modal-overlay" id="auth-modal-overlay" style="display: none;" onclick="if(event.target === this) closeAuthModal()">
         <div class="auth-modal-card glass-panel">
             <button class="auth-modal-close" onclick="closeAuthModal()">&times;</button>
 
-            <!-- Tabs: Ingia vs Sajili -->
+            <!-- Tabs: Ingia vs Sajili Duka -->
             <div class="auth-mode-tabs">
-                <button class="auth-tab-btn active" id="tab-btn-login" onclick="switchAuthMode('login')">Ingia (Login)</button>
-                <button class="auth-tab-btn" id="tab-btn-register" onclick="switchAuthMode('register')">Sajili Akaunti</button>
+                <button class="auth-tab-btn active" id="tab-btn-login" onclick="switchAuthMode('login')">🔐 Ingia (Muuzaji)</button>
+                <button class="auth-tab-btn" id="tab-btn-register" onclick="switchAuthMode('register')">🏬 Sajili Duka Lako</button>
             </div>
 
-            <!-- LOGIN FORM -->
+            <!-- 1. LOGIN FORM (Wauzaji Waliojisajili) -->
             <form id="auth-login-form" class="auth-form" onsubmit="handleMallLogin(event)">
-                <h3>🔐 Ingia Kwenye Akaunti Yako</h3>
+                <h3 style="margin-bottom: 0.3rem;">🔐 Ingia Kwenye Duka Lako</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">Kuingia kwenye Dashibodi ya Muuzaji kupakia na kusimamia bidhaa zako.</p>
+                
                 <div class="auth-field">
-                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu</label>
+                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu ya Muuzaji *</label>
                     <input type="tel" id="login-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required>
                 </div>
                 <div class="auth-field">
-                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri</label>
-                    <input type="password" id="login-password" placeholder="Neno la siri" required>
+                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri (Password) *</label>
+                    <input type="password" id="login-password" placeholder="Weka neno lako la siri" required>
                 </div>
-                <button type="submit" class="auth-submit-btn">Ingia Sasa &rsaquo;</button>
+                <button type="submit" class="auth-submit-btn">Ingia Kwenye Dashboard &rsaquo;</button>
                 <div id="login-form-msg" class="auth-status-msg"></div>
+
+                <div style="margin-top: 1.2rem; text-align: center; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                    <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 0.5rem;">Bado huna duka lililosajiliwa?</p>
+                    <button type="button" onclick="switchAuthMode('register')" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">
+                        Bonyeza Hapa Kusajili Duka Lako Sasa &rsaquo;
+                    </button>
+                </div>
             </form>
 
-            <!-- REGISTER FORM -->
-            <form id="auth-register-form" class="auth-form hidden" onsubmit="handleMallRegister(event)">
-                <h3>✨ Sajili Akaunti Mpya Genge Mall</h3>
-
-                <!-- Role Selector: Mnunuzi vs Muuzaji -->
-                <div class="role-selector-wrap">
-                    <label class="role-option active" id="role-opt-customer" onclick="selectRegisterRole('customer')">
-                        <input type="radio" name="reg-role" value="customer" checked style="display:none;">
-                        <span class="role-icon">🛒</span>
-                        <span class="role-title">Mnunuzi (Customer)</span>
-                    </label>
-                    <label class="role-option" id="role-opt-vendor" onclick="selectRegisterRole('vendor')">
-                        <input type="radio" name="reg-role" value="vendor" style="display:none;">
-                        <span class="role-icon">🏬</span>
-                        <span class="role-title">Muuzaji (Vendor)</span>
-                    </label>
-                </div>
+            <!-- 2. REGISTER FORM (Usajili wa Duka la Muuzaji Tu) -->
+            <form id="auth-register-form" class="auth-form hidden" style="display: none;" onsubmit="handleMallRegister(event)">
+                <h3 style="margin-bottom: 0.3rem;">🏬 Sajili Duka Lako Genge Mall</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">Jiunge kama muuzaji rasmi uanze kuuza na kupakia bidhaa zako leo.</p>
 
                 <div class="auth-field">
-                    <label id="lbl-reg-name">Majina Kamili *</label>
+                    <label><ion-icon name="person-outline"></ion-icon> Majina Kamili (Yaliyo Kwenye NIDA) *</label>
                     <input type="text" id="reg-name" placeholder="Mfano: Juma Rashid Bakari" required>
                 </div>
 
-                <!-- Vendor Specific Fields -->
-                <div id="vendor-fields-wrap" class="hidden">
-                    <div class="auth-field">
-                        <label><ion-icon name="card-outline"></ion-icon> Namba ya NIDA au TIN Number *</label>
-                        <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789">
-                    </div>
-                    <div class="auth-field">
-                        <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka / Biashara *</label>
-                        <input type="text" id="reg-shop-name" placeholder="Mfano: Juma Fashion Store">
-                    </div>
-                    
-                    <!-- Package Selection -->
-                    <div class="auth-field">
-                        <label><ion-icon name="cube-outline"></ion-icon> Chagua Kifurushi cha Muuzaji *</label>
-                        <select id="reg-package-select">
-                            <option value="Basic">Basic Vendor — Tsh 5,000/= (Hadi Bidhaa 25)</option>
-                            <option value="Silver">Silver Vendor — Tsh 10,000/= (Hadi Bidhaa 45)</option>
-                            <option value="Gold">Gold VIP Vendor — Tsh 15,000/= (Hadi Bidhaa 60)</option>
-                        </select>
-                    </div>
+                <div class="auth-field">
+                    <label><ion-icon name="card-outline"></ion-icon> Namba ya NIDA au TIN Number *</label>
+                    <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789" required>
                 </div>
 
                 <div class="auth-field">
-                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu *</label>
+                    <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka / Biashara Yako *</label>
+                    <input type="text" id="reg-shop-name" placeholder="Mfano: Kariakoo Classic Shoes" required>
+                </div>
+
+                <div class="auth-field">
+                    <label><ion-icon name="cube-outline"></ion-icon> Chagua Kifurushi cha Muuzaji *</label>
+                    <select id="reg-package-select">
+                        <option value="Basic">Basic Vendor — Tsh 5,000/= (Hadi Bidhaa 25)</option>
+                        <option value="Silver">Silver Vendor — Tsh 10,000/= (Hadi Bidhaa 45)</option>
+                        <option value="Gold">Gold VIP Vendor — Tsh 15,000/= (Hadi Bidhaa 60)</option>
+                    </select>
+                </div>
+
+                <div class="auth-field">
+                    <label><ion-icon name="logo-whatsapp"></ion-icon> Namba ya Simu (WhatsApp ya Biashara) *</label>
                     <input type="tel" id="reg-phone" placeholder="07XXXXXXXX" required>
                 </div>
 
                 <div class="auth-field">
-                    <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri *</label>
+                    <label><ion-icon name="lock-closed-outline"></ion-icon> Tengeneza Neno la Siri *</label>
                     <input type="password" id="reg-password" placeholder="Tengeneza neno la siri" required>
                 </div>
 
-                <button type="submit" class="auth-submit-btn">Tengeneza Akaunti &rsaquo;</button>
+                <button type="submit" class="auth-submit-btn">Kamilisha Usajili wa Duka &rsaquo;</button>
                 <div id="reg-form-msg" class="auth-status-msg"></div>
+
+                <div style="margin-top: 1rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 0.75rem; text-align: center;">
+                    <p style="font-size: 0.8rem; color: #cbd5e1; margin: 0; line-height: 1.4;">
+                        🛒 <strong>Ujumbe kwa Wanunuzi:</strong> Huna haja ya kujisajili hapa! Unaweza kuagiza bidhaa yoyote moja kwa moja kwa WhatsApp au simu na muuzaji.
+                    </p>
+                </div>
             </form>
         </div>
     </div>
@@ -525,6 +524,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=4"></script>
+    <script src="mall.js?v=5"></script>
 </body>
 </html>

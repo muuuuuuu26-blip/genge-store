@@ -638,19 +638,19 @@ function updateHeaderAuthUI() {
     if (!btnText || !authBtn) return;
 
     if (currentUser) {
-        btnText.textContent = currentUser.name.split(' ')[0] + (currentUser.role === 'vendor' ? ' (Muuzaji 🏬)' : '');
+        btnText.textContent = (currentUser.shopName || currentUser.name.split(' ')[0]) + ' (Dashboard 🏬)';
         authBtn.onclick = openUserDropdownOrDashboard;
     } else {
-        btnText.textContent = 'Ingia / Sajili';
-        authBtn.onclick = openAuthModal;
+        btnText.textContent = 'Muuzaji: Ingia / Sajili';
+        authBtn.onclick = () => openAuthModal('login');
     }
 }
 
 function openUserDropdownOrDashboard() {
-    if (!currentUser) return openAuthModal();
+    if (!currentUser) return openAuthModal('login');
 
     if (currentUser.role === 'vendor') {
-        const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kwenda kwenye "Dashboard ya Muuzaji (Vendor Portal)" kupakia na kusimamia bidhaa zako?\n\n[OK] = Dashboard ya Muuzaji\n[CANCEL] = Toka (Logout)`);
+        const choice = confirm(`Habari ${currentUser.shopName || currentUser.name}!\n\nJe, unataka kwenda kwenye "Dashboard ya Muuzaji (Vendor Portal)" kupakia na kusimamia bidhaa zako?\n\n[OK] = Dashboard ya Muuzaji\n[CANCEL] = Toka (Logout)`);
         if (choice) {
             window.location.href = 'vendor-admin.html';
         } else {
@@ -672,8 +672,8 @@ function logoutUser() {
     showMallToast('Umetoka kwenye akaunti yako.');
 }
 
-// C. Auth Modal Controls
-window.openAuthModal = function(mode) {
+// C. Auth Modal Controls (Exclusively for Vendors)
+window.openAuthModal = function(mode = 'login') {
     const modal = document.getElementById('auth-modal-overlay');
     if (modal) {
         modal.classList.add('open');
@@ -681,9 +681,7 @@ window.openAuthModal = function(mode) {
         modal.style.opacity = '1';
         modal.style.pointerEvents = 'auto';
     }
-    if (mode) {
-        switchAuthMode(mode);
-    }
+    switchAuthMode(mode);
 };
 
 window.closeAuthModal = function() {
@@ -704,26 +702,22 @@ window.switchAuthMode = function(mode) {
 
     if (tabLogin) tabLogin.classList.toggle('active', mode === 'login');
     if (tabReg) tabReg.classList.toggle('active', mode === 'register');
-    if (formLogin) formLogin.classList.toggle('hidden', mode !== 'login');
-    if (formReg) formReg.classList.toggle('hidden', mode !== 'register');
+
+    if (formLogin) {
+        formLogin.classList.toggle('hidden', mode !== 'login');
+        formLogin.style.display = (mode === 'login') ? 'block' : 'none';
+    }
+    if (formReg) {
+        formReg.classList.toggle('hidden', mode !== 'register');
+        formReg.style.display = (mode === 'register') ? 'block' : 'none';
+    }
 };
 
-window.selectRegisterRole = function(role) {
-    const optCust = document.getElementById('role-opt-customer');
-    const optVend = document.getElementById('role-opt-vendor');
-    const vendFields = document.getElementById('vendor-fields-wrap');
-    const lblName = document.getElementById('lbl-reg-name');
-
-    if (optCust) optCust.classList.toggle('active', role === 'customer');
-    if (optVend) optVend.classList.toggle('active', role === 'vendor');
-    if (vendFields) vendFields.classList.toggle('hidden', role !== 'vendor');
-    if (lblName) lblName.textContent = role === 'vendor' ? 'Majina Kamili Yaliyo Kwenye NIDA *' : 'Majina Kamili *';
-};
+window.selectRegisterRole = function() {};
 
 window.handleMallRegister = async function(e) {
     e.preventDefault();
-    const roleOpt = document.querySelector('input[name="reg-role"]:checked');
-    const role = roleOpt ? roleOpt.value : 'customer';
+    const role = 'vendor';
     const nameEl = document.getElementById('reg-name');
     const phoneEl = document.getElementById('reg-phone');
     const passEl = document.getElementById('reg-password');
@@ -739,16 +733,16 @@ window.handleMallRegister = async function(e) {
     const shopName = shopEl ? shopEl.value.trim() : '';
     const packageName = pkgEl ? pkgEl.value : 'Basic';
 
-    if (!name || !phone || !password) {
+    if (!name || !phone || !password || !nidaOrTin || !shopName) {
         if (msgDiv) {
-            msgDiv.textContent = 'Tafadhali jaza nafasi zote zenye alama ya (*)';
+            msgDiv.textContent = 'Tafadhali jaza taarifa zote za duka lako zenye alama ya (*)';
             msgDiv.style.color = '#EF4444';
         }
         return;
     }
 
     if (msgDiv) {
-        msgDiv.textContent = 'Inasajili...';
+        msgDiv.textContent = 'Inasajili Duka...';
         msgDiv.style.color = '#fff';
     }
 
@@ -776,20 +770,21 @@ window.handleMallRegister = async function(e) {
             }
         }
     } catch (err) {
-        // Backend offline or static host (GitHub Pages)
+        // Static hosting fallback
     }
 
     // 2. Resilient local fallback so registration NEVER fails
     if (!registeredUser) {
+        const limit = packageName === 'Gold' ? 60 : packageName === 'Silver' ? 45 : 25;
         registeredUser = {
-            id: 'usr_' + Date.now(),
+            id: 'vdr_' + Date.now(),
             name,
             phone,
-            role,
-            nidaOrTin: role === 'vendor' ? nidaOrTin : '',
-            shopName: role === 'vendor' ? (shopName || name + ' Shop') : '',
-            packageName: role === 'vendor' ? packageName : null,
-            productLimit: role === 'vendor' ? (packageName === 'Pro' ? 60 : packageName === 'Standard' ? 45 : 25) : 0,
+            role: 'vendor',
+            nidaOrTin,
+            shopName,
+            packageName,
+            productLimit: limit,
             status: 'active',
             createdAt: new Date().toISOString()
         };
@@ -803,24 +798,20 @@ window.handleMallRegister = async function(e) {
 
     currentUser = registeredUser;
     localStorage.setItem('genge_user', JSON.stringify(currentUser));
-    if (role === 'vendor') {
-        localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
-    }
+    localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
     updateHeaderAuthUI();
 
     if (msgDiv) {
-        msgDiv.textContent = '✅ Usajili umekamilika kikamilifu! Karibu ' + (currentUser.name || 'Genge');
+        msgDiv.textContent = '🎉 Hongera! Duka la "' + (currentUser.shopName || currentUser.name) + '" limesajiliwa kikamilifu!';
         msgDiv.style.color = '#10B981';
     }
 
     setTimeout(() => {
         closeAuthModal();
-        if (role === 'vendor') {
-            if (confirm('🎉 Usajili wako kama Muuzaji umekamilika kikamilifu!\n\nJe, unataka kufungua Dashboard ya Muuzaji (Vendor Portal) ili upakie bidhaa zako sasa?')) {
-                window.location.href = 'vendor-admin.html';
-            }
+        if (confirm('🎉 Usajili wako kama Muuzaji umekamilika kikamilifu!\n\nJe, unataka kufungua Dashboard ya Muuzaji (Vendor Portal) ili upakie bidhaa zako sasa?')) {
+            window.location.href = 'vendor-admin.html';
         }
-    }, 900);
+    }, 1000);
 };
 
 window.handleMallLogin = async function(e) {
@@ -875,20 +866,22 @@ window.handleMallLogin = async function(e) {
                     loggedInUser = savedVendor;
                 } else {
                     loggedInUser = {
-                        id: 'usr_' + Date.now(),
-                        name: 'Mteja wa Genge',
+                        id: 'vdr_' + Date.now(),
+                        name: 'Muuzaji wa Genge',
                         phone: phone,
-                        role: 'customer',
+                        role: 'vendor',
+                        shopName: 'Duka Langu',
                         status: 'active'
                     };
                 }
             }
         } catch (e) {
             loggedInUser = {
-                id: 'usr_' + Date.now(),
-                name: 'Mteja wa Genge',
+                id: 'vdr_' + Date.now(),
+                name: 'Muuzaji wa Genge',
                 phone: phone,
-                role: 'customer',
+                role: 'vendor',
+                shopName: 'Duka Langu',
                 status: 'active'
             };
         }
@@ -896,24 +889,18 @@ window.handleMallLogin = async function(e) {
 
     currentUser = loggedInUser;
     localStorage.setItem('genge_user', JSON.stringify(currentUser));
-    if (currentUser.role === 'vendor') {
-        localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
-    }
+    localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
     updateHeaderAuthUI();
 
     if (msgDiv) {
-        msgDiv.textContent = '✅ Login imefanikiwa! Karibu ' + (currentUser.name || '');
+        msgDiv.textContent = '✅ Karibu ' + (currentUser.shopName || currentUser.name || 'Muuzaji');
         msgDiv.style.color = '#10B981';
     }
 
     setTimeout(() => {
         closeAuthModal();
-        if (currentUser.role === 'vendor') {
-            if (confirm('Karibu Muuzaji! Unataka kwenda kwenye Vendor Dashboard?')) {
-                window.location.href = 'vendor-admin.html';
-            }
-        }
-    }, 800);
+        window.location.href = 'vendor-admin.html';
+    }, 700);
 };
 
 // D. Fetch Products Uploaded via API & Combine with Catalog

@@ -1630,13 +1630,19 @@ body {
     pointer-events: auto;
 }
 
+.hidden {
+    display: none !important;
+}
+
 .auth-modal-card {
     background: #0F172A;
     border: 1px solid var(--glass-border);
     border-radius: 24px;
-    padding: 2.5rem 2rem;
+    padding: 2.2rem 1.8rem;
     width: 100%;
-    max-width: 440px;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
     position: relative;
 }
 
