@@ -215,172 +215,483 @@ window.deleteOrder = async function(orderId) {
     }
 };
 
-// --- Tab Switching Logic ---
-window.showSection = function(section, anchor) {
-    // Update nav active state
-    document.querySelectorAll('.admin-nav a').forEach(el => el.classList.remove('active'));
-    if (anchor) {
-        anchor.classList.add('active');
-    }
+// --- Platform Switcher ---
+window.switchPlatformMode = function(mode) {
+    const freshNav = document.getElementById('nav-fresh');
+    const mallNav = document.getElementById('nav-mall');
+    const freshBtn = document.getElementById('tab-btn-fresh');
+    const mallBtn = document.getElementById('tab-btn-mall');
 
-    if (section === 'orders') {
-        document.getElementById('orders-section').style.display = 'block';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'none';
-        document.getElementById('products-section').style.display = 'none';
-        document.getElementById('packages-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Oda za Wateja';
-    } else if (section === 'upload') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'block';
-        document.getElementById('feedback-section').style.display = 'none';
-        document.getElementById('products-section').style.display = 'none';
-        document.getElementById('packages-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Pakia Bidhaa Mpya';
-    } else if (section === 'feedback') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'block';
-        document.getElementById('products-section').style.display = 'none';
-        document.getElementById('packages-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Maoni ya Wateja';
-        loadFeedbacks();
-    } else if (section === 'products') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'none';
-        document.getElementById('products-section').style.display = 'block';
-        document.getElementById('packages-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Hariri Bei za Bidhaa';
-        loadProducts();
-    } else if (section === 'packages') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'none';
-        document.getElementById('products-section').style.display = 'none';
-        document.getElementById('packages-section').style.display = 'block';
-        if (document.getElementById('mall-control-section')) document.getElementById('mall-control-section').style.display = 'none';
-        document.querySelector('.top-header h1').innerText = 'Vifurushi vya Familia';
-        loadPackages();
-    } else if (section === 'mall-control') {
-        document.getElementById('orders-section').style.display = 'none';
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('feedback-section').style.display = 'none';
-        document.getElementById('products-section').style.display = 'none';
-        document.getElementById('packages-section').style.display = 'none';
-        if (document.getElementById('mall-control-section')) document.getElementById('mall-control-section').style.display = 'block';
-        document.querySelector('.top-header h1').innerText = '🛍️ Genge Mall Control Panel';
+    const freshSections = ['orders-section','upload-section','feedback-section','products-section','packages-section'];
+    const mallSections = ['mall-control-section'];
+
+    if (mode === 'fresh') {
+        if (freshNav) freshNav.style.display = '';
+        if (mallNav) mallNav.style.display = 'none';
+        if (freshBtn) freshBtn.classList.add('active');
+        if (mallBtn) mallBtn.classList.remove('active');
+        mallSections.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        // Show orders by default
+        freshSections.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        const orders = document.getElementById('orders-section');
+        if (orders) orders.style.display = 'block';
+        const h = document.querySelector('.top-header h1');
+        if (h) h.innerText = 'Oda za Wateja';
+        // Reset fresh nav active
+        document.querySelectorAll('#nav-fresh a').forEach(a => a.classList.remove('active'));
+        const firstFresh = document.querySelector('#nav-fresh a');
+        if (firstFresh) firstFresh.classList.add('active');
+    } else {
+        if (freshNav) freshNav.style.display = 'none';
+        if (mallNav) mallNav.style.display = '';
+        if (mallBtn) mallBtn.classList.add('active');
+        if (freshBtn) freshBtn.classList.remove('active');
+        freshSections.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        const mallSec = document.getElementById('mall-control-section');
+        if (mallSec) mallSec.style.display = 'block';
+        const h = document.querySelector('.top-header h1');
+        if (h) h.innerText = '🛍️ Genge Mall Control Panel';
         loadMallAdminVendors();
     }
 };
 
+// --- Tab Switching Logic (Fresh) ---
+window.showSection = function(section, anchor) {
+    document.querySelectorAll('#nav-fresh a').forEach(el => el.classList.remove('active'));
+    if (anchor) anchor.classList.add('active');
+
+    const allSections = ['orders-section','upload-section','feedback-section','products-section','packages-section','mall-control-section'];
+    allSections.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+
+    const map = {
+        orders: { id: 'orders-section', title: 'Oda za Wateja' },
+        upload: { id: 'upload-section', title: 'Pakia Bidhaa Mpya' },
+        feedback: { id: 'feedback-section', title: 'Maoni ya Wateja' },
+        products: { id: 'products-section', title: 'Hariri Bei za Bidhaa' },
+        packages: { id: 'packages-section', title: 'Vifurushi vya Familia' },
+    };
+
+    const info = map[section];
+    if (info) {
+        const el = document.getElementById(info.id);
+        if (el) el.style.display = 'block';
+        const h = document.querySelector('.top-header h1');
+        if (h) h.innerText = info.title;
+        if (section === 'feedback') loadFeedbacks();
+        if (section === 'products') loadProducts();
+        if (section === 'packages') loadPackages();
+    }
+};
+
+// --- Tab Switching Logic (Mall) ---
+window.showMallSection = function(section, anchor) {
+    document.querySelectorAll('#nav-mall a').forEach(el => el.classList.remove('active'));
+    if (anchor) anchor.classList.add('active');
+    if (section === 'vendors') loadMallAdminVendors();
+};
+
 // ── SUPER ADMIN: GENGE MALL VENDOR CONTROL ─────────────────────────
+let _allMallVendors = [];
+
 async function loadMallAdminVendors() {
     const tbody = document.getElementById('admin-vendors-tbody');
     const noMsg = document.getElementById('no-admin-vendors-msg');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text-muted);">Inavuta data ya wauzaji...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--text-muted);">Inavuta data ya wauzaji...</td></tr>';
 
     try {
         const res = await fetch('/api/admin/vendors');
         const vendors = await res.json();
-
-        if (!vendors || vendors.length === 0) {
-            tbody.innerHTML = '';
-            if (noMsg) noMsg.style.display = 'block';
-            return;
-        }
-
-        if (noMsg) noMsg.style.display = 'none';
-
-        tbody.innerHTML = vendors.map(v => {
-            const isSuspended = (v.status === 'suspended' || v.status === 'blocked');
-            const pkg = v.package || { name: 'Basic', price: 5000, maxProducts: 25 };
-            const statusBadge = isSuspended
-                ? `<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:4px 10px;border-radius:12px;font-weight:700;font-size:0.8rem;">🚫 IMEFUNGIWA</span>`
-                : `<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:12px;font-weight:700;font-size:0.8rem;">✅ ACTIVE</span>`;
-
-            return `
-                <tr>
-                    <td>
-                        <strong>${v.shopName || v.name}</strong><br>
-                        <span style="font-size:0.8rem;color:var(--text-muted);">${v.name}</span>
-                    </td>
-                    <td><code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;color:#f59e0b;">${v.nidaOrTin || 'Bila NIDA/TIN'}</code></td>
-                    <td><strong>${v.phone}</strong></td>
-                    <td>
-                        <strong style="color:#10B981;">${pkg.name}</strong><br>
-                        <span style="font-size:0.78rem;color:var(--text-muted);">(Tsh ${pkg.price.toLocaleString()}/mwezi - max ${pkg.maxProducts})</span>
-                    </td>
-                    <td><strong>${v.productCount || 0} / ${pkg.maxProducts || 25}</strong> Bidhaa</td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                            <button onclick="toggleVendorStatus('${v.phone}', '${v.status}')" style="background:${isSuspended ? '#10B981' : '#EF4444'};color:#fff;border:none;padding:5px 10px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.8rem;">
-                                ${isSuspended ? '✅ Fungulia' : '🚫 Fungia'}
-                            </button>
-                            <button onclick="changeVendorPackage('${v.phone}')" style="background:#F59E0B;color:#000;border:none;padding:5px 10px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.8rem;">
-                                🚀 Kifurushi
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        _allMallVendors = Array.isArray(vendors) ? vendors : [];
+        renderMallVendorsTable(_allMallVendors);
     } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#EF4444;">Imefeli kuleta wauzaji.</td></tr>';
+        _allMallVendors = [];
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#EF4444;padding:1.5rem;">Imefeli kuleta wauzaji. Hakikisha server inafanya kazi.</td></tr>';
     }
 }
 
-async function toggleVendorStatus(phone, currentStatus) {
+window.filterMallVendors = function() {
+    const q = (document.getElementById('mall-vendor-search')?.value || '').toLowerCase();
+    const filter = document.getElementById('mall-vendor-filter')?.value || 'all';
+    const today = new Date();
+
+    let filtered = _allMallVendors.filter(v => {
+        const matchQ = !q ||
+            (v.name || '').toLowerCase().includes(q) ||
+            (v.shopName || '').toLowerCase().includes(q) ||
+            (v.phone || '').includes(q);
+
+        const isSuspended = (v.status === 'suspended' || v.status === 'blocked');
+        const daysLeft = v.daysRemaining !== undefined ? v.daysRemaining : null;
+        const isExpiring = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+
+        let matchFilter = true;
+        if (filter === 'active') matchFilter = !isSuspended;
+        else if (filter === 'suspended') matchFilter = isSuspended;
+        else if (filter === 'expiring') matchFilter = isExpiring;
+
+        return matchQ && matchFilter;
+    });
+
+    renderMallVendorsTable(filtered);
+};
+
+function renderMallVendorsTable(vendors) {
+    const tbody = document.getElementById('admin-vendors-tbody');
+    const noMsg = document.getElementById('no-admin-vendors-msg');
+    if (!tbody) return;
+
+    // Update stats
+    const total = _allMallVendors.length;
+    const activeCount = _allMallVendors.filter(v => v.status !== 'suspended' && v.status !== 'blocked').length;
+    const expiringCount = _allMallVendors.filter(v => {
+        const d = v.daysRemaining;
+        return d !== undefined && d !== null && d >= 0 && d <= 7;
+    }).length;
+    const totalProducts = _allMallVendors.reduce((sum, v) => sum + (v.productCount || 0), 0);
+    const el = id => document.getElementById(id);
+    if (el('mall-stat-total')) el('mall-stat-total').innerText = total;
+    if (el('mall-stat-active')) el('mall-stat-active').innerText = activeCount;
+    if (el('mall-stat-expiring')) el('mall-stat-expiring').innerText = expiringCount;
+    if (el('mall-stat-products')) el('mall-stat-products').innerText = totalProducts;
+
+    if (!vendors || vendors.length === 0) {
+        tbody.innerHTML = '';
+        if (noMsg) noMsg.style.display = 'block';
+        return;
+    }
+    if (noMsg) noMsg.style.display = 'none';
+
+    tbody.innerHTML = vendors.map(v => {
+        const isSuspended = (v.status === 'suspended' || v.status === 'blocked');
+        const pkg = v.package || { name: 'Basic', price: 5000, maxProducts: 25 };
+        const pkgName = pkg.name || 'Basic';
+
+        // Countdown badge
+        const days = v.daysRemaining;
+        let countdownBadge = '<span style="color:#94a3b8;font-size:0.78rem;">Haijui</span>';
+        if (days !== undefined && days !== null) {
+            if (days < 0) {
+                countdownBadge = `<span style="background:#fee2e2;color:#ef4444;padding:3px 8px;border-radius:10px;font-weight:700;font-size:0.78rem;">🔴 Kimeisha</span>`;
+            } else if (days <= 7) {
+                countdownBadge = `<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:10px;font-weight:700;font-size:0.78rem;">🟡 Siku ${days}</span>`;
+            } else {
+                countdownBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 8px;border-radius:10px;font-weight:700;font-size:0.78rem;">🟢 Siku ${days}</span>`;
+            }
+        }
+
+        // Timeline
+        const activatedAt = v.activatedAt ? new Date(v.activatedAt).toLocaleDateString('sw-TZ') : '—';
+        const expiresAt = v.expiresAt ? new Date(v.expiresAt).toLocaleDateString('sw-TZ') : '—';
+
+        const statusBadge = isSuspended
+            ? `<span style="background:rgba(239,68,68,0.15);color:#EF4444;padding:3px 9px;border-radius:10px;font-weight:700;font-size:0.78rem;">🚫 Imefungiwa</span>`
+            : `<span style="background:rgba(16,185,129,0.15);color:#10B981;padding:3px 9px;border-radius:10px;font-weight:700;font-size:0.78rem;">✅ Active</span>`;
+
+        return `
+            <tr>
+                <td>
+                    <strong>${v.shopName || v.name}</strong><br>
+                    <span style="font-size:0.78rem;color:var(--text-muted);">${v.name}</span>
+                </td>
+                <td><code style="background:rgba(255,255,255,0.08);padding:2px 5px;border-radius:4px;color:#f59e0b;font-size:0.8rem;">${v.nidaOrTin || '—'}</code></td>
+                <td><strong>${v.phone}</strong></td>
+                <td>
+                    <strong style="color:#10B981;">${pkgName}</strong><br>
+                    <span style="font-size:0.75rem;color:var(--text-muted);">Tsh ${(pkg.price||0).toLocaleString()} · max ${pkg.maxProducts||25}</span>
+                </td>
+                <td style="font-size:0.8rem;white-space:nowrap;">${activatedAt}<br><span style="color:#94a3b8;">↓</span><br>${expiresAt}</td>
+                <td>${countdownBadge}</td>
+                <td><strong>${v.productCount || 0}</strong><span style="color:var(--text-muted);font-size:0.78rem;"> / ${pkg.maxProducts||25}</span></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button onclick="toggleVendorStatus('${v.phone}','${v.status}')" style="background:${isSuspended ? '#10B981' : '#EF4444'};color:#fff;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
+                            ${isSuspended ? '✅ Fungulia' : '🚫 Funga'}
+                        </button>
+                        <button onclick="openRenewVendorModal('${v.phone}','${(v.shopName||v.name).replace(/'/g,"\\'")}','${pkgName}')" style="background:#F59E0B;color:#000;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
+                            🔄 Renew
+                        </button>
+                        <button onclick="deleteVendor('${v.phone}','${(v.shopName||v.name).replace(/'/g,"\\'")}') " style="background:#7f1d1d;color:#fca5a5;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.openAdminAddVendorModal = function() {
+    const modal = document.getElementById('admin-add-vendor-modal');
+    if (modal) { modal.style.display = 'flex'; }
+    const form = document.getElementById('admin-add-vendor-form');
+    if (form) form.reset();
+    const msg = document.getElementById('admin-add-vendor-msg');
+    if (msg) msg.innerText = '';
+};
+
+window.closeAdminAddVendorModal = function() {
+    const modal = document.getElementById('admin-add-vendor-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitAdminAddVendor = async function(e) {
+    e.preventDefault();
+    const msgEl = document.getElementById('admin-add-vendor-msg');
+    msgEl.innerText = '⏳ Inasajili...';
+    msgEl.style.color = '#94a3b8';
+
+    const payload = {
+        name: document.getElementById('av-name').value.trim(),
+        shopName: document.getElementById('av-shop').value.trim(),
+        phone: document.getElementById('av-phone').value.trim(),
+        password: document.getElementById('av-password').value,
+        nidaOrTin: document.getElementById('av-nida').value.trim(),
+        packageName: document.getElementById('av-package').value,
+        durationDays: parseInt(document.getElementById('av-duration').value),
+        role: 'vendor',
+    };
+
+    try {
+        const res = await fetch('/api/admin/vendors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            msgEl.style.color = '#10b981';
+            msgEl.innerText = '✅ ' + (data.message || 'Muuzaji amesajiliwa!');
+            setTimeout(() => { closeAdminAddVendorModal(); loadMallAdminVendors(); }, 1500);
+        } else {
+            msgEl.style.color = '#ef4444';
+            msgEl.innerText = '❌ ' + (data.message || 'Imeshindwa kusajili.');
+        }
+    } catch (err) {
+        msgEl.style.color = '#ef4444';
+        msgEl.innerText = '❌ Tatizo la mtandao.';
+    }
+};
+
+window.openRenewVendorModal = function(phone, shopName, currentPkg) {
+    document.getElementById('rv-phone').value = phone;
+    const info = document.getElementById('renew-vendor-info');
+    if (info) info.innerHTML = `<strong>${shopName}</strong><br>Kifurushi cha sasa: <span style="color:#10b981;font-weight:700;">${currentPkg}</span>`;
+    const pkgSelect = document.getElementById('rv-package');
+    if (pkgSelect) pkgSelect.value = currentPkg;
+    const modal = document.getElementById('admin-renew-vendor-modal');
+    if (modal) { modal.style.display = 'flex'; }
+    const msg = document.getElementById('admin-renew-vendor-msg');
+    if (msg) msg.innerText = '';
+};
+
+window.closeRenewVendorModal = function() {
+    const modal = document.getElementById('admin-renew-vendor-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitRenewVendor = async function(e) {
+    e.preventDefault();
+    const msgEl = document.getElementById('admin-renew-vendor-msg');
+    msgEl.innerText = '⏳ Inafanya kazi...';
+    msgEl.style.color = '#94a3b8';
+
+    const phone = document.getElementById('rv-phone').value;
+    const packageName = document.getElementById('rv-package').value;
+    const durationDays = parseInt(document.getElementById('rv-duration').value);
+
+    try {
+        const res = await fetch(`/api/admin/vendors/${phone}/renew`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ packageName, durationDays }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            msgEl.style.color = '#10b981';
+            msgEl.innerText = '✅ ' + (data.message || 'Kifurushi kimeboreshwa!');
+            setTimeout(() => { closeRenewVendorModal(); loadMallAdminVendors(); }, 1400);
+        } else {
+            msgEl.style.color = '#ef4444';
+            msgEl.innerText = '❌ ' + (data.message || 'Imeshindwa.');
+        }
+    } catch (err) {
+        msgEl.style.color = '#ef4444';
+        msgEl.innerText = '❌ Tatizo la mtandao.';
+    }
+};
+
+window.toggleVendorStatus = async function(phone, currentStatus) {
     const isBlocking = (currentStatus === 'active');
     let reason = '';
-    
     if (isBlocking) {
-        reason = prompt('Weka sababu ya kumfungia/kumsimamisha muuzaji huyu:', 'Ukiukaji wa taratibu za Genge Mall');
+        reason = prompt('Weka sababu ya kumfunga muuzaji huyu:', 'Ukiukaji wa taratibu za Genge Mall');
         if (reason === null) return;
     }
-
     const newStatus = isBlocking ? 'suspended' : 'active';
-
     try {
         const res = await fetch(`/api/admin/vendors/${phone}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus, reason: reason })
+            body: JSON.stringify({ status: newStatus, reason }),
         });
-
         const data = await res.json();
         alert(data.message || 'Hali imebadilishwa!');
         loadMallAdminVendors();
     } catch (err) {
         alert('Kosa wakati wa kubadilisha status ya muuzaji.');
     }
-}
+};
 
-async function changeVendorPackage(phone) {
-    const pkgChoice = prompt('Chagua Kifurushi kipya kwa muuzaji huyu:\n1 = Basic (Tsh 5,000 / 25 Bidhaa)\n2 = Silver (Tsh 10,000 / 45 Bidhaa)\n3 = Gold (Tsh 15,000 / 60 Bidhaa)', '1');
-    if (!pkgChoice) return;
-
-    let packageName = 'Basic';
-    if (pkgChoice === '2' || pkgChoice.toLowerCase() === 'silver') packageName = 'Silver';
-    if (pkgChoice === '3' || pkgChoice.toLowerCase() === 'gold') packageName = 'Gold';
-
+window.deleteVendor = async function(phone, shopName) {
+    if (!confirm(`Una uhakika wa kufuta muuzaji "${shopName}" (${phone})?\n\nBidhaa zake zote zitafutwa pia.`)) return;
     try {
-        const res = await fetch(`/api/admin/vendors/${phone}/package`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ packageName: packageName })
-        });
-
+        const res = await fetch(`/api/admin/vendors/${phone}`, { method: 'DELETE' });
         const data = await res.json();
-        alert(data.message || 'Kifurushi kimbadilishwa!');
+        alert(data.message || 'Muuzaji amefutwa!');
         loadMallAdminVendors();
     } catch (err) {
-        alert('Kosa wakati wa kubadilisha kifurushi.');
+        alert('Kosa wakati wa kufuta muuzaji.');
     }
-}
+};
+
+// ── PACKAGE MODAL FUNCTIONS ─────────────────────────────────────────
+window.openAddPackageModal = function() {
+    const modal = document.getElementById('add-package-modal');
+    if (modal) { modal.style.display = 'flex'; }
+    const form = document.getElementById('add-package-form');
+    if (form) form.reset();
+    const totalEl = document.getElementById('new-pkg-calc-total');
+    if (totalEl) totalEl.innerText = 'TZS 0';
+    const breakEl = document.getElementById('new-pkg-calc-breakdown');
+    if (breakEl) breakEl.innerHTML = '<span style="color:#94a3b8;">Andika bidhaa hapo juu ili kuhesabu jumla kiotomatiki.</span>';
+};
+
+window.closeAddPackageModal = function() {
+    const modal = document.getElementById('add-package-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.calculateModalPackageTotal = function() {
+    const featuresRaw = (document.getElementById('new-pkg-features')?.value || '');
+    const features = featuresRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const fmt = n => new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(n);
+
+    let total = 0;
+    let html = '';
+    features.forEach(fStr => {
+        const item = matchFeatureWithProduct(fStr, allProducts);
+        if (item.isMotto) return;
+        if (item.isMatched) {
+            total += item.subtotal;
+            html += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.78rem;"><span>${item.text} ×${item.quantity}</span><span style="color:#10b981;font-weight:700;">${fmt(item.subtotal)}</span></div>`;
+        } else {
+            html += `<div style="font-size:0.78rem;color:#94a3b8;">${item.text} — (Bei haipatikani)</div>`;
+        }
+    });
+
+    const totalEl = document.getElementById('new-pkg-calc-total');
+    const breakEl = document.getElementById('new-pkg-calc-breakdown');
+    if (totalEl) totalEl.innerText = fmt(total);
+    if (breakEl) breakEl.innerHTML = html || '<span style="color:#94a3b8;">Andika bidhaa hapo juu.</span>';
+
+    // Auto-fill price if empty
+    const priceEl = document.getElementById('new-pkg-price');
+    const extraEl = document.getElementById('new-pkg-extra');
+    if (priceEl && (!priceEl.value || priceEl.value === '0')) {
+        priceEl.value = total + (parseFloat(extraEl?.value) || 0);
+    }
+};
+
+window.onNewPkgExtraInput = function() {
+    const featuresRaw = (document.getElementById('new-pkg-features')?.value || '');
+    const features = featuresRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    let total = 0;
+    features.forEach(fStr => {
+        const item = matchFeatureWithProduct(fStr, allProducts);
+        if (!item.isMotto && item.isMatched) total += item.subtotal;
+    });
+    const extra = parseFloat(document.getElementById('new-pkg-extra')?.value) || 0;
+    const priceEl = document.getElementById('new-pkg-price');
+    if (priceEl) priceEl.value = total + extra;
+};
+
+window.onNewPkgPriceInput = function() {
+    // Just keep the user's typed value; no auto-calculation needed
+};
+
+window.submitNewPackage = async function(e) {
+    e.preventDefault();
+    const title = document.getElementById('new-pkg-title')?.value.trim();
+    const featuresRaw = document.getElementById('new-pkg-features')?.value || '';
+    const features = featuresRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const price = parseFloat(document.getElementById('new-pkg-price')?.value) || 0;
+
+    if (!title) { alert('Weka jina la kifurushi!'); return; }
+    if (features.length === 0) { alert('Weka angalau bidhaa moja!'); return; }
+    if (price <= 0) { alert('Weka bei ya kuuzia!'); return; }
+
+    const newPkg = {
+        id: 'pkg_' + Date.now(),
+        title,
+        features,
+        price,
+        createdAt: new Date().toISOString(),
+    };
+
+    // Try API first, fall back to localStorage
+    let saved = false;
+    try {
+        const res = await fetch('/api/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newPkg),
+        });
+        if (res.ok) saved = true;
+    } catch (_) {}
+
+    if (!saved) {
+        // localStorage fallback
+        const existing = JSON.parse(localStorage.getItem('genge_custom_packages') || '[]');
+        existing.push(newPkg);
+        localStorage.setItem('genge_custom_packages', JSON.stringify(existing));
+        // Also remove from deleted list if re-adding same id (edge case)
+        const deleted = JSON.parse(localStorage.getItem('genge_deleted_packages') || '[]');
+        localStorage.setItem('genge_deleted_packages', JSON.stringify(deleted.filter(id => id !== newPkg.id)));
+    }
+
+    alert('✅ Kifurushi kipya kimeongezwa!');
+    closeAddPackageModal();
+    loadPackages();
+};
+
+window.deletePackage = async function(pkgId, pkgTitle) {
+    if (!confirm(`Una uhakika wa kufuta kifurushi "${pkgTitle}"?`)) return;
+
+    let deleted = false;
+    try {
+        const res = await fetch(`/api/packages/${pkgId}`, { method: 'DELETE' });
+        if (res.ok) deleted = true;
+    } catch (_) {}
+
+    if (!deleted) {
+        // localStorage fallback
+        const existing = JSON.parse(localStorage.getItem('genge_custom_packages') || '[]');
+        localStorage.setItem('genge_custom_packages', JSON.stringify(existing.filter(p => p.id !== pkgId)));
+        const deletedList = JSON.parse(localStorage.getItem('genge_deleted_packages') || '[]');
+        if (!deletedList.includes(pkgId)) {
+            deletedList.push(pkgId);
+            localStorage.setItem('genge_deleted_packages', JSON.stringify(deletedList));
+        }
+    }
+
+    // Remove card from DOM
+    const card = document.getElementById('pkg-card-' + pkgId);
+    if (card) card.remove();
+    alert('🗑️ Kifurushi kimefutwa!');
+};
 
 // --- Product Upload Logic ---
 document.addEventListener('DOMContentLoaded', () => {

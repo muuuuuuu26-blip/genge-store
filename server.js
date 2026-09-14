@@ -978,20 +978,42 @@ app.post('/api/social/follow', async (req, res) => {
     }
 });
 
-// I. SUPER ADMIN: Get All Vendors with Products Count & NIDA Info
+// I. SUPER ADMIN: Get All Vendors with Products Count, Package Timeline & NIDA Info
 app.get('/api/admin/vendors', async (req, res) => {
     try {
         const vendors = await User.find({ role: 'vendor' }).sort({ createdAt: -1 });
 
+        const now = new Date();
         const vendorList = await Promise.all(vendors.map(async (v) => {
             const productCount = await Product.countDocuments({ vendorPhone: v.phone });
+            
+            // Timeline calculation
+            const activatedAt = v.package?.activatedAt || v.createdAt || now;
+            let expiresAt = v.package?.expiresAt;
+            if (!expiresAt) {
+                const days = v.package?.durationDays || 30;
+                expiresAt = new Date(new Date(activatedAt).getTime() + days * 24 * 60 * 60 * 1000);
+            }
+            const daysRemaining = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const isExpired = daysRemaining <= 0;
+
             return {
                 _id: v._id,
                 name: v.name,
                 shopName: v.shopName,
                 phone: v.phone,
                 nidaOrTin: v.nidaOrTin,
-                package: v.package,
+                package: {
+                    name: v.package?.name || 'Basic',
+                    price: v.package?.price || 5000,
+                    maxProducts: v.package?.maxProducts || 25,
+                    status: isExpired ? 'expired' : (v.package?.status || 'active'),
+                    durationDays: v.package?.durationDays || 30,
+                    activatedAt: activatedAt,
+                    expiresAt: expiresAt,
+                    daysRemaining: daysRemaining,
+                    isExpired: isExpired
+                },
                 status: v.status,
                 blockReason: v.blockReason,
                 productCount: productCount,
@@ -1005,11 +1027,107 @@ app.get('/api/admin/vendors', async (req, res) => {
     }
 });
 
+// I-2. SUPER ADMIN: Register a Vendor directly from Admin
+app.post('/api/admin/vendors', async (req, res) => {
+    try {
+        const { name, phone, password, nidaOrTin, shopName, packageName, durationDays } = req.body;
+        const cleanPhone = (phone || '').trim().replace(/[\s\-]/g, '');
+
+        if (!name || !cleanPhone || !nidaOrTin || !shopName) {
+            return res.status(400).json({ message: 'Tafadhali jaza taarifa zote muhimu za muuzaji.' });
+        }
+
+        const existing = await User.findOne({ phone: cleanPhone });
+        if (existing) {
+            return res.status(400).json({ message: 'Namba ya simu tayari imesajiliwa.' });
+        }
+
+        const days = Number(durationDays) || 30;
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+        let price = 5000;
+        let maxProducts = 25;
+        if (packageName === 'Silver') { price = 10000; maxProducts = 45; }
+        else if (packageName === 'Gold') { price = 15000; maxProducts = 60; }
+
+        const newVendor = new User({
+            name,
+            phone: cleanPhone,
+            password: password || '123456',
+            role: 'vendor',
+            nidaOrTin,
+            shopName,
+            package: {
+                name: packageName || 'Basic',
+                price,
+                maxProducts,
+                status: 'active',
+                durationDays: days,
+                activatedAt: now,
+                expiresAt
+            },
+            status: 'active'
+        });
+
+        await newVendor.save();
+        res.status(201).json({ message: `Muuzaji ${shopName} amesajiliwa kikamilifu!`, vendor: newVendor });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// I-3. SUPER ADMIN: Renew / Extend Vendor Subscription Package
+app.post('/api/admin/vendors/:phone/renew', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const { addDays, packageName } = req.body;
+        const daysToAdd = Number(addDays) || 30;
+
+        const vendor = await User.findOne({ phone: cleanPhone, role: 'vendor' });
+        if (!vendor) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+
+        const now = new Date();
+        // If current expiry is in future, add to it; otherwise add to now
+        let currentExpiry = vendor.package?.expiresAt ? new Date(vendor.package.expiresAt) : now;
+        if (currentExpiry < now) currentExpiry = now;
+
+        const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+        let pkgName = packageName || vendor.package?.name || 'Basic';
+        let price = 5000;
+        let maxProducts = 25;
+        if (pkgName === 'Silver') { price = 10000; maxProducts = 45; }
+        else if (pkgName === 'Gold') { price = 15000; maxProducts = 60; }
+
+        vendor.package = {
+            name: pkgName,
+            price,
+            maxProducts,
+            status: 'active',
+            durationDays: daysToAdd,
+            activatedAt: now,
+            expiresAt: newExpiry
+        };
+        if (vendor.status === 'suspended') vendor.status = 'active';
+
+        await vendor.save();
+        await Product.updateMany({ vendorPhone: cleanPhone }, { isVendorActive: true });
+
+        res.json({
+            message: `Kifurushi cha ${vendor.shopName} kimehuishwa hadi tarehe ${newExpiry.toLocaleDateString('sw-TZ')}!`,
+            vendor
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // J. SUPER ADMIN: Block / Suspend / Unblock Vendor
 app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const { status, reason } = req.body; // status: 'active' or 'suspended'
+        const { status, reason } = req.body;
 
         const vendor = await User.findOne({ phone: cleanPhone, role: 'vendor' });
         if (!vendor) {
@@ -1020,7 +1138,6 @@ app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
         vendor.blockReason = reason || '';
         await vendor.save();
 
-        // Update all vendor's products active state so they hide/show in public feed
         const isActive = (status === 'active');
         await Product.updateMany({ vendorPhone: cleanPhone }, { isVendorActive: isActive });
 
@@ -1033,22 +1150,46 @@ app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
     }
 });
 
-// K. SUPER ADMIN: Upgrade / Change Vendor Subscription Package
+// K. SUPER ADMIN: Delete Vendor
+app.delete('/api/admin/vendors/:phone', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        await User.findOneAndDelete({ phone: cleanPhone, role: 'vendor' });
+        await Product.deleteMany({ vendorPhone: cleanPhone });
+        res.json({ message: 'Muuzaji na bidhaa zake zimefutwa kikamilifu.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// L. SUPER ADMIN: Upgrade / Change Vendor Subscription Package
 app.patch('/api/admin/vendors/:phone/package', async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const { packageName } = req.body; // Basic, Silver, Gold
+        const { packageName, durationDays } = req.body;
 
-        let newPackage = { name: 'Basic', price: 5000, maxProducts: 25, status: 'active' };
-        if (packageName === 'Silver') {
-            newPackage = { name: 'Silver', price: 10000, maxProducts: 45, status: 'active' };
-        } else if (packageName === 'Gold') {
-            newPackage = { name: 'Gold', price: 15000, maxProducts: 60, status: 'active' };
-        }
+        let price = 5000;
+        let maxProducts = 25;
+        if (packageName === 'Silver') { price = 10000; maxProducts = 45; }
+        else if (packageName === 'Gold') { price = 15000; maxProducts = 60; }
+
+        const days = Number(durationDays) || 30;
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
         const vendor = await User.findOneAndUpdate(
             { phone: cleanPhone, role: 'vendor' },
-            { package: newPackage },
+            { 
+                package: {
+                    name: packageName,
+                    price,
+                    maxProducts,
+                    status: 'active',
+                    durationDays: days,
+                    activatedAt: now,
+                    expiresAt
+                } 
+            },
             { new: true }
         );
 

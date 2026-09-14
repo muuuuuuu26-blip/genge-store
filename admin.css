@@ -471,7 +471,7 @@ body {
         page-break-inside: avoid;
     }
 
-    .invoice-footer {
+        .invoice-footer {
         text-align: center;
         border-top: 1px solid #ddd;
         padding-top: 1rem;
@@ -480,3 +480,54 @@ body {
         font-style: italic;
     }
 }
+
+/* ── Platform Switcher ─────────────────────────── */
+.platform-switch-bar {
+    display: flex;
+    gap: 6px;
+    background: rgba(16,185,129,0.07);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 12px;
+    padding: 4px;
+}
+
+.platform-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.platform-tab-btn.active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(16,185,129,0.35);
+}
+
+.platform-tab-btn:hover:not(.active) {
+    background: rgba(16,185,129,0.12);
+    color: #10b981;
+}
+
+.ptab-icon { font-size: 1.1rem; }
+.ptab-title { white-space: nowrap; }
+
+/* ── Modal overlays ────────────────────────────── */
+#add-package-modal[style*="flex"],
+#admin-add-vendor-modal[style*="flex"],
+#admin-renew-vendor-modal[style*="flex"] {
+    display: flex !important;
+}
+
+/* ── Countdown pill colours ─────────────────────── */
+.countdown-active  { background:#d1fae5; color:#065f46; }
+.countdown-warning { background:#fef3c7; color:#b45309; }
+.countdown-expired { background:#fee2e2; color:#ef4444; }

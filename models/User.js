@@ -18,7 +18,9 @@ const userSchema = new mongoose.Schema({
         price: { type: Number, default: 5000 },          // 5000, 10000, 15000
         maxProducts: { type: Number, default: 25 },      // 25, 45, 60
         status: { type: String, default: 'active' },     // active, expired
-        activatedAt: { type: Date, default: Date.now }
+        durationDays: { type: Number, default: 30 },
+        activatedAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
     },
     
     // Social Features
