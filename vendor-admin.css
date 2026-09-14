@@ -571,3 +571,207 @@ body {
     background: var(--primary);
     border-color: var(--primary);
 }
+
+/* ── Back to Mall Button ─────────────────────── */
+.v-back-mall-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.5rem 1rem;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.v-back-mall-btn:hover {
+    background: #10B981;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+/* ── Countdown Box in Package Card ───────────── */
+.pkg-countdown-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 10px 16px;
+    min-width: 100px;
+}
+
+.countdown-ring {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #10B981;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    margin-bottom: 4px;
+    transition: all 0.3s;
+}
+
+.countdown-days {
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: #10B981;
+    line-height: 1;
+}
+
+.countdown-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.countdown-sub {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+/* ── Package Timeline Bar ────────────────────── */
+.pkg-timeline-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.timeline-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.timeline-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.timeline-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10B981, #F59E0B);
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+/* ── Vendor Quick Stats ───────────────────────── */
+.vendor-quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.vstat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.vstat-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.vstat-card ion-icon {
+    font-size: 1.4rem;
+    color: #10B981;
+}
+
+.vstat-card strong {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.vstat-card span {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* ── Inquiries Card ───────────────────────────── */
+.inquiries-card {
+    margin-top: 1.5rem;
+}
+
+.inquiries-info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inq-tip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.inq-tip-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.inq-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.65rem 1.2rem;
+    background: #10B981;
+    color: #fff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.inq-btn-primary:hover {
+    background: #059669;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
+.inq-btn-upgrade {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.65rem 1.2rem;
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    color: #0b1329;
+    border: none;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inq-btn-upgrade:hover {
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+    transform: translateY(-1px);
+}

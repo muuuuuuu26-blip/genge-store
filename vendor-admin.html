@@ -3,44 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard ya Muuzaji | Genge Mall Vendor Portal</title>
+    <title>Dashboard ya Duka Langu | Genge Mall Vendor Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="vendor-admin.css?v=1">
+    <link rel="stylesheet" href="vendor-admin.css?v=2">
 </head>
 <body>
 
-    <!-- Vendor Login Overlay -->
+    <!-- Vendor Login Overlay (Isolated from Super Admin) -->
     <div id="vendor-login-overlay" class="vendor-login-overlay">
         <div class="vendor-login-box">
             <img src="pics/12.png" alt="Genge Logo" class="vendor-logo">
             <h2>🏬 Porti ya Muuzaji (Vendor Portal)</h2>
             <p class="sub-text">Ingia ili upakie na usimamie bidhaa zako sokoni Genge Mall</p>
+            <p class="sub-text" style="font-size:0.78rem;color:#f59e0b;margin-top:6px;display:flex;align-items:center;gap:4px;">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                Ukurasa huu ni wa Wauzaji Pekee — Haufungui Mfumo wa Mmiliki wa Genge.
+            </p>
             
             <form id="vendor-login-form" onsubmit="handleVendorLogin(event)">
                 <div class="form-group">
-                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu</label>
+                    <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu ya Duka</label>
                     <input type="tel" id="vlogin-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri</label>
-                    <input type="password" id="vlogin-password" placeholder="Neno la siri" required>
+                    <input type="password" id="vlogin-password" placeholder="Neno lako la siri" required>
                 </div>
-                <button type="submit" class="vendor-btn-primary">Ingia Kwenye Dashboard &rsaquo;</button>
+                <button type="submit" class="vendor-btn-primary">Ingia Kwenye Dashboard ya Duka &rsaquo;</button>
                 <div id="vlogin-error" class="vendor-error-msg"></div>
             </form>
             
             <div class="vendor-login-footer">
-                <p>Hujaunganishwa kama Muuzaji? <a href="mall.html">Jisajili kwenye Genge Mall</a></p>
+                <p>Bado huna duka lililosajiliwa? <a href="mall.html">Jisajili kwenye Genge Mall</a></p>
             </div>
         </div>
     </div>
 
-    <!-- Main Vendor Dashboard Wrapper -->
+    <!-- Main Vendor Dashboard -->
     <div id="vendor-dashboard-content" class="vendor-dashboard-content hidden">
         
-        <!-- Header Bar -->
+        <!-- Header -->
         <header class="vendor-header">
             <div class="vendor-brand">
                 <img src="pics/12.png" alt="Genge Mall Logo">
@@ -50,8 +54,8 @@
                 </div>
             </div>
             <div class="vendor-header-actions">
-                <a href="mall.html" target="_blank" class="v-header-link">
-                    <ion-icon name="bag-handle-outline"></ion-icon> Tazama Sokoni
+                <a href="mall.html" class="v-back-mall-btn">
+                    <ion-icon name="bag-handle-outline"></ion-icon> Rudi Sokoni Genge Mall
                 </a>
                 <button class="v-logout-btn" onclick="handleVendorLogout()">
                     <ion-icon name="log-out-outline"></ion-icon> Toka
@@ -60,8 +64,8 @@
         </header>
 
         <div class="vendor-container">
-            
-            <!-- Subscription Package Banner Card -->
+
+            <!-- Subscription Package Card with Countdown -->
             <section class="vendor-package-card">
                 <div class="pkg-info-left">
                     <span class="pkg-label">KIFURUSHI CHAKO CHA SASA:</span>
@@ -70,11 +74,26 @@
                         <span class="pkg-price-badge" id="display-pkg-price">Tsh 5,000/mwezi</span>
                     </div>
                     <p class="pkg-sub">NIDA/TIN: <strong id="display-nida-tin">-</strong> | Simu: <strong id="display-vendor-phone">-</strong></p>
+                    <div class="pkg-timeline-row" id="pkg-timeline-row" style="display:none;">
+                        <span class="timeline-label" id="pkg-start-date">-</span>
+                        <div class="timeline-bar-wrap">
+                            <div class="timeline-bar-fill" id="pkg-timeline-fill" style="width:0%"></div>
+                        </div>
+                        <span class="timeline-label" id="pkg-end-date">-</span>
+                    </div>
                 </div>
 
                 <div class="pkg-stats-right">
+                    <div class="pkg-countdown-box" id="pkg-countdown-box">
+                        <div class="countdown-ring" id="countdown-ring">
+                            <span class="countdown-days" id="countdown-days">30</span>
+                            <span class="countdown-label">Siku</span>
+                        </div>
+                        <div class="countdown-sub" id="countdown-status-text">Imebaki</div>
+                    </div>
+
                     <div class="pkg-usage-box">
-                        <span class="usage-title">Idadi ya Bidhaa Ulizopost:</span>
+                        <span class="usage-title">Bidhaa Zilizopakiwa:</span>
                         <div class="usage-progress-bar">
                             <div class="usage-fill" id="usage-progress-fill" style="width: 0%;"></div>
                         </div>
@@ -87,10 +106,34 @@
                 </div>
             </section>
 
-            <!-- Upload Product & Inventory Section -->
+            <!-- Quick Stats Row -->
+            <div class="vendor-quick-stats">
+                <div class="vstat-card">
+                    <ion-icon name="cube-outline"></ion-icon>
+                    <strong id="vstat-products">0</strong>
+                    <span>Bidhaa Sokoni</span>
+                </div>
+                <div class="vstat-card">
+                    <ion-icon name="heart-outline"></ion-icon>
+                    <strong id="vstat-followers">0</strong>
+                    <span>Wafuasi wa Duka</span>
+                </div>
+                <div class="vstat-card">
+                    <ion-icon name="time-outline"></ion-icon>
+                    <strong id="vstat-days">30</strong>
+                    <span>Siku Zilizobaki</span>
+                </div>
+                <div class="vstat-card">
+                    <ion-icon name="star-outline"></ion-icon>
+                    <strong id="vstat-pkg-level">Basic</strong>
+                    <span>Hadhi ya Duka</span>
+                </div>
+            </div>
+
+            <!-- Product Upload + My Products Grid -->
             <div class="vendor-grid-layout">
                 
-                <!-- Left Column: Upload New Product Form -->
+                <!-- Left: Upload New Product -->
                 <div class="vendor-card upload-card">
                     <div class="card-header">
                         <h3><ion-icon name="cloud-upload-outline"></ion-icon> Pakia Bidhaa Mpya</h3>
@@ -107,20 +150,20 @@
                             <div class="form-group">
                                 <label>Kategoria / Idara *</label>
                                 <select id="vp-dept" required>
-                                    <option value="nyumba">🏠 Nyumba & Makazi</option>
-                                    <option value="magari">🚗 Magari & Vyombo</option>
-                                    <option value="mitindo">👗 Mitindo & Nguo</option>
-                                    <option value="urembo">💄 Urembo & Mawigi</option>
-                                    <option value="viatu">👟 Viatu & Raba</option>
-                                    <option value="manukato">🌸 Manukato & Perfume</option>
-                                    <option value="simu_umeme">📱 Simu & Umeme</option>
+                                    <option value="nyumba">🏠 Nyumba &amp; Makazi</option>
+                                    <option value="magari">🚗 Magari &amp; Vyombo</option>
+                                    <option value="mitindo">👗 Mitindo &amp; Nguo</option>
+                                    <option value="urembo">💄 Urembo &amp; Mawigi</option>
+                                    <option value="viatu">👟 Viatu &amp; Raba</option>
+                                    <option value="manukato">🌸 Manukato &amp; Perfume</option>
+                                    <option value="simu_umeme">📱 Simu &amp; Umeme</option>
                                     <option value="ujenzi">🏗️ Vifaa vya Ujenzi</option>
-                                    <option value="usafi_nyumbani">🛋️ Nyumba & Usafi</option>
+                                    <option value="usafi_nyumbani">🛋️ Nyumba &amp; Usafi</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Bei (Tsh) *</label>
-                                <input type="number" id="vp-price" placeholder="Mfano: 45000" required>
+                                <input type="number" id="vp-price" placeholder="Mfano: 45000" required min="0">
                             </div>
                         </div>
 
@@ -132,6 +175,7 @@
                         <div class="form-group">
                             <label>Picha ya Bidhaa *</label>
                             <input type="file" id="vp-image" accept="image/*" required>
+                            <small style="color:#94a3b8;font-size:0.75rem;">Chagua picha nzuri na wazi ili wateja waione vizuri.</small>
                         </div>
 
                         <div class="form-group">
@@ -146,11 +190,13 @@
                     </form>
                 </div>
 
-                <!-- Right Column: My Uploaded Products -->
+                <!-- Right: My Uploaded Products -->
                 <div class="vendor-card my-products-card">
                     <div class="card-header">
                         <h3><ion-icon name="grid-outline"></ion-icon> Bidhaa Zangu Sokoni</h3>
-                        <button class="reload-btn" onclick="loadVendorProducts()"><ion-icon name="refresh-outline"></ion-icon></button>
+                        <button class="reload-btn" onclick="fetchVendorProfile()" title="Onyesha upya">
+                            <ion-icon name="refresh-outline"></ion-icon>
+                        </button>
                     </div>
 
                     <div id="vendor-products-container" class="vendor-products-grid">
@@ -160,6 +206,37 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- Wateja Inquiries / Leads Section -->
+            <div class="vendor-card inquiries-card">
+                <div class="card-header">
+                    <h3><ion-icon name="chatbubble-ellipses-outline"></ion-icon> Wateja &amp; Mawasiliano</h3>
+                </div>
+                <div class="inquiries-info-box">
+                    <div class="inq-tip-row">
+                        <div class="inq-tip-icon">📞</div>
+                        <div>
+                            <strong>Wateja wanakupigia simu au kukutumia WhatsApp moja kwa moja.</strong>
+                            <p style="font-size:0.82rem;color:#94a3b8;margin:4px 0 0 0;">Namba yako ya simu iliyosajiliwa inatumika moja kwa moja kuwasiliana na wateja. Hakikisha WhatsApp yako inafanya kazi vizuri.</p>
+                        </div>
+                    </div>
+                    <div class="inq-tip-row">
+                        <div class="inq-tip-icon">⭐</div>
+                        <div>
+                            <strong>Wauzaji wa Gold VIP wanapata nafasi ya matangazo ya mbele sokoni.</strong>
+                            <p style="font-size:0.82rem;color:#94a3b8;margin:4px 0 0 0;">Boresha kifurushi chako hadi Gold VIP (Tsh 15,000) upate tangazo lako kwenye ubao wa juu wa Genge Mall unaoonekana na wateja wote wanaofungua sokoni.</p>
+                        </div>
+                    </div>
+                    <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap;">
+                        <a href="mall.html" class="inq-btn-primary">
+                            <ion-icon name="storefront-outline"></ion-icon> Tazama Duka Lako Sokoni
+                        </a>
+                        <button onclick="openUpgradePackageModal()" class="inq-btn-upgrade">
+                            <ion-icon name="rocket-outline"></ion-icon> Panda Hadhi ya Gold VIP
+                        </button>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -172,11 +249,10 @@
             <button class="modal-close-btn" onclick="closeUpgradePackageModal()">&times;</button>
             <div class="modal-header">
                 <h2>🚀 Boresha Kifurushi Chako Cha Muuzaji</h2>
-                <p>Chagua kifurushi kinachokufaa ili kuongeza kikomo cha kutangaza bidhaa zaidi sokoni Genge Mall.</p>
+                <p>Chagua kifurushi kinachokufaa ili kuongeza kikomo cha bidhaa na kupata nafasi za mbele sokoni.</p>
             </div>
 
             <div class="packages-grid">
-                <!-- Package 1 -->
                 <div class="pkg-card">
                     <span class="pkg-tag">BRONZE</span>
                     <h3>Basic Vendor</h3>
@@ -189,7 +265,6 @@
                     <button class="select-pkg-btn" onclick="requestPackageUpgrade('Basic', 5000, 25)">Chagua Tsh 5,000</button>
                 </div>
 
-                <!-- Package 2 -->
                 <div class="pkg-card featured">
                     <span class="pkg-tag popular">POPULAR</span>
                     <h3>Silver Vendor</h3>
@@ -202,14 +277,13 @@
                     <button class="select-pkg-btn" onclick="requestPackageUpgrade('Silver', 10000, 45)">Chagua Tsh 10,000</button>
                 </div>
 
-                <!-- Package 3 -->
                 <div class="pkg-card vip">
-                    <span class="pkg-tag vip-tag">VIP</span>
+                    <span class="pkg-tag vip-tag">VIP GOLD</span>
                     <h3>Gold VIP Vendor</h3>
                     <div class="price">Tsh 15,000 <span>/ Mwezi</span></div>
                     <ul>
                         <li><ion-icon name="checkmark-circle"></ion-icon> Hadi Bidhaa <strong>60</strong></li>
-                        <li><ion-icon name="checkmark-circle"></ion-icon> Matangazo ya Mbele kabisa</li>
+                        <li><ion-icon name="checkmark-circle"></ion-icon> ⭐ Matangazo ya Mbele (Auto-Slider)</li>
                         <li><ion-icon name="checkmark-circle"></ion-icon> Badge ya VIP Gold Seller</li>
                     </ul>
                     <button class="select-pkg-btn" onclick="requestPackageUpgrade('Gold', 15000, 60)">Chagua Tsh 15,000</button>
@@ -218,6 +292,6 @@
         </div>
     </div>
 
-    <script src="vendor-admin.js?v=1"></script>
+    <script src="vendor-admin.js?v=2"></script>
 </body>
 </html>

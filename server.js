@@ -701,12 +701,38 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ message: 'Namba hii ya simu imekwisha kusajiliwa tayari.' });
         }
 
-        // Setup vendor package rules
-        let userPackage = { name: 'Basic', price: 5000, maxProducts: 25, status: 'active' };
+        // Setup vendor package rules (30-day default subscription)
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        let userPackage = { 
+            name: 'Basic', 
+            price: 5000, 
+            maxProducts: 25, 
+            status: 'active',
+            durationDays: 30,
+            activatedAt: now,
+            expiresAt: expiresAt
+        };
         if (packageName === 'Silver') {
-            userPackage = { name: 'Silver', price: 10000, maxProducts: 45, status: 'active' };
+            userPackage = { 
+                name: 'Silver', 
+                price: 10000, 
+                maxProducts: 45, 
+                status: 'active',
+                durationDays: 30,
+                activatedAt: now,
+                expiresAt: expiresAt
+            };
         } else if (packageName === 'Gold') {
-            userPackage = { name: 'Gold', price: 15000, maxProducts: 60, status: 'active' };
+            userPackage = { 
+                name: 'Gold', 
+                price: 15000, 
+                maxProducts: 60, 
+                status: 'active',
+                durationDays: 30,
+                activatedAt: now,
+                expiresAt: expiresAt
+            };
         }
 
         if (role === 'vendor' && !nidaOrTin) {

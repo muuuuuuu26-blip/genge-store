@@ -101,9 +101,60 @@ function updateVendorUI() {
     document.getElementById('display-vendor-phone').textContent = currentVendor.phone || '';
 
     const pkg = currentVendor.package || { name: 'Basic', price: 5000, maxProducts: 25 };
-    document.getElementById('display-pkg-name').textContent = pkg.name + ' Vendor';
-    document.getElementById('display-pkg-price').textContent = `Tsh ${pkg.price.toLocaleString()}/mwezi`;
+    const pkgName = pkg.name || 'Basic';
+    document.getElementById('display-pkg-name').textContent = pkgName + ' Vendor';
+    document.getElementById('display-pkg-price').textContent = `Tsh ${(pkg.price || 5000).toLocaleString()}/mwezi`;
     document.getElementById('display-max-count').textContent = pkg.maxProducts || 25;
+
+    // Quick stats
+    const statsEl = { products: document.getElementById('vstat-products'), followers: document.getElementById('vstat-followers'), days: document.getElementById('vstat-days'), pkgLevel: document.getElementById('vstat-pkg-level') };
+    if (statsEl.followers) statsEl.followers.textContent = currentVendor.followersCount || (currentVendor.followers ? currentVendor.followers.length : 0);
+    if (statsEl.pkgLevel) statsEl.pkgLevel.textContent = pkgName;
+
+    // Subscription countdown
+    const activatedAt = pkg.activatedAt ? new Date(pkg.activatedAt) : null;
+    const expiresAt = pkg.expiresAt ? new Date(pkg.expiresAt) : null;
+    const now = new Date();
+
+    if (expiresAt) {
+        const msLeft = expiresAt.getTime() - now.getTime();
+        const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+
+        const daysEl = document.getElementById('countdown-days');
+        const statusEl = document.getElementById('countdown-status-text');
+        const ringEl = document.getElementById('countdown-ring');
+        const statsDaysEl = document.getElementById('vstat-days');
+
+        if (daysEl) daysEl.textContent = daysLeft;
+        if (statsDaysEl) statsDaysEl.textContent = daysLeft;
+
+        if (daysLeft <= 0) {
+            if (statusEl) statusEl.textContent = '🔴 Kimeisha!';
+            if (ringEl) ringEl.style.borderColor = '#ef4444';
+            if (daysEl) daysEl.style.color = '#ef4444';
+        } else if (daysLeft <= 7) {
+            if (statusEl) statusEl.textContent = '🟡 Karibu Kuisha';
+            if (ringEl) ringEl.style.borderColor = '#f59e0b';
+            if (daysEl) daysEl.style.color = '#f59e0b';
+        } else {
+            if (statusEl) statusEl.textContent = '🟢 Imebaki';
+            if (ringEl) ringEl.style.borderColor = '#10b981';
+            if (daysEl) daysEl.style.color = '#10b981';
+        }
+
+        // Timeline bar
+        const timelineRow = document.getElementById('pkg-timeline-row');
+        if (timelineRow && activatedAt) {
+            const totalDays = (pkg.durationDays || 30) * 24 * 60 * 60 * 1000;
+            const usedMs = now.getTime() - activatedAt.getTime();
+            const pct = Math.min(100, Math.max(0, Math.round((usedMs / totalDays) * 100)));
+            timelineRow.style.display = 'flex';
+            document.getElementById('pkg-start-date').textContent = activatedAt.toLocaleDateString('sw-TZ');
+            document.getElementById('pkg-end-date').textContent = expiresAt.toLocaleDateString('sw-TZ');
+            const fill = document.getElementById('pkg-timeline-fill');
+            if (fill) fill.style.width = pct + '%';
+        }
+    }
 }
 
 function renderVendorProducts(products) {
@@ -116,13 +167,18 @@ function renderVendorProducts(products) {
 
     const percentage = Math.min(100, Math.round((usedCount / maxCount) * 100));
     const fill = document.getElementById('usage-progress-fill');
-    fill.style.width = percentage + '%';
+    if (fill) fill.style.width = percentage + '%';
+
+    // Update quick stat
+    const vsP = document.getElementById('vstat-products');
+    if (vsP) vsP.textContent = usedCount;
 
     if (products.length === 0) {
         container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem;">
-                <ion-icon name="bag-handle-outline" style="font-size: 3rem; margin-bottom: 0.5rem;"></ion-icon>
-                <p>Bado hujaweka bidhaa yoyote sokoni Genge Mall.</p>
+            <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 2rem;">
+                <ion-icon name="bag-handle-outline" style="font-size: 3rem; margin-bottom: 0.5rem; display:block;"></ion-icon>
+                <p>Bado hujaweka bidhaa yoyote sokoni Genge Mall.<br>
+                <small>Tumia fomu upande wa kushoto kuanza kupakia bidhaa.</small></p>
             </div>
         `;
         return;
@@ -130,18 +186,20 @@ function renderVendorProducts(products) {
 
     container.innerHTML = products.map(p => `
         <div class="vendor-prod-item">
-            <img src="${p.icon}" alt="${p.name}">
+            <img src="${p.image || p.icon || 'pics/12.png'}" alt="${p.name}" onerror="this.src='pics/12.png'">
             <div class="vendor-prod-body">
                 <h4>${p.name}</h4>
-                <div class="price">Tsh ${p.price.toLocaleString()}</div>
+                <div class="price">Tsh ${(p.price || 0).toLocaleString()}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:6px;">${p.location || ''}</div>
                 <div class="vendor-prod-actions">
-                    <button class="v-delete-btn" onclick="deleteVendorProduct('${p.id}')">
+                    <button class="v-delete-btn" onclick="deleteVendorProduct('${p.id || p._id}')">
                         <ion-icon name="trash-outline"></ion-icon> Futa Sokoni
                     </button>
                 </div>
             </div>
         </div>
     `).join('');
+
 }
 
 async function handleProductUpload(e) {

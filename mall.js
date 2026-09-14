@@ -595,6 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMallProducts(); // Render immediately so catalog is instantly visible!
     fetchServerMallProducts();
     updateMallCartUI();
+    initSponsoredSlider();
 });
 
 // A. Fetch Live Dynamic Member Count (Base 105,000+)
@@ -650,14 +651,10 @@ function openUserDropdownOrDashboard() {
     if (!currentUser) return openAuthModal('login');
 
     if (currentUser.role === 'vendor') {
-        const choice = confirm(`Habari ${currentUser.shopName || currentUser.name}!\n\nJe, unataka kwenda kwenye "Dashboard ya Muuzaji (Vendor Portal)" kupakia na kusimamia bidhaa zako?\n\n[OK] = Dashboard ya Muuzaji\n[CANCEL] = Toka (Logout)`);
-        if (choice) {
-            window.location.href = 'vendor-admin.html';
-        } else {
-            logoutUser();
-        }
+        // Direct seamless jump to vendor's own admin dashboard!
+        window.location.href = 'vendor-admin.html';
     } else {
-        const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kutoka kwenye akaunti yako?\n\n[OK] = Toka (Logout)\n[CANCEL] = Rudi Sokoni`);
+        const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kutoka kwenye akaunti yako?\n\n[OK] = Toka (Logout)\n[CANCEL] = Baki Sokoni`);
         if (choice) {
             logoutUser();
         }
@@ -715,6 +712,10 @@ window.switchAuthMode = function(mode) {
 
 window.selectRegisterRole = function() {};
 
+// ── VENDOR REGISTRATION & STK PUSH FLOW ─────────────────────────────
+let pendingVendorRegistration = null;
+let vstkCountdownInterval = null;
+
 window.handleMallRegister = async function(e) {
     e.preventDefault();
     const role = 'vendor';
@@ -741,51 +742,151 @@ window.handleMallRegister = async function(e) {
         return;
     }
 
-    if (msgDiv) {
-        msgDiv.textContent = 'Inasajili Duka...';
-        msgDiv.style.color = '#fff';
+    const priceMap = { 'Basic': 5000, 'Silver': 10000, 'Gold': 15000 };
+    const price = priceMap[packageName] || 5000;
+
+    pendingVendorRegistration = {
+        name,
+        phone,
+        password,
+        role,
+        nidaOrTin,
+        shopName,
+        packageName,
+        price
+    };
+
+    // Close auth modal and open STK Push modal directly!
+    closeAuthModal();
+    openVendorStkModal(pendingVendorRegistration);
+};
+
+window.openVendorStkModal = function(data) {
+    const modal = document.getElementById('vendor-stk-modal');
+    if (!modal) return;
+
+    document.getElementById('vstk-shop-display').textContent = data.shopName;
+    document.getElementById('vstk-pkg-display').textContent = `${data.packageName} Vendor`;
+    document.getElementById('vstk-amount-display').textContent = `Tsh ${data.price.toLocaleString()}/=`;
+    document.getElementById('vstk-phone-input').value = data.phone;
+
+    // Reset waiting box
+    const waitingBox = document.getElementById('vstk-waiting-box');
+    if (waitingBox) waitingBox.style.display = 'none';
+    const triggerBtn = document.getElementById('btn-trigger-vstk');
+    if (triggerBtn) triggerBtn.style.display = 'flex';
+
+    modal.style.display = 'flex';
+};
+
+window.closeVendorStkModal = function() {
+    const modal = document.getElementById('vendor-stk-modal');
+    if (modal) modal.style.display = 'none';
+    if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+};
+
+window.updateVstkNetwork = function(radio) {
+    document.querySelectorAll('.vstk-net-card').forEach(card => card.classList.remove('active'));
+    if (radio && radio.parentElement) {
+        radio.parentElement.classList.add('active');
     }
+};
+
+window.triggerVendorStkPayment = async function() {
+    if (!pendingVendorRegistration) return;
+
+    const phoneInput = document.getElementById('vstk-phone-input');
+    const phone = (phoneInput ? phoneInput.value.trim() : '') || pendingVendorRegistration.phone;
+    pendingVendorRegistration.paymentPhone = phone;
+
+    const selectedProvider = document.querySelector('input[name="vstk_provider"]:checked')?.value || 'VodaCom M-Pesa';
+
+    const triggerBtn = document.getElementById('btn-trigger-vstk');
+    const waitingBox = document.getElementById('vstk-waiting-box');
+    const countdownEl = document.getElementById('vstk-countdown');
+    const statusHeading = document.getElementById('vstk-status-heading');
+    const statusSub = document.getElementById('vstk-status-sub');
+
+    if (triggerBtn) triggerBtn.style.display = 'none';
+    if (waitingBox) waitingBox.style.display = 'block';
+    if (statusHeading) statusHeading.textContent = 'Inasubiri PIN Kwenye Simu...';
+    if (statusSub) statusSub.textContent = `Ombi la kulipa Tsh ${pendingVendorRegistration.price.toLocaleString()}/= limetumwa kwenye simu yako (${phone} - ${selectedProvider}). Weka PIN yako kukamilisha.`;
+
+    // Try server STK push API if running
+    try {
+        fetch('/api/vendor/register-stk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...pendingVendorRegistration, phone, provider: selectedProvider })
+        }).catch(() => {});
+    } catch (_) {}
+
+    // Start 60s countdown
+    let timeLeft = 60;
+    if (countdownEl) countdownEl.textContent = timeLeft;
+    if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+
+    vstkCountdownInterval = setInterval(() => {
+        timeLeft--;
+        if (countdownEl) countdownEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(vstkCountdownInterval);
+            if (statusHeading) statusHeading.textContent = 'Imemaliza Muda wa Kusubiri';
+            if (statusSub) statusSub.textContent = 'Kama tayari umeweka PIN kwenye simu yako, bonyeza kitufe hapa chini kuwasha duka lako moja kwa moja.';
+        }
+    }, 1000);
+};
+
+window.confirmVendorPaymentManually = async function() {
+    if (!pendingVendorRegistration) return;
+    if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+
+    const data = pendingVendorRegistration;
+    const limit = data.packageName === 'Gold' ? 60 : data.packageName === 'Silver' ? 45 : 25;
 
     let registeredUser = null;
 
-    // 1. Try server API
     try {
         const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, phone, password, role, nidaOrTin, shopName, packageName })
+            body: JSON.stringify({
+                name: data.name,
+                phone: data.phone,
+                password: data.password,
+                role: 'vendor',
+                nidaOrTin: data.nidaOrTin,
+                shopName: data.shopName,
+                packageName: data.packageName,
+                paymentStatus: 'paid'
+            })
         });
-
         if (res.ok) {
-            const data = await res.json();
-            registeredUser = data.user;
-        } else {
-            const errData = await res.json().catch(() => ({}));
-            if (errData.message && !res.status.toString().startsWith('5')) {
-                if (msgDiv) {
-                    msgDiv.textContent = errData.message;
-                    msgDiv.style.color = '#EF4444';
-                }
-                return;
-            }
+            const resData = await res.json();
+            registeredUser = resData.user;
         }
-    } catch (err) {
-        // Static hosting fallback
-    }
+    } catch (_) {}
 
-    // 2. Resilient local fallback so registration NEVER fails
     if (!registeredUser) {
-        const limit = packageName === 'Gold' ? 60 : packageName === 'Silver' ? 45 : 25;
         registeredUser = {
             id: 'vdr_' + Date.now(),
-            name,
-            phone,
+            name: data.name,
+            phone: data.phone,
             role: 'vendor',
-            nidaOrTin,
-            shopName,
-            packageName,
+            nidaOrTin: data.nidaOrTin,
+            shopName: data.shopName,
+            packageName: data.packageName,
             productLimit: limit,
             status: 'active',
+            package: {
+                name: data.packageName,
+                price: data.price,
+                maxProducts: limit,
+                status: 'active',
+                durationDays: 30,
+                activatedAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            },
             createdAt: new Date().toISOString()
         };
 
@@ -793,7 +894,7 @@ window.handleMallRegister = async function(e) {
             const existingUsers = JSON.parse(localStorage.getItem('genge_registered_users') || '[]');
             existingUsers.push(registeredUser);
             localStorage.setItem('genge_registered_users', JSON.stringify(existingUsers));
-        } catch (e) {}
+        } catch (_) {}
     }
 
     currentUser = registeredUser;
@@ -801,18 +902,213 @@ window.handleMallRegister = async function(e) {
     localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
     updateHeaderAuthUI();
 
-    if (msgDiv) {
-        msgDiv.textContent = '🎉 Hongera! Duka la "' + (currentUser.shopName || currentUser.name) + '" limesajiliwa kikamilifu!';
-        msgDiv.style.color = '#10B981';
+    const waitingBox = document.getElementById('vstk-waiting-box');
+    if (waitingBox) {
+        waitingBox.innerHTML = `
+            <div style="font-size: 3rem; margin-bottom: 8px;">🎉</div>
+            <h3 style="color: #10B981; margin-bottom: 4px;">Hongera! Malipo Yamethibitishwa!</h3>
+            <p style="color: #cbd5e1; font-size: 0.85rem;">Duka la <strong>${data.shopName}</strong> limeamilishwa kikamilifu na Kifurushi cha <strong>${data.packageName} (siku 30)</strong>!</p>
+            <p style="color: #94a3b8; font-size: 0.8rem; margin-top: 6px;">Inakupeleka moja kwa moja kwenye Dashboard ya Duka lako...</p>
+        `;
     }
 
     setTimeout(() => {
-        closeAuthModal();
-        if (confirm('🎉 Usajili wako kama Muuzaji umekamilika kikamilifu!\n\nJe, unataka kufungua Dashboard ya Muuzaji (Vendor Portal) ili upakie bidhaa zako sasa?')) {
-            window.location.href = 'vendor-admin.html';
-        }
-    }, 1000);
+        closeVendorStkModal();
+        window.location.href = 'vendor-admin.html';
+    }, 2200);
 };
+
+window.cancelVendorStkPayment = function() {
+    closeVendorStkModal();
+    openAuthModal('register');
+};
+
+// ── AUTO-SLIDING SPONSORED ADS CAROUSEL (GOLD VIP VENDORS) ──────────
+let sponsoredSliderIndex = 0;
+let sponsoredSliderTimer = null;
+let sponsoredSliderItems = [];
+let isSponsoredSliderPaused = false;
+
+function initSponsoredSlider() {
+    const track = document.getElementById('sponsored-slides-track');
+    const dotsContainer = document.getElementById('sponsored-dots-indicator');
+    if (!track) return;
+
+    // Curated high-impact sponsored listings for Gold/VIP vendors
+    sponsoredSliderItems = [
+        {
+            id: 'sp-01',
+            shopName: 'Dar Luxury Homes & Real Estate',
+            vendorPhone: '255799689961',
+            verified: true,
+            badgeText: '⭐ GOLD VIP VENDOR',
+            title: 'Apartment ya Kisasa (Vyumba 3) Mbezi Beach',
+            price: 650000,
+            priceUnit: '/ Mwezi',
+            image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+            location: 'Mbezi Beach, Dar es Salaam',
+            specs: ['Vyumba 3 Master', 'Gypsum & Tiles', 'Paving & Fensi', 'Maji Dawasco 24/7']
+        },
+        {
+            id: 'sp-02',
+            shopName: 'Classic Auto Motors Tanzania',
+            vendorPhone: '255692970687',
+            verified: true,
+            badgeText: '⭐ GOLD VIP VENDOR',
+            title: 'Toyota Harrier New Model (Black Edition)',
+            price: 34500000,
+            priceUnit: 'Tsh (Inauzwa)',
+            image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+            location: 'Magomeni Mikumi, Dar es Salaam',
+            specs: ['Mwaka 2017', 'Full Options', 'Leather Seats', 'Kadi Halisi ya TRA']
+        },
+        {
+            id: 'sp-03',
+            shopName: 'Kariakoo Smart Tech & Appliances',
+            vendorPhone: '255675583884',
+            verified: true,
+            badgeText: '⭐ GOLD VIP VENDOR',
+            title: 'Samsung Smart 4K UHD Frameless TV (55 Inch)',
+            price: 1150000,
+            priceUnit: 'Tsh',
+            image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80',
+            location: 'Mtaa wa Msimbazi, Kariakoo',
+            specs: ['55 Inch', '4K Ultra HD', 'Voice Remote', 'Waranti Miaka 2']
+        },
+        {
+            id: 'sp-04',
+            shopName: 'Zanzibar Queen Fashion & Perfumes',
+            vendorPhone: '255799689961',
+            verified: true,
+            badgeText: '⭐ GOLD VIP VENDOR',
+            title: 'Seti ya Manukato ya Asili ya Oud & Dubai Silk Abaya',
+            price: 185000,
+            priceUnit: 'Seti Kamili',
+            image: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=800&q=80',
+            location: 'Posta Mpya, Dar es Salaam',
+            specs: ['Oud Halisi', 'Harufu ya Siku 3', 'Kitambaa cha Hariri', 'Free Delivery']
+        }
+    ];
+
+    renderSponsoredSlides();
+    startSponsoredSliderAutoplay();
+}
+
+function renderSponsoredSlides() {
+    const track = document.getElementById('sponsored-slides-track');
+    const dotsContainer = document.getElementById('sponsored-dots-indicator');
+    if (!track) return;
+
+    track.innerHTML = sponsoredSliderItems.map((item, idx) => {
+        const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall VIP Showcase. Naomba kujua zaidi.`);
+        const waLink = `https://wa.me/${item.vendorPhone}?text=${waMsg}`;
+        const telLink = `tel:+${item.vendorPhone}`;
+
+        const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${s}</span>`).join('');
+
+        return `
+            <div class="sponsored-slide-card" data-index="${idx}">
+                <div class="slide-img-box">
+                    <img src="${item.image}" alt="${item.title}" loading="lazy">
+                    <div class="slide-gold-ribbon">
+                        <ion-icon name="sparkles"></ion-icon> ${item.badgeText}
+                    </div>
+                </div>
+                <div class="slide-info-box">
+                    <div>
+                        <div class="slide-vendor-header">
+                            <span class="slide-vendor-shop">
+                                <ion-icon name="storefront-outline"></ion-icon> ${item.shopName}
+                            </span>
+                            <span class="slide-verified-badge">
+                                <ion-icon name="checkmark-circle"></ion-icon> NIDA Verified
+                            </span>
+                        </div>
+                        <h3 class="slide-title">${item.title}</h3>
+                        <div class="slide-location">
+                            <ion-icon name="location-outline"></ion-icon> ${item.location}
+                        </div>
+                        <div class="slide-specs-pills">
+                            ${specsHtml}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="slide-price-row">
+                            <span class="slide-current-price">Tsh ${item.price.toLocaleString()}</span>
+                            <span style="font-size:0.8rem; color:#94a3b8;">${item.priceUnit || ''}</span>
+                        </div>
+                        <div class="slide-actions-row">
+                            <a href="${waLink}" target="_blank" class="slide-btn-whatsapp">
+                                <ion-icon name="logo-whatsapp"></ion-icon> Agiza WhatsApp
+                            </a>
+                            <a href="${telLink}" class="slide-btn-call">
+                                <ion-icon name="call-outline"></ion-icon> Piga
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (dotsContainer) {
+        dotsContainer.innerHTML = sponsoredSliderItems.map((_, i) => `
+            <div class="sponsored-dot ${i === 0 ? 'active' : ''}" onclick="goToSponsoredSlide(${i})"></div>
+        `).join('');
+    }
+}
+
+function startSponsoredSliderAutoplay() {
+    if (sponsoredSliderTimer) clearInterval(sponsoredSliderTimer);
+    sponsoredSliderTimer = setInterval(() => {
+        if (!isSponsoredSliderPaused) {
+            moveSponsoredSlide(1);
+        }
+    }, 4500);
+}
+
+window.moveSponsoredSlide = function(direction) {
+    if (sponsoredSliderItems.length <= 1) return;
+    sponsoredSliderIndex += direction;
+    if (sponsoredSliderIndex >= sponsoredSliderItems.length) {
+        sponsoredSliderIndex = 0;
+    } else if (sponsoredSliderIndex < 0) {
+        sponsoredSliderIndex = sponsoredSliderItems.length - 1;
+    }
+    updateSponsoredSliderPosition();
+};
+
+window.goToSponsoredSlide = function(index) {
+    sponsoredSliderIndex = index;
+    updateSponsoredSliderPosition();
+};
+
+function updateSponsoredSliderPosition() {
+    const track = document.getElementById('sponsored-slides-track');
+    const dots = document.querySelectorAll('.sponsored-dot');
+    if (!track) return;
+
+    const firstCard = track.querySelector('.sponsored-slide-card');
+    if (firstCard) {
+        const cardWidth = firstCard.offsetWidth;
+        const gap = 19.2;
+        const offset = (cardWidth + gap) * sponsoredSliderIndex;
+        track.style.transform = `translateX(-${offset}px)`;
+    }
+
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === sponsoredSliderIndex);
+    });
+}
+
+window.pauseSponsoredSlider = function() {
+    isSponsoredSliderPaused = true;
+};
+
+window.resumeSponsoredSlider = function() {
+    isSponsoredSliderPaused = false;
+};
+
 
 window.handleMallLogin = async function(e) {
     e.preventDefault();

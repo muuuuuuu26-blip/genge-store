@@ -17,7 +17,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=5">
+    <link rel="stylesheet" href="mall.css?v=6">
 </head>
 <body>
 
@@ -129,6 +129,36 @@
                 </div>
             </div>
         </div>
+    </section>
+
+    <!-- VIP Sponsored Showcase Carousel (Gold Vendors Auto-Slider) -->
+    <section class="mall-sponsored-section" id="mall-sponsored-slider">
+        <div class="sponsored-header">
+            <div class="sponsored-title-wrap">
+                <span class="sponsored-fire-icon">🔥</span>
+                <div>
+                    <h2 class="sponsored-title">Matangazo Maalum &amp; Ofa za Dhahabu</h2>
+                    <p class="sponsored-sub">Wauzaji Wakuu Walioidhinishwa (Gold VIP Vendors)</p>
+                </div>
+            </div>
+            <div class="slider-nav-controls">
+                <button type="button" class="slider-arrow prev" onclick="moveSponsoredSlide(-1)" aria-label="Nyuma">
+                    <ion-icon name="chevron-back-outline"></ion-icon>
+                </button>
+                <button type="button" class="slider-arrow next" onclick="moveSponsoredSlide(1)" aria-label="Mbele">
+                    <ion-icon name="chevron-forward-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+
+        <div class="sponsored-slider-container" id="sponsored-slider-container" onmouseenter="pauseSponsoredSlider()" onmouseleave="resumeSponsoredSlider()" ontouchstart="pauseSponsoredSlider()" ontouchend="resumeSponsoredSlider()">
+            <div class="sponsored-slides-track" id="sponsored-slides-track">
+                <!-- Injected dynamically by JS -->
+            </div>
+        </div>
+
+        <!-- Progress dots -->
+        <div class="sponsored-dots-indicator" id="sponsored-dots-indicator"></div>
     </section>
 
     <!-- Departments Quick Slider / Grid -->
@@ -478,6 +508,96 @@
         </div>
     </div>
 
+    <!-- Vendor Registration STK Push Modal -->
+    <div class="vendor-stk-modal-overlay" id="vendor-stk-modal" style="display: none;">
+        <div class="vendor-stk-modal-card glass-panel">
+            <button type="button" class="auth-modal-close" onclick="closeVendorStkModal()">&times;</button>
+            
+            <div class="stk-modal-header">
+                <div class="stk-brand-badge">
+                    <ion-icon name="phone-portrait-outline"></ion-icon>
+                    <span>MALIPO YA SIMU (STK PUSH)</span>
+                </div>
+                <h3 style="margin: 0.4rem 0 0.2rem 0; font-size: 1.3rem;">Lipa Kifurushi cha Duka Lako</h3>
+                <p class="stk-sub" style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">Ujumbe wa kuweka PIN utatumwa kiotomatiki kwenye simu yako ili duka liwashwe mara moja.</p>
+            </div>
+
+            <!-- Summary Box -->
+            <div class="vstk-summary-box">
+                <div class="vstk-summary-row">
+                    <span>Jina la Duka:</span>
+                    <strong id="vstk-shop-display">—</strong>
+                </div>
+                <div class="vstk-summary-row">
+                    <span>Kifurushi:</span>
+                    <strong id="vstk-pkg-display" style="color: #F59E0B;">—</strong>
+                </div>
+                <div class="vstk-summary-row total">
+                    <span>Kiasi cha Kulipia:</span>
+                    <strong id="vstk-amount-display" style="color: #10B981; font-size: 1.25rem;">Tsh 0/=</strong>
+                </div>
+            </div>
+
+            <!-- Provider selector -->
+            <div class="vstk-field-group">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Chagua Mtandao wa Simu:</label>
+                <div class="vstk-networks-grid">
+                    <label class="vstk-net-card active">
+                        <input type="radio" name="vstk_provider" value="VodaCom M-Pesa" checked onchange="updateVstkNetwork(this)">
+                        <span class="vnet-logo mpesa">M-PESA</span>
+                        <span class="vnet-name">Vodacom</span>
+                    </label>
+                    <label class="vstk-net-card">
+                        <input type="radio" name="vstk_provider" value="Tigo Pesa" onchange="updateVstkNetwork(this)">
+                        <span class="vnet-logo tigo">TIGO</span>
+                        <span class="vnet-name">Tigo Pesa</span>
+                    </label>
+                    <label class="vstk-net-card">
+                        <input type="radio" name="vstk_provider" value="Airtel Money" onchange="updateVstkNetwork(this)">
+                        <span class="vnet-logo airtel">AIRTEL</span>
+                        <span class="vnet-name">Airtel</span>
+                    </label>
+                    <label class="vstk-net-card">
+                        <input type="radio" name="vstk_provider" value="HaloPesa" onchange="updateVstkNetwork(this)">
+                        <span class="vnet-logo halo">HALO</span>
+                        <span class="vnet-name">Halopesa</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Phone input -->
+            <div class="vstk-field-group" style="margin-top: 1rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Namba ya Kupokea Ombi la PIN (USSD Push):</label>
+                <input type="tel" id="vstk-phone-input" placeholder="07XXXXXXXX au 06XXXXXXXX" style="width: 100%; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem; font-weight: 700;">
+                <small style="color: #94a3b8; font-size: 0.76rem; display: block; margin-top: 4px;">Namba hii imechukuliwa kutoka kwenye fomu yako ya usajili.</small>
+            </div>
+
+            <!-- Action Button -->
+            <button type="button" class="vstk-submit-btn" id="btn-trigger-vstk" onclick="triggerVendorStkPayment()">
+                <ion-icon name="send-outline"></ion-icon> Tuma Ombi la PIN Kwenye Simu &rsaquo;
+            </button>
+
+            <!-- Status State (Waiting for PIN) -->
+            <div class="vstk-waiting-box" id="vstk-waiting-box" style="display: none;">
+                <div class="vstk-pulse-circle">
+                    <ion-icon name="phone-portrait-outline"></ion-icon>
+                </div>
+                <h4 id="vstk-status-heading">Inasubiri PIN Kwenye Simu...</h4>
+                <p id="vstk-status-sub">Tafadhali angalia skrini ya simu yako kisha weka namba yako ya siri (PIN) ili kukamilisha usajili.</p>
+                <div class="vstk-timer">Imebaki sekunde: <strong id="vstk-countdown">60</strong>s</div>
+
+                <div style="margin-top: 1.2rem; display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" onclick="confirmVendorPaymentManually()" class="vstk-manual-confirm-btn">
+                        ✅ Nimeshaweka PIN (Washa Duka Langu Sasa)
+                    </button>
+                    <button type="button" onclick="cancelVendorStkPayment()" style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">
+                        Ghairi / Badilisha Taarifa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Vendor Public Profile Modal (Instagram Style) -->
     <div class="vendor-profile-modal-overlay" id="vendor-profile-modal" style="display: none;" onclick="if(event.target === this) closeVendorProfileModal()">
         <div class="vendor-profile-card glass-panel">
@@ -524,6 +644,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=5"></script>
+    <script src="mall.js?v=6"></script>
 </body>
 </html>
