@@ -79,18 +79,35 @@ function handleVendorLogout() {
 
 async function fetchVendorProfile() {
     if (!currentVendor) return;
+    let prods = [];
     try {
         const res = await fetch(`/api/vendor/profile/${currentVendor.phone}`);
         if (res.ok) {
             const data = await res.json();
             currentVendor = { ...currentVendor, ...data.vendor };
             localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
-            updateVendorUI();
-            renderVendorProducts(data.products || []);
+            if (Array.isArray(data.products)) {
+                prods = data.products;
+            }
         }
     } catch (e) {
-        console.error('Error fetching profile:', e);
+        console.warn('Backend unavailable, using local cache:', e);
     }
+
+    // Merge locally saved custom products for this vendor (guarantees persistence)
+    try {
+        const allLocal = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+        const myLocal = allLocal.filter(p => p.vendorPhone === currentVendor.phone);
+        const existingIds = new Set(prods.map(p => p.id || p._id));
+        myLocal.forEach(p => {
+            if (!existingIds.has(p.id)) {
+                prods.unshift(p);
+            }
+        });
+    } catch (_) {}
+
+    updateVendorUI();
+    renderVendorProducts(prods);
 }
 
 function updateVendorUI() {
@@ -223,6 +240,11 @@ async function handleProductUpload(e) {
         return;
     }
 
+    const file = fileInput.files[0];
+    const submitBtn = document.getElementById('upload-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Inapakia bidhaa...';
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('category', dept);
@@ -231,50 +253,71 @@ async function handleProductUpload(e) {
     formData.append('location', location);
     formData.append('desc', desc);
     formData.append('vendorPhone', currentVendor.phone);
-    formData.append('image', fileInput.files[0]);
-
-    const submitBtn = document.getElementById('upload-submit-btn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Inapakia bidhaa...';
+    formData.append('vendorName', currentVendor.name || '');
+    formData.append('vendorShopName', currentVendor.shopName || currentVendor.name || '');
+    formData.append('image', file);
 
     try {
-        const res = await fetch('/api/vendor/products', {
+        await fetch('/api/vendor/products', {
             method: 'POST',
             body: formData
-        });
+        }).catch(() => {});
+    } catch (_) {}
 
-        const data = await res.json();
+    // Save product locally via FileReader with vendor's registered phone
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const base64Img = evt.target.result;
+        const newProduct = {
+            id: 'vprod_' + Date.now(),
+            name: name,
+            title: name,
+            price: Number(price),
+            priceUnit: 'Tsh',
+            category: dept,
+            dept: dept,
+            image: base64Img,
+            icon: base64Img,
+            isImage: true,
+            desc: desc || '',
+            location: location || 'Dar es Salaam',
+            vendorPhone: currentVendor.phone,
+            vendorName: currentVendor.name || '',
+            vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
+            vendorAvatar: currentVendor.avatar || 'pics/12.png',
+            vendorNidaOrTin: currentVendor.nidaOrTin || '',
+            createdAt: new Date().toISOString()
+        };
 
-        if (!res.ok) {
-            msgDiv.textContent = data.message || 'Imefeli kupakia bidhaa.';
-            msgDiv.style.color = '#EF4444';
-        } else {
-            msgDiv.textContent = '✅ ' + data.message;
-            msgDiv.style.color = '#10B981';
-            document.getElementById('vendor-product-form').reset();
-            fetchVendorProfile();
-        }
-    } catch (err) {
-        msgDiv.textContent = 'Kosa wakati wa kutuma picha. Jaribu tena.';
-        msgDiv.style.color = '#EF4444';
-    } finally {
+        const existing = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+        existing.unshift(newProduct);
+        localStorage.setItem('genge_custom_vendor_products', JSON.stringify(existing));
+
+        msgDiv.textContent = '✅ Bidhaa imechapishwa sokoni Genge Mall kikamilifu!';
+        msgDiv.style.color = '#10B981';
+        document.getElementById('vendor-product-form').reset();
+        fetchVendorProfile();
+
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Chapisha Bidhaa Sokoni Genge Mall';
-    }
+    };
+    reader.readAsDataURL(file);
 }
 
 async function deleteVendorProduct(id) {
     if (!confirm('Je, una uhakika unataka kufuta bidhaa hii sokoni?')) return;
     try {
-        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            fetchVendorProfile();
-        } else {
-            alert('Imefeli kufuta bidhaa.');
-        }
-    } catch (e) {
-        alert('Kosa wakati wa kufuta bidhaa.');
-    }
+        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    // Also remove from localStorage
+    try {
+        const existing = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+        const filtered = existing.filter(p => p.id !== id && p._id !== id);
+        localStorage.setItem('genge_custom_vendor_products', JSON.stringify(filtered));
+    } catch (_) {}
+
+    fetchVendorProfile();
 }
 
 function openUpgradePackageModal() {

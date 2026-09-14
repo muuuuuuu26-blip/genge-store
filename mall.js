@@ -564,13 +564,27 @@ const defaultVendorProfiles = {
     }
 };
 
+// Format WhatsApp Phone for international routing (+255)
+function formatWhatsAppPhone(phone) {
+    if (!phone) return MALL_WHATSAPP_PHONE;
+    let clean = String(phone).trim().replace(/\D/g, '');
+    if (clean.startsWith('0')) {
+        clean = '255' + clean.substring(1);
+    } else if (!clean.startsWith('255') && clean.length === 9) {
+        clean = '255' + clean;
+    }
+    return clean || MALL_WHATSAPP_PHONE;
+}
+
 function getVendorForProduct(item) {
-    if (item.vendorShopName && item.vendorPhone) {
+    if (item.vendorPhone || item.vendorShopName) {
+        const rawPhone = item.vendorPhone || item.phone || MALL_WHATSAPP_PHONE;
         return {
-            shopName: item.vendorShopName,
-            ownerName: item.vendorName || item.vendorShopName,
-            phone: item.vendorPhone,
-            nida: item.vendorNida || '19900101-12345-00001-01',
+            shopName: item.vendorShopName || item.vendorName || 'Muuzaji wa Genge',
+            ownerName: item.vendorName || item.vendorShopName || 'Muuzaji',
+            phone: formatWhatsAppPhone(rawPhone),
+            rawPhone: rawPhone,
+            nida: item.vendorNida || item.vendorNidaOrTin || '19900101-12345-00001-01',
             avatar: item.vendorAvatar || 'pics/12.png',
             bio: item.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall',
             followersCount: item.followersCount || '2.3k',
@@ -578,7 +592,11 @@ function getVendorForProduct(item) {
         };
     }
     const dept = item.dept || item.category || 'nyumba';
-    return defaultVendorProfiles[dept] || defaultVendorProfiles.nyumba;
+    const def = defaultVendorProfiles[dept] || defaultVendorProfiles.nyumba;
+    return {
+        ...def,
+        phone: formatWhatsAppPhone(def.phone)
+    };
 }
 
 // Format Currency TZS
@@ -1201,18 +1219,34 @@ window.handleMallLogin = async function(e) {
 
 // D. Fetch Products Uploaded via API & Combine with Catalog
 async function fetchServerMallProducts() {
+    let prods = [];
     try {
         const res = await fetch('/api/products');
         if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
-                serverMallProducts = data.filter(p => p.vendorPhone || (p.id && p.id.startsWith('vprod_')));
-                renderMallProducts();
+                prods = data.filter(p => p.vendorPhone || (p.id && p.id.startsWith('vprod_')));
             }
         }
     } catch (e) {
         // Server products optional in static mode
     }
+
+    // Merge custom vendor products from localStorage (persists vendor products locally on GitHub Pages)
+    try {
+        const localVendorProds = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+        if (Array.isArray(localVendorProds) && localVendorProds.length > 0) {
+            const existingIds = new Set(prods.map(p => p.id));
+            localVendorProds.forEach(lp => {
+                if (!existingIds.has(lp.id)) {
+                    prods.unshift(lp);
+                }
+            });
+        }
+    } catch (_) {}
+
+    serverMallProducts = prods;
+    renderMallProducts();
 }
 
 // Render Department Pills
@@ -1571,15 +1605,15 @@ window.openVendorProfileModal = async function(phone, deptKey) {
     const followersEl = document.getElementById('vp-modal-followers-count');
     if (followersEl) followersEl.textContent = v.followersCount || '3.5k';
 
-    const waBtn = document.getElementById('vp-modal-wa-btn');
-    if (waBtn) {
+        const cleanVPhone = formatWhatsAppPhone(v.phone || phone);
         const waHello = encodeURIComponent(`Habari ${v.shopName}, nimeona duka lenu Genge Mall na nina maswali kuhusu bidhaa zenu.`);
-        waBtn.href = `https://wa.me/${v.phone}?text=${waHello}`;
+        waBtn.href = `https://wa.me/${cleanVPhone}?text=${waHello}`;
     }
 
     const grid = document.getElementById('vp-modal-products-grid');
     if (grid) {
         if (vendorProds.length > 0) {
+            const cleanVPhone = formatWhatsAppPhone(v.phone || phone);
             grid.innerHTML = vendorProds.map(p => {
                 const pTitle = p.title || p.name;
                 const pImg = p.image || p.icon;
@@ -1592,7 +1626,7 @@ window.openVendorProfileModal = async function(phone, deptKey) {
                             <button type="button" class="btn-card-cart" style="flex:1;padding:0.35rem 0.5rem;font-size:0.78rem;" onclick="addToMallCart('${p.id}')">
                                 <ion-icon name="cart-outline"></ion-icon> Kapu
                             </button>
-                            <a href="https://wa.me/${v.phone}?text=${encodeURIComponent(`Habari ${v.shopName}, nahitaji kuagiza ${pTitle} ya ${formatTZS(p.price)}`)}" target="_blank" class="btn-card-wa" style="padding:0.35rem 0.6rem;font-size:0.78rem;">
+                            <a href="https://wa.me/${cleanVPhone}?text=${encodeURIComponent(`Habari ${v.shopName}, nahitaji kuagiza ${pTitle} ya ${formatTZS(p.price)}`)}" target="_blank" class="btn-card-wa" style="padding:0.35rem 0.6rem;font-size:0.78rem;">
                                 <ion-icon name="logo-whatsapp"></ion-icon>
                             </a>
                         </div>
