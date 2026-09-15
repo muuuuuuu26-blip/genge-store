@@ -604,17 +604,8 @@ function formatTZS(amount) {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
 }
 
-// Global State Variables
-let currentUser = null;
-let currentDepartment = 'all';
-let currentSubfilter = 'all';
-let searchQuery = '';
-let serverMallProducts = [];
-let mallCart = [];
-let modalVendorPhone = null;
-
-// Initialize on DOM Loaded
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize on DOM Loaded or immediately if DOM is already ready
+function initMallApp() {
     checkUserSession();
     fetchLiveMemberCount();
     loadMallCartFromStorage();
@@ -623,7 +614,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchServerMallProducts();
     updateMallCartUI();
     initSponsoredSlider();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMallApp);
+} else {
+    initMallApp();
+}
 
 // A. Fetch Live Dynamic Member Count (Base 105,000+)
 async function fetchLiveMemberCount() {
