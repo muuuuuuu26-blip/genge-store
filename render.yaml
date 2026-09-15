@@ -1,0 +1,17 @@
+﻿services:
+  - type: web
+    name: genge-mall-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/stats/member-count
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://joelmwak0799_db_user:Gengeonlinetz2026@cluster0.9bqogjk.mongodb.net/genge_store?retryWrites=true&w=majority
+      - key: HARAKAPAY_API_KEY
+        value: hpk_9a41ba945472142863bd3f49e43547d71e56fc88b937d120
+      - key: HARAKAPAY_BASE_URL
+        value: https://harakapay.net
+      - key: PORT
+        value: "3000"

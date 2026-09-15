@@ -1,5 +1,5 @@
 // API Configuration
-const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : 'https://genge-mall-backend.onrender.com';
 
 // Data
 const preMadePackages = [

@@ -627,6 +627,132 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
     }
 });
 
+// 9b. Vendor Registration STK Push (Genge Mall Vendor Registration Payment)
+app.post('/api/vendor/register-stk', async (req, res) => {
+    try {
+        const { name, phone, password, nidaOrTin, shopName, packageName, price, provider } = req.body;
+
+        if (!phone || !price) {
+            return res.status(400).json({ success: false, message: 'Tafadhali weka namba ya simu na kiasi.' });
+        }
+
+        let targetPhone = phone.trim().replace(/[\s\-\+]/g, '');
+        if (targetPhone.startsWith('0')) targetPhone = '255' + targetPhone.slice(1);
+        else if (!targetPhone.startsWith('255') && targetPhone.length === 9) targetPhone = '255' + targetPhone;
+
+        const apiKey = process.env.HARAKAPAY_API_KEY;
+        const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
+
+        if (!apiKey) {
+            return res.json({
+                success: true,
+                message: `Ombi la PIN limetumwa kwa ${targetPhone} (simulation mode).`,
+                order_id: 'SIM_' + Date.now(),
+                amount: price,
+                mode: 'simulation'
+            });
+        }
+
+        console.log(`[VENDOR STK] Sending STK push to ${targetPhone} for ${shopName} package ${packageName} TZS ${price}`);
+
+        const params = new URLSearchParams();
+        params.append('phone', targetPhone);
+        params.append('amount', price);
+        params.append('description', `Usajili wa Duka ${shopName} - ${packageName} Vendor - Genge Mall`);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        let harakaText = '';
+        let harakaResponse;
+
+        try {
+            harakaResponse = await fetch(`${baseUrl}/api/v1/collect`, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            harakaText = await harakaResponse.text();
+            console.log('[VENDOR STK HARAKAPAY RESPONSE]:', harakaText);
+        } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+                return res.status(504).json({ success: false, message: 'HarakaPay haijibus. Angalia simu yako au jaribu tena.' });
+            }
+            throw fetchErr;
+        }
+
+        let harakaData;
+        try {
+            harakaData = JSON.parse(harakaText);
+        } catch (e) {
+            return res.status(400).json({ success: false, message: 'Jibu la HarakaPay si sahihi.', raw: harakaText });
+        }
+
+        if (harakaData.success || harakaData.order_id) {
+            return res.json({
+                success: true,
+                message: `✅ Ombi la PIN limetumwa kwenye simu yako (${targetPhone}). Ingiza PIN kukamilisha malipo.`,
+                order_id: harakaData.order_id,
+                amount: harakaData.amount,
+                net_amount: harakaData.net_amount,
+                phone: targetPhone
+            });
+        } else {
+            console.error('[VENDOR STK FAILED]:', harakaData);
+            return res.status(400).json({
+                success: false,
+                message: harakaData.error || harakaData.message || 'HarakaPay haikuweza kutuma PIN. Jaribu tena.'
+            });
+        }
+
+    } catch (err) {
+        console.error('[VENDOR REGISTER STK ERROR]:', err);
+        res.status(500).json({ success: false, message: 'Kosa wakati wa kutuma STK Push ya usajili.', error: err.message });
+    }
+});
+
+// 9c. Poll HarakaPay payment status
+app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const apiKey = process.env.HARAKAPAY_API_KEY;
+        const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
+
+        if (!apiKey || orderId.startsWith('SIM_')) {
+            return res.json({ success: true, payment: { status: 'processing', order_id: orderId } });
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        let text = '';
+        try {
+            const r = await fetch(`${baseUrl}/api/v1/status/${orderId}`, {
+                headers: { 'X-API-Key': apiKey },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            text = await r.text();
+        } catch (e) {
+            clearTimeout(timeoutId);
+            return res.json({ success: false, message: 'Haikuweza kupigia simu HarakaPay.' });
+        }
+
+        let data;
+        try { data = JSON.parse(text); } catch (e) { return res.json({ success: false, message: 'Jibu si sahihi.' }); }
+
+        return res.json(data);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // 10. HarakaPay Webhook — Inapokea matokeo ya malipo kutoka HarakaPay
 app.post('/api/harakapay/webhook', async (req, res) => {
     try {

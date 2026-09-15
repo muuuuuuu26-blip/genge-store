@@ -4,6 +4,8 @@
 
 const MALL_WHATSAPP_PHONE = '255799689961';
 const MALL_CALL_PHONE = '+255692970687';
+// Backend URL: local dev = localhost:3000, live = Render deployment
+const BACKEND_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : 'https://genge-mall-backend.onrender.com';
 
 // Departments Data
 const mallDepartments = [
@@ -842,62 +844,138 @@ window.updateVstkNetwork = function(radio) {
     }
 };
 
+// Track confirmed payment before allowing registration
+let vstkHarakaOrderId = null;
+let vstkPaymentConfirmed = false;
+let vstkPollInterval = null;
+
 window.triggerVendorStkPayment = async function() {
     if (!pendingVendorRegistration) return;
 
     const phoneInput = document.getElementById('vstk-phone-input');
     const phone = (phoneInput ? phoneInput.value.trim() : '') || pendingVendorRegistration.phone;
+    if (!phone) { showMallToast('Tafadhali ingiza namba ya simu ya kulipa.'); return; }
+
     pendingVendorRegistration.paymentPhone = phone;
+    vstkHarakaOrderId = null;
+    vstkPaymentConfirmed = false;
 
     const selectedProvider = document.querySelector('input[name="vstk_provider"]:checked')?.value || 'VodaCom M-Pesa';
 
     const triggerBtn = document.getElementById('btn-trigger-vstk');
     const waitingBox = document.getElementById('vstk-waiting-box');
-    const countdownEl = document.getElementById('vstk-countdown');
     const statusHeading = document.getElementById('vstk-status-heading');
     const statusSub = document.getElementById('vstk-status-sub');
+    const countdownEl = document.getElementById('vstk-countdown');
 
-    if (triggerBtn) triggerBtn.style.display = 'none';
+    if (triggerBtn) { triggerBtn.style.display = 'none'; triggerBtn.disabled = true; }
     if (waitingBox) waitingBox.style.display = 'block';
-    if (statusHeading) statusHeading.textContent = 'Inasubiri PIN Kwenye Simu...';
-    if (statusSub) statusSub.textContent = `Ombi la kulipa Tsh ${pendingVendorRegistration.price.toLocaleString()}/= limetumwa kwenye simu yako (${phone} - ${selectedProvider}). Weka PIN yako kukamilisha.`;
+    if (statusHeading) statusHeading.textContent = '⏳ Inatuma Ombi la PIN...';
+    if (statusSub) statusSub.textContent = `Tafadhali subiri. Tunawasiliana na ${selectedProvider}...`;
 
-    // Try server STK push API if running
     try {
-        fetch('/api/vendor/register-stk', {
+        const res = await fetch(`${BACKEND_URL}/api/vendor/register-stk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...pendingVendorRegistration, phone, provider: selectedProvider })
-        }).catch(() => {});
-    } catch (_) {}
+        });
 
-    // Start 60s countdown
-    let timeLeft = 60;
-    if (countdownEl) countdownEl.textContent = timeLeft;
-    if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+        const data = await res.json();
 
-    vstkCountdownInterval = setInterval(() => {
-        timeLeft--;
-        if (countdownEl) countdownEl.textContent = timeLeft;
-        if (timeLeft <= 0) {
-            clearInterval(vstkCountdownInterval);
-            if (statusHeading) statusHeading.textContent = 'Imemaliza Muda wa Kusubiri';
-            if (statusSub) statusSub.textContent = 'Kama tayari umeweka PIN kwenye simu yako, bonyeza kitufe hapa chini kuwasha duka lako moja kwa moja.';
+        if (res.ok && data.success && data.order_id) {
+            vstkHarakaOrderId = data.order_id;
+
+            if (statusHeading) statusHeading.textContent = '📲 Angalia Simu Yako!';
+            if (statusSub) statusSub.innerHTML = `
+                Ombi la PIN limetumwa kwenye <strong>${phone}</strong> (${selectedProvider}).<br>
+                Ingiza PIN yako ya M-Pesa/Tigo Pesa kukamilisha malipo ya <strong>Tsh ${pendingVendorRegistration.price.toLocaleString()}/=</strong>.
+            `;
+
+            // Start countdown
+            let timeLeft = 90;
+            if (countdownEl) countdownEl.textContent = timeLeft;
+            if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+            vstkCountdownInterval = setInterval(() => {
+                timeLeft--;
+                if (countdownEl) countdownEl.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(vstkCountdownInterval);
+                    if (!vstkPaymentConfirmed) {
+                        if (statusHeading) statusHeading.textContent = '⚠️ Bado Hujaweka PIN?';
+                        if (statusSub) statusSub.textContent = 'Kama uliweka PIN, tafadhali subiri sekunde chache — tunakagua malipo yako otomatiki.';
+                    }
+                }
+            }, 1000);
+
+            // Poll HarakaPay every 5s for payment status (auto-register when paid)
+            if (vstkPollInterval) clearInterval(vstkPollInterval);
+            let pollCount = 0;
+            vstkPollInterval = setInterval(async () => {
+                pollCount++;
+                if (pollCount > 24 || vstkPaymentConfirmed) { clearInterval(vstkPollInterval); return; }
+                try {
+                    const r = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${vstkHarakaOrderId}`);
+                    const s = await r.json();
+                    const payStatus = s.payment?.status || s.status || '';
+                    if (payStatus === 'completed') {
+                        vstkPaymentConfirmed = true;
+                        clearInterval(vstkPollInterval);
+                        clearInterval(vstkCountdownInterval);
+                        if (statusHeading) statusHeading.textContent = '✅ Malipo Yamethibitishwa!';
+                        if (statusSub) statusSub.textContent = 'Shukrani! Tunasajili duka lako sasa...';
+                        setTimeout(() => window.confirmVendorPaymentManually(), 1200);
+                    } else if (payStatus === 'failed') {
+                        vstkPaymentConfirmed = false;
+                        clearInterval(vstkPollInterval);
+                        clearInterval(vstkCountdownInterval);
+                        if (statusHeading) statusHeading.textContent = '❌ Malipo Yamefeli';
+                        if (statusSub) statusSub.textContent = 'Malipo hayakufanikiwa. Hakikisha una salio la kutosha na ujaribu tena.';
+                        if (triggerBtn) { triggerBtn.style.display = 'flex'; triggerBtn.disabled = false; }
+                    }
+                } catch (_) {}
+            }, 5000);
+
+        } else {
+            // STK push failed (backend unavailable or API error)
+            if (statusHeading) statusHeading.textContent = '⚠️ Ombi Halikufanikiwa';
+            if (statusSub) statusSub.innerHTML = `
+                ${data.message || 'Kosa la mtandao. Backend haijajua.'}<br><br>
+                Unaweza kulipa moja kwa moja:<br>
+                📱 <strong>Lipa M-Pesa/Tigo Pesa:</strong> <strong>0799 689 961</strong><br>
+                Kumbuka kuweka namba yako ya simu kama rejea la malipo.<br>
+                Baada ya kulipa, wasiliana nasi kwa WhatsApp: <strong>+255799689961</strong>
+            `;
+            if (triggerBtn) { triggerBtn.style.display = 'flex'; triggerBtn.disabled = false; }
         }
-    }, 1000);
+    } catch (err) {
+        if (statusHeading) statusHeading.textContent = '⚠️ Tatizo la Mtandao';
+        if (statusSub) statusSub.innerHTML = `
+            Haiwezekani kufikia backend sasa hivi.<br><br>
+            Lipa moja kwa moja kwenye:<br>
+            📱 <strong>M-Pesa/Tigo Pesa: 0799 689 961</strong><br>
+            Kisha tuma screenshot ya malipo WhatsApp: <strong>+255799689961</strong>
+        `;
+        if (triggerBtn) { triggerBtn.style.display = 'flex'; triggerBtn.disabled = false; }
+    }
 };
 
 window.confirmVendorPaymentManually = async function() {
     if (!pendingVendorRegistration) return;
     if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
+    if (vstkPollInterval) clearInterval(vstkPollInterval);
+
+    // If not confirmed via polling AND no order ID, block registration
+    if (!vstkPaymentConfirmed && !vstkHarakaOrderId) {
+        showMallToast('⚠️ Tafadhali bonyeza "Tuma PIN" kwanza kulipa, kisha tutaithibitisha otomatiki.');
+        return;
+    }
 
     const data = pendingVendorRegistration;
     const limit = data.packageName === 'Gold' ? 60 : data.packageName === 'Silver' ? 45 : 25;
-
     let registeredUser = null;
 
     try {
-        const res = await fetch('/api/auth/register', {
+        const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -908,7 +986,8 @@ window.confirmVendorPaymentManually = async function() {
                 nidaOrTin: data.nidaOrTin,
                 shopName: data.shopName,
                 packageName: data.packageName,
-                paymentStatus: 'paid'
+                paymentStatus: 'paid',
+                harakaOrderId: vstkHarakaOrderId || ''
             })
         });
         if (res.ok) {
@@ -939,7 +1018,6 @@ window.confirmVendorPaymentManually = async function() {
             },
             createdAt: new Date().toISOString()
         };
-
         try {
             const existingUsers = JSON.parse(localStorage.getItem('genge_registered_users') || '[]');
             existingUsers.push(registeredUser);
@@ -956,7 +1034,7 @@ window.confirmVendorPaymentManually = async function() {
     if (waitingBox) {
         waitingBox.innerHTML = `
             <div style="font-size: 3rem; margin-bottom: 8px;">🎉</div>
-            <h3 style="color: #10B981; margin-bottom: 4px;">Hongera! Malipo Yamethibitishwa!</h3>
+            <h3 style="color: #10B981; margin-bottom: 4px;">Hongera! Duka Lako Limeanzishwa!</h3>
             <p style="color: #cbd5e1; font-size: 0.85rem;">Duka la <strong>${data.shopName}</strong> limeamilishwa kikamilifu na Kifurushi cha <strong>${data.packageName} (siku 30)</strong>!</p>
             <p style="color: #94a3b8; font-size: 0.8rem; margin-top: 6px;">Inakupeleka moja kwa moja kwenye Dashboard ya Duka lako...</p>
         `;
@@ -969,6 +1047,8 @@ window.confirmVendorPaymentManually = async function() {
 };
 
 window.cancelVendorStkPayment = function() {
+    if (vstkPollInterval) clearInterval(vstkPollInterval);
+    if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
     closeVendorStkModal();
     openAuthModal('register');
 };
