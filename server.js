@@ -15,8 +15,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '')));
 
 // MongoDB Connection
@@ -750,6 +750,122 @@ app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
         return res.json(data);
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 9d. Vendor Product Upload (Saves image directly to MongoDB)
+app.post('/api/vendor/products', async (req, res) => {
+    try {
+        const { name, category, dept, price, location, desc, vendorPhone, vendorName, vendorShopName, image, vendorAvatar, vendorNidaOrTin } = req.body;
+
+        if (!name || !price || !vendorPhone) {
+            return res.status(400).json({ message: 'Tafadhali jaza jina la bidhaa, bei na namba ya muuzaji.' });
+        }
+
+        const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
+
+        // Verify vendor limit
+        const vendor = await User.findOne({ phone: cleanPhone });
+        const maxLimit = vendor?.package?.maxProducts || 25;
+        const currentCount = await Product.countDocuments({ vendorPhone: cleanPhone });
+
+        if (currentCount >= maxLimit) {
+            return res.status(403).json({ 
+                message: `Umefikia kikomo cha bidhaa (${maxLimit}) kwa kifurushi chako cha ${vendor?.package?.name || 'Basic'}. Boresha kifurushi kupakia zaidi.` 
+            });
+        }
+
+        const id = 'vprod_' + Date.now();
+        const newProduct = new Product({
+            id: id,
+            name: name.trim(),
+            price: Number(price),
+            priceUnit: 'Tsh',
+            category: dept || category || 'all',
+            dept: dept || category || 'all',
+            icon: image || 'pics/12.png',
+            isImage: true,
+            desc: desc ? desc.trim() : '',
+            location: location ? location.trim() : 'Dar es Salaam',
+            vendorPhone: cleanPhone,
+            vendorName: vendorName ? vendorName.trim() : (vendor?.name || 'Muuzaji'),
+            vendorShopName: vendorShopName ? vendorShopName.trim() : (vendor?.shopName || 'Duka Langu'),
+            vendorAvatar: vendorAvatar || vendor?.avatar || 'pics/12.png',
+            vendorNidaOrTin: vendorNidaOrTin || vendor?.nidaOrTin || '',
+            isVendorActive: true,
+            createdAt: new Date()
+        });
+
+        await newProduct.save();
+        console.log(`[VENDOR PRODUCT] ✅ Product "${name}" saved to MongoDB for vendor ${cleanPhone}`);
+        res.status(201).json({ message: 'Bidhaa imechapishwa kikamilifu!', product: newProduct });
+    } catch (err) {
+        console.error('[VENDOR PRODUCT CREATE ERROR]:', err);
+        res.status(500).json({ message: 'Kosa wakati wa kuchapisha bidhaa.', error: err.message });
+    }
+});
+
+// 9e. Vendor Profile & Avatar Update (Saves directly to MongoDB)
+app.patch('/api/vendor/profile/update', async (req, res) => {
+    try {
+        const { phone, shopName, bio, location, avatar } = req.body;
+        if (!phone) {
+            return res.status(400).json({ message: 'Namba ya simu inahitajika.' });
+        }
+
+        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+        const updateData = {};
+        if (shopName) updateData.shopName = shopName.trim();
+        if (bio !== undefined) updateData.bio = bio.trim();
+        if (avatar) updateData.avatar = avatar;
+
+        const updatedUser = await User.findOneAndUpdate(
+            { phone: cleanPhone },
+            updateData,
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+        }
+
+        // Also update existing products belonging to this vendor so the mall displays the updated avatar and shopName
+        const prodUpdates = {};
+        if (shopName) prodUpdates.vendorShopName = shopName.trim();
+        if (avatar) prodUpdates.vendorAvatar = avatar;
+        if (Object.keys(prodUpdates).length > 0) {
+            await Product.updateMany({ vendorPhone: cleanPhone }, prodUpdates);
+        }
+
+        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${cleanPhone}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
+        res.json({ message: 'Taarifa za muuzaji zimesasishwa kikamilifu.', user: updatedUser });
+    } catch (err) {
+        console.error('[VENDOR PROFILE UPDATE ERROR]:', err);
+        res.status(500).json({ message: 'Kosa wakati wa kusasisha taarifa.', error: err.message });
+    }
+});
+
+// 9f. Get Vendor Profile & Products by Phone
+app.get('/api/vendor/profile/:phone', async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const user = await User.findOne({ phone: cleanPhone });
+        if (!user) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
+        const products = await Product.find({ vendorPhone: cleanPhone }).sort({ createdAt: -1 });
+        res.json({
+            vendor: {
+                name: user.name,
+                phone: user.phone,
+                shopName: user.shopName,
+                avatar: user.avatar || 'pics/12.png',
+                bio: user.bio || '',
+                package: user.package,
+                status: user.status
+            },
+            products: products
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 

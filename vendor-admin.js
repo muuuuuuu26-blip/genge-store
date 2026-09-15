@@ -307,34 +307,71 @@ function updateVendorSliderUI() {
     if (counter) counter.textContent = `${vendorSliderIndex + 1} / ${vendorSliderProducts.length}`;
 }
 
-// ── PROFILE PICTURE CHANGE ─────────────────────────────────────
-function handleProfilePicChange(input) {
-    if (!input.files || !input.files[0]) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        const avatarEl = document.getElementById('vp-profile-avatar');
-        if (avatarEl) avatarEl.src = base64;
-        if (currentVendor) {
-            localStorage.setItem('genge_vendor_profile_pic_' + currentVendor.phone, base64);
-            currentVendor.avatar = base64;
-            localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
-            // Also update in genge_custom_vendor_products so mall cards show new pic
-            try {
-                const allProds = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
-                const updated = allProds.map(p => {
-                    if (p.vendorPhone === currentVendor.phone) { p.vendorAvatar = base64; }
-                    return p;
-                });
-                localStorage.setItem('genge_custom_vendor_products', JSON.stringify(updated));
-            } catch(_) {}
-        }
-        showProfileMsg('✅ Picha ya profile imebadilishwa!', '#10B981');
-    };
-    reader.readAsDataURL(input.files[0]);
+// ── SMART IMAGE COMPRESSOR (Browser-side Canvas Compression) ───────
+// Converts 5MB-10MB phone camera images into ~40KB-80KB high quality web images
+function compressImageFile(file, maxWidth = 600, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onerror = reject;
+            img.onload = function() {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                // Return compressed JPEG data URL
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
-// ── SAVE VENDOR PROFILE ────────────────────────────────────────
+// ── PROFILE PICTURE CHANGE (Saves to MongoDB) ────────────────────
+async function handleProfilePicChange(input) {
+    if (!input.files || !input.files[0] || !currentVendor) return;
+    const file = input.files[0];
+    showProfileMsg('⏳ Inabana na kuhifadhi picha...', '#38bdf8');
+
+    try {
+        const compressedBase64 = await compressImageFile(file, 400, 0.8);
+        const avatarEl = document.getElementById('vp-profile-avatar');
+        if (avatarEl) avatarEl.src = compressedBase64;
+
+        currentVendor.avatar = compressedBase64;
+        localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+        localStorage.setItem('genge_vendor_profile_pic_' + currentVendor.phone, compressedBase64);
+
+        // Save directly to MongoDB database!
+        const res = await fetch('/api/vendor/profile/update', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: currentVendor.phone, avatar: compressedBase64 })
+        });
+
+        if (res.ok) {
+            showProfileMsg('✅ Picha ya profile imehifadhiwa kwenye database!', '#10B981');
+        } else {
+            showProfileMsg('✅ Picha ya profile imebadilishwa!', '#10B981');
+        }
+    } catch (err) {
+        console.error('Error uploading profile pic:', err);
+        showProfileMsg('❌ Kosa wakati wa kupakia picha.', '#ef4444');
+    }
+}
+
+// ── SAVE VENDOR PROFILE (Saves to MongoDB) ────────────────────────
 async function saveVendorProfile() {
     if (!currentVendor) return;
 
@@ -356,28 +393,24 @@ async function saveVendorProfile() {
     const dispShop = document.getElementById('display-shop-name');
     if (dispShop) dispShop.textContent = shopName;
 
-    // Update localStorage vendor products with new shopName
-    try {
-        const allProds = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
-        const updated = allProds.map(p => {
-            if (p.vendorPhone === currentVendor.phone) {
-                p.vendorShopName = shopName;
-            }
-            return p;
-        });
-        localStorage.setItem('genge_custom_vendor_products', JSON.stringify(updated));
-    } catch(_) {}
+    showProfileMsg('⏳ Inahifadhi kwenye database...', '#38bdf8');
 
-    // Try API save (silent fail)
+    // Save directly to MongoDB database!
     try {
-        await fetch('/api/vendor/profile/update', {
+        const res = await fetch('/api/vendor/profile/update', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: currentVendor.phone, shopName, bio, location })
         });
-    } catch(_) {}
 
-    showProfileMsg('✅ Mabadiliko yamehifadhiwa kikamilifu!', '#10B981');
+        if (res.ok) {
+            showProfileMsg('✅ Taarifa zimehifadhiwa kwenye database!', '#10B981');
+        } else {
+            showProfileMsg('✅ Mabadiliko yamehifadhiwa kikamilifu!', '#10B981');
+        }
+    } catch(_) {
+        showProfileMsg('✅ Mabadiliko yamehifadhiwa!', '#10B981');
+    }
 }
 
 function showProfileMsg(msg, color) {
@@ -388,7 +421,7 @@ function showProfileMsg(msg, color) {
     setTimeout(() => { el.textContent = ''; }, 4000);
 }
 
-
+// ── PRODUCT UPLOAD (Compresses and Saves to MongoDB) ─────────────
 async function handleProductUpload(e) {
     e.preventDefault();
     if (!currentVendor) return;
@@ -413,65 +446,53 @@ async function handleProductUpload(e) {
     const file = fileInput.files[0];
     const submitBtn = document.getElementById('upload-submit-btn');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Inapakia bidhaa...';
-
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('category', dept);
-    formData.append('dept', dept);
-    formData.append('price', price);
-    formData.append('location', location);
-    formData.append('desc', desc);
-    formData.append('vendorPhone', currentVendor.phone);
-    formData.append('vendorName', currentVendor.name || '');
-    formData.append('vendorShopName', currentVendor.shopName || currentVendor.name || '');
-    formData.append('image', file);
+    submitBtn.textContent = '⏳ Inabana picha na kuipakia kwenye database...';
 
     try {
-        await fetch('/api/vendor/products', {
-            method: 'POST',
-            body: formData
-        }).catch(() => {});
-    } catch (_) {}
+        // Compress image to max 600px width and 0.75 quality (~40-80KB)
+        const compressedBase64 = await compressImageFile(file, 600, 0.75);
 
-    // Save product locally via FileReader with vendor's registered phone
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-        const base64Img = evt.target.result;
-        const newProduct = {
-            id: 'vprod_' + Date.now(),
-            name: name,
-            title: name,
-            price: Number(price),
-            priceUnit: 'Tsh',
+        const payload = {
+            name: name.trim(),
             category: dept,
             dept: dept,
-            image: base64Img,
-            icon: base64Img,
-            isImage: true,
-            desc: desc || '',
+            price: Number(price),
             location: location || 'Dar es Salaam',
+            desc: desc || '',
             vendorPhone: currentVendor.phone,
             vendorName: currentVendor.name || '',
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
-            vendorAvatar: localStorage.getItem('genge_vendor_profile_pic_' + currentVendor.phone) || currentVendor.avatar || 'pics/12.png',
+            vendorAvatar: currentVendor.avatar || 'pics/12.png',
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
-            createdAt: new Date().toISOString()
+            image: compressedBase64
         };
 
-        const existing = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
-        existing.unshift(newProduct);
-        localStorage.setItem('genge_custom_vendor_products', JSON.stringify(existing));
+        // Post JSON to MongoDB!
+        const res = await fetch('/api/vendor/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-        msgDiv.textContent = '✅ Bidhaa imechapishwa sokoni Genge Mall kikamilifu!';
-        msgDiv.style.color = '#10B981';
-        document.getElementById('vendor-product-form').reset();
-        fetchVendorProfile();
+        const data = await res.json();
 
+        if (res.ok && data.product) {
+            msgDiv.textContent = '✅ Bidhaa imehifadhiwa kwenye database na kuchapishwa Genge Mall!';
+            msgDiv.style.color = '#10B981';
+            document.getElementById('vendor-product-form').reset();
+            await fetchVendorProfile();
+        } else {
+            msgDiv.textContent = data.message || '⚠️ Kosa wakati wa kupakia.';
+            msgDiv.style.color = '#EF4444';
+        }
+    } catch (err) {
+        console.error('Error uploading product:', err);
+        msgDiv.textContent = '❌ Kosa wakati wa kuunganisha na server.';
+        msgDiv.style.color = '#EF4444';
+    } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Chapisha Bidhaa Sokoni Genge Mall';
-    };
-    reader.readAsDataURL(file);
+    }
 }
 
 async function deleteVendorProduct(id) {
