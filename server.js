@@ -861,8 +861,30 @@ app.post('/api/auth/register', async (req, res) => {
             };
         }
 
-        if (role === 'vendor' && !nidaOrTin) {
-            return res.status(400).json({ message: 'Muuzaji anahitajika kujaza Namba ya NIDA au TIN Number.' });
+        if (role === 'vendor') {
+            if (!nidaOrTin) {
+                return res.status(400).json({ message: 'Muuzaji anahitajika kujaza Namba ya NIDA au TIN Number.' });
+            }
+
+            const { harakaOrderId } = req.body;
+            const apiKey = process.env.HARAKAPAY_API_KEY;
+            const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
+
+            if (apiKey && harakaOrderId && !harakaOrderId.startsWith('SIM_')) {
+                try {
+                    const statusRes = await fetch(`${baseUrl}/api/v1/status/${harakaOrderId}`, {
+                        headers: { 'X-API-Key': apiKey }
+                    });
+                    const statusData = await statusRes.json();
+                    if (statusData.payment?.status !== 'completed') {
+                        return res.status(402).json({ 
+                            message: 'Malipo ya kifurushi cha duka bado hayajathibitishwa na mtandao wa simu. Tafadhali kamilisha malipo kwa kuweka PIN kwenye simu yako kwanza.' 
+                        });
+                    }
+                } catch (verifyErr) {
+                    console.error('[AUTH VENDOR VERIFY ERROR]:', verifyErr);
+                }
+            }
         }
 
         const newUser = new User({

@@ -4,8 +4,8 @@
 
 const MALL_WHATSAPP_PHONE = '255799689961';
 const MALL_CALL_PHONE = '+255692970687';
-// Backend URL: local dev = localhost:3000, live = Render deployment
-const BACKEND_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : 'https://genge-mall-backend.onrender.com';
+// Backend URL: local dev = localhost:3000, live Render = same origin (relative path)
+const BACKEND_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
 // Departments Data
 const mallDepartments = [
@@ -964,10 +964,35 @@ window.confirmVendorPaymentManually = async function() {
     if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
     if (vstkPollInterval) clearInterval(vstkPollInterval);
 
-    // If not confirmed via polling AND no order ID, block registration
-    if (!vstkPaymentConfirmed && !vstkHarakaOrderId) {
-        showMallToast('⚠️ Tafadhali bonyeza "Tuma PIN" kwanza kulipa, kisha tutaithibitisha otomatiki.');
-        return;
+    // If not yet confirmed via polling, verify immediately with HarakaPay
+    if (!vstkPaymentConfirmed) {
+        if (!vstkHarakaOrderId) {
+            showMallToast('⚠️ Bonyeza "Tuma Ombi la PIN" kwanza ili upokee ujumbe kwenye simu yako ya kulipia.');
+            return;
+        }
+
+        const statusHeading = document.getElementById('vstk-status-heading');
+        const statusSub = document.getElementById('vstk-status-sub');
+        if (statusHeading) statusHeading.textContent = '🔍 Inahakiki Malipo Yako...';
+        if (statusSub) statusSub.textContent = 'Tafadhali subiri sekunde chache tunapowasiliana na mtandao wa simu kuthibitisha...';
+
+        try {
+            const checkRes = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${vstkHarakaOrderId}`);
+            const checkData = await checkRes.json();
+            const currentStatus = checkData.payment?.status || checkData.status || '';
+
+            if (currentStatus === 'completed') {
+                vstkPaymentConfirmed = true;
+            } else {
+                showMallToast('⚠️ Malipo hayajakamilika. Tafadhali ingiza PIN kwenye simu yako kwanza!');
+                if (statusHeading) statusHeading.textContent = '⏳ Inasubiri PIN Kwenye Simu...';
+                if (statusSub) statusSub.textContent = 'Hatujapata uthibitisho wa PIN bado. Tafadhali weka PIN kwenye simu yako kisha ujaribu tena.';
+                return;
+            }
+        } catch (e) {
+            showMallToast('⚠️ Haikuweza kuthibitisha malipo. Tafadhali jaribu tena baada ya sekunde chache.');
+            return;
+        }
     }
 
     const data = pendingVendorRegistration;
