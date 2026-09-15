@@ -579,16 +579,42 @@ function formatWhatsAppPhone(phone) {
 function getVendorForProduct(item) {
     if (item.vendorPhone || item.vendorShopName) {
         const rawPhone = item.vendorPhone || item.phone || MALL_WHATSAPP_PHONE;
+        const cleanPhone = formatWhatsAppPhone(rawPhone);
+
+        let avatar = item.vendorAvatar;
+        let shopName = item.vendorShopName || item.vendorName || 'Muuzaji wa Genge';
+        let bio = item.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
+        let location = item.location || 'Dar es Salaam';
+
+        // Check if there is an updated profile picture in localStorage
+        const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + rawPhone) 
+                      || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+        if (savedPic) avatar = savedPic;
+
+        // Check if current active vendor matches
+        const savedVendor = localStorage.getItem('genge_vendor');
+        if (savedVendor) {
+            try {
+                const sv = JSON.parse(savedVendor);
+                if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === rawPhone)) {
+                    if (sv.shopName) shopName = sv.shopName;
+                    if (sv.avatar) avatar = sv.avatar;
+                    if (sv.bio) bio = sv.bio;
+                    if (sv.location) location = sv.location;
+                }
+            } catch(_) {}
+        }
+
         return {
-            shopName: item.vendorShopName || item.vendorName || 'Muuzaji wa Genge',
-            ownerName: item.vendorName || item.vendorShopName || 'Muuzaji',
-            phone: formatWhatsAppPhone(rawPhone),
+            shopName: shopName,
+            ownerName: item.vendorName || shopName,
+            phone: cleanPhone,
             rawPhone: rawPhone,
-            nida: item.vendorNida || item.vendorNidaOrTin || '19900101-12345-00001-01',
-            avatar: item.vendorAvatar || 'pics/12.png',
-            bio: item.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall',
+            nida: item.vendorNida || item.vendorNidaOrTin || 'NIDA Verified',
+            avatar: avatar || 'pics/12.png',
+            bio: bio,
             followersCount: item.followersCount || '2.3k',
-            location: item.location || 'Dar es Salaam'
+            location: location
         };
     }
     const dept = item.dept || item.category || 'nyumba';
@@ -1466,7 +1492,7 @@ function renderMallProducts() {
         // Instagram Card Header
         const instHeaderHtml = `
             <div class="inst-card-header">
-                <div class="inst-vendor-info" onclick="openVendorProfileModal('${vendorPhone}', '${deptKey}')" title="Bonyeza kuona profile ya duka">
+                <div class="inst-vendor-info" onclick="openVendorProfileModal('${vendorPhone}', '${item.id}')" title="Bonyeza kuona profile ya duka">
                     <img src="${vendorAvatar}" alt="${vendorShop}" class="inst-avatar" onerror="this.src='pics/12.png'">
                     <div class="inst-vendor-name">
                         <span>${vendorShop}</span>
@@ -1583,74 +1609,118 @@ window.toggleFollowVendor = async function(vendorPhone) {
 };
 
 // Vendor Profile Modal Handler
-window.openVendorProfileModal = async function(phone, deptKey) {
+window.openVendorProfileModal = async function(phone, productIdOrDept) {
     const modal = document.getElementById('vendor-profile-modal');
     if (!modal) return;
     modalVendorPhone = phone;
 
-    // Find vendor profile from defaultVendorProfiles or fallback
+    const cleanPhone = formatWhatsAppPhone(phone);
+    const combinedAll = [...serverMallProducts, ...mallProducts];
+
+    // Find the specific item clicked
+    const clickedItem = combinedAll.find(p => String(p.id) === String(productIdOrDept));
+
+    // Check if this vendor is a custom/registered vendor who uploaded products
+    const customVendorProducts = combinedAll.filter(p => {
+        return p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone;
+    });
+
+    const isCustomVendor = customVendorProducts.length > 0 || (clickedItem && clickedItem.vendorPhone);
+
     let v = null;
-    if (deptKey && defaultVendorProfiles[deptKey]) {
-        v = defaultVendorProfiles[deptKey];
-    } else {
-        for (const k in defaultVendorProfiles) {
-            if (defaultVendorProfiles[k].phone === phone) {
-                v = defaultVendorProfiles[k];
-                break;
-            }
+
+    if (isCustomVendor) {
+        // Real custom vendor! Use this vendor's exact data
+        const refProd = customVendorProducts[0] || clickedItem;
+        
+        let customAvatar = refProd.vendorAvatar;
+        let customShopName = refProd.vendorShopName || refProd.vendorName || 'Duka Rasmi';
+        let customBio = refProd.desc || refProd.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
+        let customLocation = refProd.location || 'Dar es Salaam';
+
+        // Check if there is an updated profile picture saved in localStorage
+        const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
+                      || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+        if (savedPic) customAvatar = savedPic;
+
+        const savedVendor = localStorage.getItem('genge_vendor');
+        if (savedVendor) {
+            try {
+                const sv = JSON.parse(savedVendor);
+                if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === phone)) {
+                    if (sv.shopName) customShopName = sv.shopName;
+                    if (sv.avatar) customAvatar = sv.avatar;
+                    if (sv.bio) customBio = sv.bio;
+                    if (sv.location) customLocation = sv.location;
+                }
+            } catch(_) {}
         }
+
+        v = {
+            shopName: customShopName,
+            ownerName: refProd.vendorName || customShopName,
+            phone: cleanPhone,
+            nida: refProd.vendorNidaOrTin || 'NIDA Verified',
+            avatar: customAvatar || 'pics/12.png',
+            bio: customBio,
+            followersCount: refProd.followersCount || '1.8k',
+            location: customLocation
+        };
+    } else {
+        // Default demo vendor for a catalog department
+        const deptKey = (clickedItem && (clickedItem.dept || clickedItem.category)) || productIdOrDept || 'nyumba';
+        const def = defaultVendorProfiles[deptKey] || defaultVendorProfiles.nyumba;
+        v = {
+            ...def,
+            phone: formatWhatsAppPhone(def.phone)
+        };
     }
 
     // Try API if available
     try {
-        const res = await fetch(`/api/vendor/profile/${phone}`);
+        const res = await fetch(`/api/vendor/profile/${cleanPhone}`);
         if (res.ok) {
             const data = await res.json();
             if (data.vendor) v = { ...v, ...data.vendor };
         }
     } catch (e) {}
 
-    if (!v) {
-        v = {
-            shopName: 'Genge Official Store',
-            ownerName: 'Utawala wa Genge',
-            phone: phone || '255799689961',
-            nida: '19850101-00001-00001-01',
-            avatar: 'pics/12.png',
-            bio: 'Duka rasmi la Genge Mall Tanzania. Bidhaa zote zimekaguliwa na kuthibitishwa.',
-            followersCount: '25.8k',
-            location: 'Dar es Salaam'
-        };
-    }
-
+    // Populate Modal UI with THIS vendor's exact details
     const avatarEl = document.getElementById('vp-modal-avatar');
     if (avatarEl) avatarEl.src = v.avatar || 'pics/12.png';
     const shopEl = document.getElementById('vp-modal-shop');
     if (shopEl) shopEl.textContent = v.shopName || v.name;
     const ownerEl = document.getElementById('vp-modal-owner');
-    if (ownerEl) ownerEl.textContent = 'Mwenye Duka: ' + (v.ownerName || v.name || 'Genge Merchant');
+    if (ownerEl) ownerEl.textContent = 'Mwenye Duka: ' + (v.ownerName || v.shopName || 'Genge Merchant');
     const bioEl = document.getElementById('vp-modal-bio');
     if (bioEl) bioEl.textContent = v.bio || 'Wauzaji waaminifu Genge Mall';
 
-    // Find products belonging to this vendor
-    const combinedAll = [...serverMallProducts, ...mallProducts];
-    const vendorProds = combinedAll.filter(p => {
-        if (p.vendorPhone && p.vendorPhone === phone) return true;
-        const pDept = p.dept || p.category;
-        if (deptKey && pDept === deptKey) return true;
-        const mappedV = defaultVendorProfiles[pDept];
-        if (mappedV && mappedV.phone === phone) return true;
-        return false;
-    });
+    // STRICT ISOLATION OF PRODUCTS:
+    // If it's a custom vendor: ONLY show products uploaded by this exact vendor phone!
+    // If it's a demo department vendor: ONLY show demo products in this dept (excluding custom vendors)
+    let vendorProds = [];
+    if (isCustomVendor) {
+        vendorProds = combinedAll.filter(p => p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone);
+        if (clickedItem && !vendorProds.some(p => p.id === clickedItem.id)) {
+            vendorProds.unshift(clickedItem);
+        }
+    } else {
+        const deptKey = (clickedItem && (clickedItem.dept || clickedItem.category)) || productIdOrDept || 'nyumba';
+        vendorProds = combinedAll.filter(p => {
+            if (p.vendorPhone) return false; // Exclude custom vendors' products!
+            const pDept = p.dept || p.category;
+            return pDept === deptKey;
+        });
+    }
 
     const prodCountEl = document.getElementById('vp-modal-prod-count');
-    if (prodCountEl) prodCountEl.textContent = vendorProds.length || '12+';
+    if (prodCountEl) prodCountEl.textContent = vendorProds.length;
     const followersEl = document.getElementById('vp-modal-followers-count');
-    if (followersEl) followersEl.textContent = v.followersCount || '3.5k';
+    if (followersEl) followersEl.textContent = v.followersCount || '2.4k';
 
     const waBtn = document.getElementById('vp-modal-wa-btn');
     if (waBtn) {
-        const cleanVPhone = formatWhatsAppPhone(v.phone || phone);
+        const cleanVPhone = formatWhatsAppPhone(v.phone || cleanPhone);
         const waHello = encodeURIComponent(`Habari ${v.shopName}, nimeona duka lenu Genge Mall na nina maswali kuhusu bidhaa zenu.`);
         waBtn.href = `https://wa.me/${cleanVPhone}?text=${waHello}`;
     }
@@ -1658,7 +1728,7 @@ window.openVendorProfileModal = async function(phone, deptKey) {
     const grid = document.getElementById('vp-modal-products-grid');
     if (grid) {
         if (vendorProds.length > 0) {
-            const cleanVPhone = formatWhatsAppPhone(v.phone || phone);
+            const cleanVPhone = formatWhatsAppPhone(v.phone || cleanPhone);
             grid.innerHTML = vendorProds.map(p => {
                 const pTitle = p.title || p.name;
                 const pImg = p.image || p.icon;

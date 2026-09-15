@@ -454,7 +454,7 @@ async function handleProductUpload(e) {
             vendorPhone: currentVendor.phone,
             vendorName: currentVendor.name || '',
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
-            vendorAvatar: currentVendor.avatar || 'pics/12.png',
+            vendorAvatar: localStorage.getItem('genge_vendor_profile_pic_' + currentVendor.phone) || currentVendor.avatar || 'pics/12.png',
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
             createdAt: new Date().toISOString()
         };
