@@ -944,9 +944,10 @@ app.post('/api/auth/register', async (req, res) => {
         }
 
 
-        const existing = await User.findOne({ phone: cleanPhone });
+        // Check if this exact shop name already registered under this phone
+        const existing = await User.findOne({ phone: cleanPhone, shopName: (shopName || '').trim() });
         if (existing) {
-            return res.status(400).json({ message: 'Namba hii ya simu imekwisha kusajiliwa tayari.' });
+            return res.status(400).json({ message: `Duka hili "${(shopName || '').trim()}" limesha sajiliwa kwa namba hii ya simu. Jaribu jina lingine la duka.` });
         }
 
         // Setup vendor package rules (30-day default subscription)
@@ -1042,16 +1043,48 @@ app.post('/api/auth/register', async (req, res) => {
 // C. User Login Endpoint
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { phone, password } = req.body;
+        const { phone, password, shopName: selectedShop } = req.body;
         if (!phone || !password) {
             return res.status(400).json({ message: 'Tafadhali weka namba ya simu na neno la siri.' });
         }
 
         const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
-        const user = await User.findOne({ phone: cleanPhone });
 
-        if (!user || user.password !== password) {
+        // Find all accounts under this phone
+        const allUsers = await User.find({ phone: cleanPhone });
+        if (!allUsers || allUsers.length === 0) {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
+        }
+
+        // Verify password against the first matching account (all shops share same password)
+        if (allUsers[0].password !== password) {
+            return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
+        }
+
+        // If vendor has multiple shops and no shop selected yet → ask to pick
+        const vendorAccounts = allUsers.filter(u => u.role === 'vendor');
+        if (vendorAccounts.length > 1 && !selectedShop) {
+            return res.status(200).json({
+                multiShop: true,
+                message: 'Chagua duka unalotaka kuingia:',
+                shops: vendorAccounts.map(u => ({
+                    shopName: u.shopName,
+                    package: u.package?.name || 'Basic',
+                    status: u.status
+                }))
+            });
+        }
+
+        // Find specific user: if shop selected use that, else use first
+        let user;
+        if (selectedShop) {
+            user = allUsers.find(u => u.shopName === selectedShop);
+        } else {
+            user = allUsers[0];
+        }
+
+        if (!user) {
+            return res.status(401).json({ message: 'Duka halipatikani. Jaribu tena.' });
         }
 
         // Check if user is suspended or blocked by Super Admin

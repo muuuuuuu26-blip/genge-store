@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    phone: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['customer', 'vendor'], default: 'customer' },
     
@@ -33,5 +33,8 @@ const userSchema = new mongoose.Schema({
     
     createdAt: { type: Date, default: Date.now }
 });
+
+// Allow same phone to have multiple shops — uniqueness is per phone+shopName pair
+userSchema.index({ phone: 1, shopName: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', userSchema);

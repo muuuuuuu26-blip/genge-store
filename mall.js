@@ -703,8 +703,20 @@ function openUserDropdownOrDashboard() {
     if (!currentUser) return openAuthModal('login');
 
     if (currentUser.role === 'vendor') {
-        // Direct seamless jump to vendor's own admin dashboard!
-        window.location.href = 'vendor-admin.html';
+        // Offer vendor quick actions
+        const choice = confirm(`Habari ${currentUser.shopName || currentUser.name}! 🏬\n\nBonyeza OK kwenda Dashibodi ya Duka lako.\nBonyeza CANCEL ili usimame au ufanye kitu kingine.`);
+        if (choice) {
+            window.location.href = 'vendor-admin.html';
+        } else {
+            // Show a second prompt for secondary actions
+            const action = confirm(`Ungependa kufanya nini?\n\nOK = Ongeza Duka Jipya 🏪\nCANCEL = Toka (Logout)`);
+            if (action) {
+                // Open registration form for a new shop
+                openAuthModal('register');
+            } else {
+                logoutUser();
+            }
+        }
     } else {
         const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kutoka kwenye akaunti yako?\n\n[OK] = Toka (Logout)\n[CANCEL] = Baki Sokoni`);
         if (choice) {
@@ -2177,3 +2189,101 @@ window.mallNavTo = function(target) {
         }
     }
 };
+
+// ── VENDOR LOGIN WITH MULTI-SHOP SUPPORT ────────────────────────────────
+window.handleMallLogin = async function(e) {
+    e.preventDefault();
+    const phoneEl = document.getElementById('login-phone');
+    const passEl = document.getElementById('login-password');
+    const msgDiv = document.getElementById('login-form-msg');
+    const submitBtn = e.target ? e.target.querySelector('button[type="submit"]') : null;
+
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const password = passEl ? passEl.value : '';
+
+    if (!phone || !password) {
+        if (msgDiv) { msgDiv.textContent = '❌ Tafadhali weka namba ya simu na neno la siri.'; msgDiv.style.color = '#EF4444'; }
+        return;
+    }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Inaingia...'; }
+    if (msgDiv) { msgDiv.textContent = ''; }
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok && !data.multiShop) {
+            if (msgDiv) { msgDiv.textContent = '❌ ' + (data.message || 'Hitilafu ya kuingia.'); msgDiv.style.color = '#EF4444'; }
+            return;
+        }
+
+        // ── Multi-shop: show shop picker ──────────────────────────────────
+        if (data.multiShop) {
+            const selector = document.getElementById('multi-shop-selector');
+            const listDiv = document.getElementById('multi-shop-list');
+            if (selector && listDiv) {
+                listDiv.innerHTML = data.shops.map(shop => `
+                    <button type="button" onclick="loginToShop('${phone}', '${password}', '${shop.shopName.replace(/'/g,"\\'")}', this)"
+                        style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.9rem;border-radius:10px;
+                               border:2px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);
+                               color:#fff;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;transition:all 0.2s;">
+                        <span style="font-size:1.2rem;">🏪</span>
+                        <span style="flex:1;">${shop.shopName}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);background:rgba(255,255,255,0.08);
+                              padding:2px 8px;border-radius:20px;">${shop.package}</span>
+                    </button>
+                `).join('');
+                selector.style.display = 'block';
+                if (msgDiv) { msgDiv.textContent = ''; }
+            }
+            return;
+        }
+
+        // ── Single shop: log in directly ─────────────────────────────────
+        finishLogin(data.user);
+
+    } catch (err) {
+        if (msgDiv) { msgDiv.textContent = '❌ Tatizo la mtandao. Jaribu tena.'; msgDiv.style.color = '#EF4444'; }
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Ingia Kwenye Dashboard ›'; }
+    }
+};
+
+// Called when vendor clicks a specific shop from the multi-shop picker
+window.loginToShop = async function(phone, password, shopName, btn) {
+    const msgDiv = document.getElementById('login-form-msg');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password, shopName })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (msgDiv) { msgDiv.textContent = '❌ ' + (data.message || 'Hitilafu.'); msgDiv.style.color = '#EF4444'; }
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            return;
+        }
+        finishLogin(data.user);
+    } catch (err) {
+        if (msgDiv) { msgDiv.textContent = '❌ Tatizo la mtandao.'; msgDiv.style.color = '#EF4444'; }
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    }
+};
+
+function finishLogin(user) {
+    currentUser = user;
+    localStorage.setItem('genge_user', JSON.stringify(user));
+    updateHeaderAuthUI();
+    closeAuthModal();
+    showMallToast(`✅ Karibu ${user.shopName || user.name}! Umeingia kwenye Genge Mall.`);
+    if (user.role === 'vendor') {
+        setTimeout(() => { window.location.href = 'vendor-admin.html'; }, 900);
+    }
+}

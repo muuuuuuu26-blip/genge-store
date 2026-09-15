@@ -450,6 +450,12 @@
                 <button type="submit" class="auth-submit-btn">Ingia Kwenye Dashboard &rsaquo;</button>
                 <div id="login-form-msg" class="auth-status-msg"></div>
 
+                <!-- Multi-shop selector — shown only when vendor has 2+ shops -->
+                <div id="multi-shop-selector" style="display:none; margin-top: 1rem;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 600;">🏪 Una maduka mengi — chagua duka unalotaka kuingia:</p>
+                    <div id="multi-shop-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                </div>
+
                 <div style="margin-top: 1.2rem; text-align: center; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
                     <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 0.5rem;">Bado huna duka lililosajiliwa?</p>
                     <button type="button" onclick="switchAuthMode('register')" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">
@@ -648,6 +654,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=13"></script>
+    <script src="mall.js?v=14"></script>
 </body>
 </html>
