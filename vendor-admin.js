@@ -113,9 +113,29 @@ async function fetchVendorProfile() {
 function updateVendorUI() {
     if (!currentVendor) return;
 
-    document.getElementById('display-shop-name').textContent = currentVendor.shopName || currentVendor.name;
+    const shopName = currentVendor.shopName || currentVendor.name || 'Duka Langu';
+    document.getElementById('display-shop-name').textContent = shopName;
     document.getElementById('display-nida-tin').textContent = currentVendor.nidaOrTin || 'NIDA Verified';
     document.getElementById('display-vendor-phone').textContent = currentVendor.phone || '';
+
+    // Populate profile editor fields
+    const editShop = document.getElementById('vp-edit-shop-name');
+    const editBio  = document.getElementById('vp-edit-bio');
+    const editLoc  = document.getElementById('vp-edit-location');
+    const editPhone= document.getElementById('vp-edit-phone');
+    if (editShop) editShop.value = shopName;
+    if (editBio)  editBio.value  = currentVendor.bio || '';
+    if (editLoc)  editLoc.value  = currentVendor.location || '';
+    if (editPhone)editPhone.value = currentVendor.phone || '';
+
+    // Load saved profile picture
+    const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + (currentVendor.phone || ''));
+    const avatarEl = document.getElementById('vp-profile-avatar');
+    if (avatarEl && savedPic) {
+        avatarEl.src = savedPic;
+    } else if (avatarEl && currentVendor.avatar) {
+        avatarEl.src = currentVendor.avatar;
+    }
 
     const pkg = currentVendor.package || { name: 'Basic', price: 5000, maxProducts: 25 };
     const pkgName = pkg.name || 'Basic';
@@ -174,10 +194,16 @@ function updateVendorUI() {
     }
 }
 
+// ── VENDOR PRODUCT SLIDER ──────────────────────────────────────
+let vendorSliderIndex = 0;
+let vendorSliderTimer = null;
+let vendorSliderProducts = [];
+
 function renderVendorProducts(products) {
     const container = document.getElementById('vendor-products-container');
+    vendorSliderProducts = products;
     const usedCount = products.length;
-    const maxCount = (currentVendor.package ? currentVendor.package.maxProducts : 25) || 25;
+    const maxCount = (currentVendor && currentVendor.package ? currentVendor.package.maxProducts : 25) || 25;
 
     document.getElementById('display-used-count').textContent = usedCount;
     document.getElementById('badge-limit-left').textContent = `Bidhaa zilizosalia: ${Math.max(0, maxCount - usedCount)}`;
@@ -186,38 +212,182 @@ function renderVendorProducts(products) {
     const fill = document.getElementById('usage-progress-fill');
     if (fill) fill.style.width = percentage + '%';
 
-    // Update quick stat
     const vsP = document.getElementById('vstat-products');
     if (vsP) vsP.textContent = usedCount;
 
+    if (!container) return;
+
     if (products.length === 0) {
         container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 2rem;">
-                <ion-icon name="bag-handle-outline" style="font-size: 3rem; margin-bottom: 0.5rem; display:block;"></ion-icon>
+            <div style="text-align:center;color:#64748b;padding:2rem;">
+                <ion-icon name="bag-handle-outline" style="font-size:3rem;margin-bottom:0.5rem;display:block;"></ion-icon>
                 <p>Bado hujaweka bidhaa yoyote sokoni Genge Mall.<br>
                 <small>Tumia fomu upande wa kushoto kuanza kupakia bidhaa.</small></p>
-            </div>
-        `;
+            </div>`;
         return;
     }
 
-    container.innerHTML = products.map(p => `
-        <div class="vendor-prod-item">
-            <img src="${p.image || p.icon || 'pics/12.png'}" alt="${p.name}" onerror="this.src='pics/12.png'">
-            <div class="vendor-prod-body">
-                <h4>${p.name}</h4>
-                <div class="price">Tsh ${(p.price || 0).toLocaleString()}</div>
-                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:6px;">${p.location || ''}</div>
-                <div class="vendor-prod-actions">
-                    <button class="v-delete-btn" onclick="deleteVendorProduct('${p.id || p._id}')">
-                        <ion-icon name="trash-outline"></ion-icon> Futa Sokoni
-                    </button>
+    if (products.length === 1) {
+        // Single product — simple card, no slider
+        const p = products[0];
+        container.innerHTML = buildVpsCard(p);
+        return;
+    }
+
+    // Multiple products — build auto-slider
+    vendorSliderIndex = 0;
+    if (vendorSliderTimer) clearInterval(vendorSliderTimer);
+
+    const cardsHtml = products.map(p => buildVpsCard(p)).join('');
+    const dotsHtml  = products.map((_, i) => `<button class="vps-dot ${i === 0 ? 'active' : ''}" onclick="goVendorSlide(${i})"></button>`).join('');
+
+    container.innerHTML = `
+        <div class="vendor-products-slider-wrap">
+            <div class="vps-track" id="vps-track">${cardsHtml}</div>
+        </div>
+        <div class="vps-nav-row">
+            <button class="vps-nav-btn" onclick="moveVendorSlide(-1)">
+                <ion-icon name="chevron-back-outline"></ion-icon>
+            </button>
+            <div class="vps-dots" id="vps-dots">${dotsHtml}</div>
+            <span class="vps-counter" id="vps-counter">1 / ${products.length}</span>
+            <button class="vps-nav-btn" onclick="moveVendorSlide(1)">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+        </div>
+    `;
+
+    updateVendorSliderUI();
+    vendorSliderTimer = setInterval(() => moveVendorSlide(1), 3500);
+}
+
+function buildVpsCard(p) {
+    const img   = p.image || p.icon || 'pics/12.png';
+    const title = p.name || p.title || 'Bidhaa';
+    const price = `Tsh ${(p.price || 0).toLocaleString()}`;
+    const loc   = p.location || '';
+    const id    = p.id || p._id || '';
+    return `
+        <div class="vps-card">
+            <div class="vps-card-inner">
+                <img src="${img}" alt="${title}" class="vps-card-img" onerror="this.src='pics/12.png'">
+                <div class="vps-card-body">
+                    <div class="vps-card-title">${title}</div>
+                    <div class="vps-card-meta"><ion-icon name="location-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> ${loc}</div>
+                    <div class="vps-card-price">${price}</div>
+                    <div class="vps-card-actions">
+                        <button class="vps-delete-btn" onclick="deleteVendorProduct('${id}')">
+                            <ion-icon name="trash-outline"></ion-icon> Futa Sokoni
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
-
+        </div>`;
 }
+
+function moveVendorSlide(dir) {
+    const n = vendorSliderProducts.length;
+    if (n < 2) return;
+    vendorSliderIndex = (vendorSliderIndex + dir + n) % n;
+    updateVendorSliderUI();
+}
+
+function goVendorSlide(idx) {
+    vendorSliderIndex = idx;
+    updateVendorSliderUI();
+    if (vendorSliderTimer) { clearInterval(vendorSliderTimer); vendorSliderTimer = setInterval(() => moveVendorSlide(1), 3500); }
+}
+
+function updateVendorSliderUI() {
+    const track = document.getElementById('vps-track');
+    if (track) track.style.transform = `translateX(-${vendorSliderIndex * 100}%)`;
+    const dots = document.querySelectorAll('.vps-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === vendorSliderIndex));
+    const counter = document.getElementById('vps-counter');
+    if (counter) counter.textContent = `${vendorSliderIndex + 1} / ${vendorSliderProducts.length}`;
+}
+
+// ── PROFILE PICTURE CHANGE ─────────────────────────────────────
+function handleProfilePicChange(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        const avatarEl = document.getElementById('vp-profile-avatar');
+        if (avatarEl) avatarEl.src = base64;
+        if (currentVendor) {
+            localStorage.setItem('genge_vendor_profile_pic_' + currentVendor.phone, base64);
+            currentVendor.avatar = base64;
+            localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+            // Also update in genge_custom_vendor_products so mall cards show new pic
+            try {
+                const allProds = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+                const updated = allProds.map(p => {
+                    if (p.vendorPhone === currentVendor.phone) { p.vendorAvatar = base64; }
+                    return p;
+                });
+                localStorage.setItem('genge_custom_vendor_products', JSON.stringify(updated));
+            } catch(_) {}
+        }
+        showProfileMsg('✅ Picha ya profile imebadilishwa!', '#10B981');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+// ── SAVE VENDOR PROFILE ────────────────────────────────────────
+async function saveVendorProfile() {
+    if (!currentVendor) return;
+
+    const shopName = (document.getElementById('vp-edit-shop-name').value || '').trim();
+    const bio      = (document.getElementById('vp-edit-bio').value || '').trim();
+    const location = (document.getElementById('vp-edit-location').value || '').trim();
+
+    if (!shopName) {
+        showProfileMsg('⚠️ Jina la duka haliwezi kuwa tupu.', '#f59e0b');
+        return;
+    }
+
+    currentVendor.shopName = shopName;
+    currentVendor.bio      = bio;
+    currentVendor.location = location;
+    localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+
+    // Update header shop name
+    const dispShop = document.getElementById('display-shop-name');
+    if (dispShop) dispShop.textContent = shopName;
+
+    // Update localStorage vendor products with new shopName
+    try {
+        const allProds = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+        const updated = allProds.map(p => {
+            if (p.vendorPhone === currentVendor.phone) {
+                p.vendorShopName = shopName;
+            }
+            return p;
+        });
+        localStorage.setItem('genge_custom_vendor_products', JSON.stringify(updated));
+    } catch(_) {}
+
+    // Try API save (silent fail)
+    try {
+        await fetch('/api/vendor/profile/update', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: currentVendor.phone, shopName, bio, location })
+        });
+    } catch(_) {}
+
+    showProfileMsg('✅ Mabadiliko yamehifadhiwa kikamilifu!', '#10B981');
+}
+
+function showProfileMsg(msg, color) {
+    const el = document.getElementById('profile-save-msg');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = color;
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
 
 async function handleProductUpload(e) {
     e.preventDefault();

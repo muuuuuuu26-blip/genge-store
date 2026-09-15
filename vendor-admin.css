@@ -775,3 +775,80 @@ body {
     box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
     transform: translateY(-1px);
 }
+
+/* ------------------------------------------------------
+   VENDOR PROFILE EDITOR CARD
+   ------------------------------------------------------ */
+.vendor-profile-edit-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.profile-edit-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.profile-edit-header h3 {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.profile-edit-header ion-icon { color: var(--primary); font-size: 1.2rem; }
+.profile-edit-body { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
+.vp-avatar-section { display: flex; flex-direction: column; align-items: center; gap: 10px; flex-shrink: 0; }
+.vp-avatar-wrap { position: relative; width: 90px; height: 90px; cursor: pointer; }
+.vp-avatar-ring { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.25); display: block; transition: filter 0.2s; }
+.vp-avatar-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; gap: 3px; }
+.vp-avatar-wrap:hover .vp-avatar-overlay { opacity: 1; }
+.vp-avatar-wrap:hover .vp-avatar-ring { filter: brightness(0.7); }
+.vp-avatar-overlay ion-icon { color: #fff; font-size: 1.4rem; }
+.vp-avatar-overlay span { color: #fff; font-size: 0.65rem; font-weight: 700; text-align: center; line-height: 1.2; }
+#vp-profile-pic-input { display: none; }
+.vp-change-pic-label { display: inline-flex; align-items: center; gap: 5px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.4); color: var(--primary); font-size: 0.75rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.vp-change-pic-label:hover { background: var(--primary); color: #fff; }
+.profile-edit-fields { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 0.75rem; }
+.profile-field-group { display: flex; flex-direction: column; gap: 4px; }
+.profile-field-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+.profile-field-group label ion-icon { font-size: 0.85rem; color: var(--primary); }
+.profile-field-group input, .profile-field-group textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.55rem 0.8rem; color: var(--text-light); font-size: 0.85rem; font-family: 'Outfit', sans-serif; outline: none; transition: border-color 0.2s; width: 100%; }
+.profile-field-group input:focus, .profile-field-group textarea:focus { border-color: var(--primary); background: rgba(16,185,129,0.06); }
+.profile-field-group input[readonly] { opacity: 0.55; cursor: not-allowed; }
+.profile-field-group textarea { resize: vertical; min-height: 56px; }
+.profile-save-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; border: none; border-radius: 12px; padding: 0.65rem 1.4rem; font-size: 0.88rem; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(16,185,129,0.35); margin-top: 0.25rem; }
+.profile-save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,185,129,0.5); }
+.profile-save-msg { font-size: 0.8rem; font-weight: 700; margin-top: 4px; min-height: 18px; }
+
+/* ------------------------------------------------------
+   VENDOR PRODUCTS AUTO-SLIDER
+   ------------------------------------------------------ */
+.vendor-products-slider-wrap { position: relative; width: 100%; overflow: hidden; }
+.vps-track { display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform; }
+.vps-card { min-width: 100%; box-sizing: border-box; padding: 0 2px; }
+.vps-card-inner { background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+.vps-card-img { width: 100%; height: 180px; object-fit: cover; display: block; }
+.vps-card-body { padding: 0.85rem; display: flex; flex-direction: column; gap: 6px; }
+.vps-card-title { font-size: 0.9rem; font-weight: 800; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vps-card-meta { font-size: 0.75rem; color: var(--text-muted); }
+.vps-card-price { font-size: 1rem; font-weight: 900; color: #34d399; }
+.vps-card-actions { display: flex; gap: 6px; margin-top: 4px; }
+.vps-delete-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #f87171; font-size: 0.78rem; font-weight: 700; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.vps-delete-btn:hover { background: #ef4444; color: #fff; }
+.vps-nav-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px 4px; gap: 8px; }
+.vps-nav-btn { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.07); border: 1px solid var(--border-color); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1rem; flex-shrink: 0; }
+.vps-nav-btn:hover { background: var(--primary); border-color: var(--primary); }
+.vps-dots { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.vps-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.25); cursor: pointer; transition: all 0.25s; border: none; padding: 0; }
+.vps-dot.active { background: var(--primary); transform: scale(1.3); }
+.vps-counter { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
+@media (max-width: 600px) { .profile-edit-body { flex-direction: column; align-items: center; } .profile-save-btn { width: 100%; justify-content: center; } }
