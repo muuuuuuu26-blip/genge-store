@@ -9,6 +9,7 @@ const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
 const Package = require('./models/Package');
 const User = require('./models/User');
+const Banner = require('./models/Banner');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -289,6 +290,141 @@ app.delete('/api/packages/:id', async (req, res) => {
         const pkg = await Package.findOneAndDelete({ id: id });
         if (!pkg) return res.status(404).json({ message: 'Kifurushi hakijapatikana.' });
         res.json({ message: 'Kifurushi kimefutwa kikamilifu.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// ── 1c-4. BANNERS / MATANGAZO YA GENGE FRESH ───────────────────────────
+const initialBanners = [
+    {
+        id: 'ban-1',
+        title: 'Vifurushi vya Familia kwa Bei Nafuu!',
+        subtitle: 'Okoa muda na pesa kwa kuchagua vifurushi vilivyosheheni mchele, unga, mafuta, na mahitaji yote muhimu.',
+        tag: '🔥 OFA KABAMBE YA WIKI',
+        badgeColor: '#ef4444',
+        image: 'pics/LP.jpg?v=2',
+        btnText: 'Tazama Vifurushi',
+        link: '#vifurushi',
+        discountText: 'Kuanzia Tsh 55,000/=',
+        order: 1,
+        active: true
+    },
+    {
+        id: 'ban-2',
+        title: 'Mboga & Matunda Mabichi kutoka Shambani',
+        subtitle: 'Nyanya freshi, vitunguu, karoti, matikiti maji na mananasi yaliyochaguliwa kwa uangalifu mkubwa kila asubuhi.',
+        tag: '🥑 100% FRESH & HALISI',
+        badgeColor: '#10b981',
+        image: 'pics/tikiti.webp',
+        btnText: 'Nunua Mboga & Matunda',
+        link: '#kategoria-sec',
+        discountText: 'Delivery Ndani ya Saa 1-3',
+        order: 2,
+        active: true
+    },
+    {
+        id: 'ban-3',
+        title: 'Kuku wa Kienyeji, Kisasa & Samaki Freshi',
+        subtitle: 'Kuku mzima aliyesafishwa vizuri na samaki fresh toka ziwani. Tayari kupikwa kwa afya ya familia yako.',
+        tag: '🍗 NYAMA & SAMAKI FRESH',
+        badgeColor: '#f59e0b',
+        image: 'images/kuku_mzima1.png',
+        btnText: 'Weka Oda Sasa',
+        link: '#custom-builder',
+        discountText: 'Bei za Jumla & Rejareja',
+        order: 3,
+        active: true
+    },
+    {
+        id: 'ban-4',
+        title: 'Tengeneza Kifurushi Chako Mwenyewe!',
+        subtitle: 'Chagua unachotaka, pima kiasi unachohitaji, na ulipe kiurahisi kwa simu yako kupitia M-Pesa au Tigo Pesa.',
+        tag: '🎯 RAHISI & KISASA',
+        badgeColor: '#8b5cf6',
+        image: 'pics/nyanya.jpg',
+        btnText: 'Tengeneza Chako',
+        link: '#custom-builder',
+        discountText: 'Kuanzia Tsh 10,000/=',
+        order: 4,
+        active: true
+    }
+];
+
+// GET all active banners for Genge Fresh
+app.get('/api/banners', async (req, res) => {
+    try {
+        let banners = await Banner.find({ active: true }).sort({ order: 1, createdAt: -1 });
+        if (banners.length === 0) {
+            banners = await Banner.insertMany(initialBanners);
+        }
+        res.json(banners);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// GET all banners for Admin (including inactive)
+app.get('/api/admin/banners', async (req, res) => {
+    try {
+        let banners = await Banner.find().sort({ order: 1, createdAt: -1 });
+        if (banners.length === 0) {
+            banners = await Banner.insertMany(initialBanners);
+        }
+        res.json(banners);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// POST new banner (Admin)
+app.post('/api/banners', async (req, res) => {
+    try {
+        const { title, subtitle, tag, badgeColor, image, btnText, link, discountText, order } = req.body;
+        if (!title || !image) {
+            return res.status(400).json({ message: 'Tafadhali weka kichwa cha tangazo (title) na picha (image).' });
+        }
+        const id = 'ban-' + Date.now();
+        const newBanner = new Banner({
+            id,
+            title,
+            subtitle: subtitle || '',
+            tag: tag || 'OFISI & OFA MAALUM',
+            badgeColor: badgeColor || '#10b981',
+            image,
+            btnText: btnText || 'Nunua Sasa',
+            link: link || '#vifurushi',
+            discountText: discountText || '',
+            order: Number(order) || 0,
+            active: true
+        });
+        await newBanner.save();
+        res.status(201).json({ message: 'Tangazo jipya limewekwa kikamilifu!', banner: newBanner });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// PATCH update banner
+app.patch('/api/banners/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        const banner = await Banner.findOneAndUpdate({ id }, updates, { new: true });
+        if (!banner) return res.status(404).json({ message: 'Tangazo halijapatikana.' });
+        res.json({ message: 'Tangazo limesasishwa.', banner });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// DELETE banner
+app.delete('/api/banners/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const banner = await Banner.findOneAndDelete({ id });
+        if (!banner) return res.status(404).json({ message: 'Tangazo halijapatikana.' });
+        res.json({ message: 'Tangazo limefutwa kikamilifu.' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

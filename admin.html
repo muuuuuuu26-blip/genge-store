@@ -121,6 +121,7 @@
                 <a href="#" onclick="showSection('upload', this)"><ion-icon name="cloud-upload-outline"></ion-icon> Pakia Bidhaa</a>
                 <a href="#" onclick="showSection('products', this)"><ion-icon name="pricetag-outline"></ion-icon> Hariri Bei</a>
                 <a href="#" onclick="showSection('packages', this)"><ion-icon name="cube-outline"></ion-icon> Vifurushi</a>
+                <a href="#" onclick="showSection('banners', this)"><ion-icon name="images-outline"></ion-icon> Matangazo (Slider)</a>
                 <a href="#" onclick="showSection('feedback', this)"><ion-icon name="chatbubbles-outline"></ion-icon> Maoni ya Wateja</a>
                 <a href="index.html" target="_blank" style="background: rgba(16,185,129,0.15); color:#10b981;"><ion-icon name="storefront-outline"></ion-icon> Duka la Chakula</a>
             </nav>
@@ -265,6 +266,23 @@
                     </button>
                 </div>
                 <div id="packages-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.4rem;"></div>
+            </section>
+
+            <!-- Banners Management Section (Genge Fresh Slider) -->
+            <section class="orders-section" id="banners-section" style="display:none;padding:1.2rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <h2 style="color:var(--text-main);font-size:1.3rem;margin:0;">🖼️ Matangazo ya Genge Fresh (Slide ya Kisasa)</h2>
+                        <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Dhibiti matangazo na ofa zinazotembea kwenye ukurasa wa mbele kwa wateja.</p>
+                    </div>
+                    <button onclick="openAddBannerModal()" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;padding:0.6rem 1.2rem;border-radius:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+                        <ion-icon name="add-circle-outline" style="font-size:1.2rem;"></ion-icon> + Weka Tangazo Jipya
+                    </button>
+                </div>
+                <div id="admin-banners-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.4rem;">
+                    <!-- Injected by admin.js -->
+                </div>
+                <div id="no-banners-msg" style="display:none;text-align:center;padding:2rem;color:var(--text-muted);">Bado hakuna matangazo yaliyowekwa.</div>
             </section>
 
             <!-- Super Admin Genge Mall Control Section -->
@@ -543,6 +561,62 @@
         </div>
     </div>
 
-    <script src="admin.js?v=5"></script>
+    <!-- Modal: Weka Tangazo Jipya (Admin Genge Fresh Slider) -->
+    <div id="admin-banner-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:var(--bg-card,#1e293b);border:1.5px solid rgba(16,185,129,0.4);border-radius:20px;width:100%;max-width:560px;padding:2rem;box-shadow:0 25px 60px rgba(0,0,0,0.7);color:#fff;max-height:92vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem;">
+                <h3 style="margin:0;font-size:1.25rem;" id="banner-modal-title">🖼️ Weka Tangazo Jipya la Slider</h3>
+                <button type="button" onclick="closeAdminBannerModal()" style="background:none;border:none;color:#aaa;font-size:1.8rem;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+            <form id="admin-banner-form" onsubmit="submitAdminBanner(event)">
+                <input type="hidden" id="banner-form-id">
+                
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Kichwa Kikuu cha Tangazo (Title) *</label>
+                    <input type="text" id="ban-title" required placeholder="Mfano: Vifurushi vya Familia kwa Bei Nafuu!" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                </div>
+
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Maelezo Madogo (Subtitle)</label>
+                    <textarea id="ban-subtitle" rows="2" placeholder="Okoa muda na pesa kwa kuchagua vifurushi vilivyosheheni mahitaji..." style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;resize:vertical;"></textarea>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;">
+                    <div>
+                        <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Tag / Badge</label>
+                        <input type="text" id="ban-tag" placeholder="🔥 OFA YA WIKI" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Ofa / Punguzo (Discount Pill)</label>
+                        <input type="text" id="ban-discount" placeholder="Kuanzia Tsh 55,000/=" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Picha ya Tangazo (URL au Path) *</label>
+                    <input type="text" id="ban-image" required placeholder="pics/LP.jpg au URL ya picha" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Unaweza kutumia: pics/LP.jpg, pics/tikiti.webp, images/kuku_mzima1.png, au link yoyote ya mtandaoni.</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.4rem;">
+                    <div>
+                        <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Kitufe cha Action (Button Text)</label>
+                        <input type="text" id="ban-btn-text" placeholder="Tazama Vifurushi" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.85rem;font-weight:700;margin-bottom:4px;color:#cbd5e1;">Link / Sehemu ya Kwenda</label>
+                        <input type="text" id="ban-link" placeholder="#vifurushi au #custom-builder" style="width:100%;padding:0.65rem 0.9rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" onclick="closeAdminBannerModal()" style="padding:0.7rem 1.4rem;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer;">Ghairi</button>
+                    <button type="submit" id="ban-submit-btn" style="padding:0.7rem 1.6rem;border-radius:10px;border:none;background:linear-gradient(135deg, #10b981, #059669);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 4px 15px rgba(16,185,129,0.4);">Hifadhi Tangazo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js?v=6"></script>
 </body>
 </html>

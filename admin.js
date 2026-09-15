@@ -260,7 +260,7 @@ window.showSection = function(section, anchor) {
     document.querySelectorAll('#nav-fresh a').forEach(el => el.classList.remove('active'));
     if (anchor) anchor.classList.add('active');
 
-    const allSections = ['orders-section','upload-section','feedback-section','products-section','packages-section','mall-control-section'];
+    const allSections = ['orders-section','upload-section','feedback-section','products-section','packages-section','banners-section','mall-control-section'];
     allSections.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
 
     const map = {
@@ -269,6 +269,7 @@ window.showSection = function(section, anchor) {
         feedback: { id: 'feedback-section', title: 'Maoni ya Wateja' },
         products: { id: 'products-section', title: 'Hariri Bei za Bidhaa' },
         packages: { id: 'packages-section', title: 'Vifurushi vya Familia' },
+        banners: { id: 'banners-section', title: '🖼️ Matangazo ya Genge Fresh' }
     };
 
     const info = map[section];
@@ -280,6 +281,7 @@ window.showSection = function(section, anchor) {
         if (section === 'feedback') loadFeedbacks();
         if (section === 'products') loadProducts();
         if (section === 'packages') loadPackages();
+        if (section === 'banners') loadAdminBanners();
     }
 };
 
@@ -1387,3 +1389,203 @@ window.printInvoice = function(orderId) {
     // Trigger Print
     window.print();
 };
+
+// ══════════════════════════════════════════════════════════════════════
+// ADMIN: GENGE FRESH BANNERS / SLIDER MANAGEMENT
+// ══════════════════════════════════════════════════════════════════════
+let _adminBanners = [];
+
+async function loadAdminBanners() {
+    const grid = document.getElementById('admin-banners-grid');
+    const noMsg = document.getElementById('no-banners-msg');
+    if (!grid) return;
+
+    try {
+        grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;">Inavuta matangazo...</p>';
+        const res = await fetch(API_URL + '/api/admin/banners?t=' + Date.now());
+        if (!res.ok) throw new Error('Kosa kuvuta matangazo.');
+
+        _adminBanners = await res.json();
+
+        if (!_adminBanners || _adminBanners.length === 0) {
+            grid.innerHTML = '';
+            if (noMsg) noMsg.style.display = 'block';
+            return;
+        }
+
+        if (noMsg) noMsg.style.display = 'none';
+        grid.innerHTML = _adminBanners.map(b => `
+            <div style="background:var(--bg-card,#1e293b);border:1px solid rgba(255,255,255,0.12);border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.3);display:flex;flex-direction:column;">
+                <div style="position:relative;height:160px;background:#0f172a;overflow:hidden;">
+                    <img src="${b.image}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='pics/15.png'">
+                    <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,0.2);">
+                        ${b.tag || 'OFA'}
+                    </div>
+                    <div style="position:absolute;top:10px;right:10px;">
+                        <span style="background:${b.active ? '#10b981' : '#64748b'};color:#fff;font-size:0.72rem;padding:3px 9px;border-radius:12px;font-weight:700;">
+                            ${b.active ? 'Inaonekana ✅' : 'Imezimwa ⏸️'}
+                        </span>
+                    </div>
+                </div>
+                <div style="padding:1.1rem;display:flex;flex-direction:column;flex:1;">
+                    <h3 style="font-size:1.05rem;margin:0 0 6px;color:#fff;line-height:1.3;">${b.title}</h3>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 10px;line-height:1.4;flex:1;">${b.subtitle || 'Bila maelezo'}</p>
+                    
+                    ${b.discountText ? `<div style="font-size:0.82rem;color:#f59e0b;font-weight:700;margin-bottom:10px;">🏷️ ${b.discountText}</div>` : ''}
+
+                    <div style="display:flex;gap:6px;margin-top:auto;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+                        <button type="button" onclick="toggleBannerActive('${b.id}', ${!b.active})" 
+                            style="flex:1;padding:0.45rem;border-radius:8px;border:none;background:${b.active ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'};color:${b.active ? '#ef4444' : '#10b981'};font-size:0.8rem;font-weight:700;cursor:pointer;">
+                            ${b.active ? 'Zima Tangazo' : 'Washa Tangazo'}
+                        </button>
+                        <button type="button" onclick="openEditBannerModal('${b.id}')" 
+                            style="padding:0.45rem 0.8rem;border-radius:8px;border:none;background:rgba(59,130,246,0.2);color:#60a5fa;font-size:0.8rem;font-weight:700;cursor:pointer;">
+                            ✏️ Hariri
+                        </button>
+                        <button type="button" onclick="deleteBanner('${b.id}')" 
+                            style="padding:0.45rem 0.7rem;border-radius:8px;border:none;background:rgba(239,68,68,0.2);color:#f87171;font-size:0.85rem;cursor:pointer;">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        console.error('Error loading admin banners:', err);
+        grid.innerHTML = '<p style="color:#ef4444;grid-column:1/-1;text-align:center;">Hitilafu ya kupata matangazo. Hakikisha server inafanya kazi.</p>';
+    }
+}
+
+window.openAddBannerModal = function() {
+    const modal = document.getElementById('admin-banner-modal');
+    const form = document.getElementById('admin-banner-form');
+    const title = document.getElementById('banner-modal-title');
+    const submitBtn = document.getElementById('ban-submit-btn');
+    if (!modal || !form) return;
+
+    form.reset();
+    document.getElementById('banner-form-id').value = '';
+    if (title) title.innerText = '🖼️ Weka Tangazo Jipya la Slider';
+    if (submitBtn) submitBtn.innerText = 'Hifadhi Tangazo';
+
+    modal.style.display = 'flex';
+};
+
+window.openEditBannerModal = function(id) {
+    const banner = _adminBanners.find(b => b.id === id);
+    if (!banner) return;
+
+    const modal = document.getElementById('admin-banner-modal');
+    const title = document.getElementById('banner-modal-title');
+    const submitBtn = document.getElementById('ban-submit-btn');
+
+    document.getElementById('banner-form-id').value = banner.id;
+    document.getElementById('ban-title').value = banner.title;
+    document.getElementById('ban-subtitle').value = banner.subtitle || '';
+    document.getElementById('ban-tag').value = banner.tag || '';
+    document.getElementById('ban-discount').value = banner.discountText || '';
+    document.getElementById('ban-image').value = banner.image;
+    document.getElementById('ban-btn-text').value = banner.btnText || 'Nunua Sasa';
+    document.getElementById('ban-link').value = banner.link || '#vifurushi';
+
+    if (title) title.innerText = '✏️ Hariri Tangazo la Slider';
+    if (submitBtn) submitBtn.innerText = 'Sasisha Tangazo';
+
+    modal.style.display = 'flex';
+};
+
+window.closeAdminBannerModal = function() {
+    const modal = document.getElementById('admin-banner-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitAdminBanner = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('banner-form-id').value;
+    const title = document.getElementById('ban-title').value.trim();
+    const subtitle = document.getElementById('ban-subtitle').value.trim();
+    const tag = document.getElementById('ban-tag').value.trim();
+    const discountText = document.getElementById('ban-discount').value.trim();
+    const image = document.getElementById('ban-image').value.trim();
+    const btnText = document.getElementById('ban-btn-text').value.trim();
+    const link = document.getElementById('ban-link').value.trim();
+    const submitBtn = document.getElementById('ban-submit-btn');
+
+    if (!title || !image) {
+        alert('Tafadhali weka kichwa cha tangazo na picha.');
+        return;
+    }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = 'Inahifadhi...'; }
+
+    try {
+        const payload = {
+            title,
+            subtitle,
+            tag: tag || 'OFA MAALUM',
+            discountText,
+            image,
+            btnText: btnText || 'Nunua Sasa',
+            link: link || '#vifurushi'
+        };
+
+        let res;
+        if (id) {
+            // Update
+            res = await fetch(`${API_URL}/api/banners/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            // Create new
+            res = await fetch(`${API_URL}/api/banners`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Kosa kuhifadhi tangazo.');
+
+        alert(id ? '✅ Tangazo limesasishwa kikamilifu!' : '✅ Tangazo jipya limewekwa kikamilifu!');
+        closeAdminBannerModal();
+        loadAdminBanners();
+
+    } catch (err) {
+        alert('❌ Hitilafu: ' + err.message);
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = 'Hifadhi Tangazo'; }
+    }
+};
+
+window.toggleBannerActive = async function(id, newStatus) {
+    try {
+        const res = await fetch(`${API_URL}/api/banners/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: newStatus })
+        });
+        if (!res.ok) throw new Error('Kosa kubadili hadhi.');
+        loadAdminBanners();
+    } catch (err) {
+        alert('Hitilafu: ' + err.message);
+    }
+};
+
+window.deleteBanner = async function(id) {
+    if (!confirm('Je, una uhakika unataka kufuta tangazo hili?')) return;
+
+    try {
+        const res = await fetch(`${API_URL}/api/banners/${id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Kosa kufuta tangazo.');
+        loadAdminBanners();
+    } catch (err) {
+        alert('Hitilafu: ' + err.message);
+    }
+};
+

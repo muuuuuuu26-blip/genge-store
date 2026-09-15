@@ -22,7 +22,7 @@
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
     <link rel="stylesheet" href="mobile-fix.css?v=4">
 </head>
 <body>
@@ -77,27 +77,41 @@
         </div>
     </header>
 
-    <!-- Hero Section / Promo Banner -->
-    <section class="hero" id="home">
-        <div class="hero-promo-card">
-            <div class="hero-content">
-                <div class="tag-badge"><span class="badge-fire">🔥</span> <span>KARIBU GENGE ONLINE SHOP</span></div>
-                <h2>Kila Kitu Hadi <span class="highlight">Mlangoni Kwako</span></h2>
-                <p>Bidhaa bora bei nafuu kila siku!</p>
-                <div class="delivery-badge">
-                    <span class="delivery-icon">🛵</span> Delivery ni Saa 1 - 3
+    <!-- Modern Sliding Promo Banner Carousel -->
+    <section class="hero-slider-section" id="home">
+        <div class="hero-slider-container" id="hero-slider-container">
+            <div class="hero-slides-wrapper" id="hero-slides-wrapper">
+                <!-- Slides injected dynamically by script.js -->
+                <div class="hero-promo-card hero-slide active">
+                    <div class="hero-content">
+                        <div class="tag-badge"><span class="badge-fire">🔥</span> <span>KARIBU GENGE ONLINE SHOP</span></div>
+                        <h2>Kila Kitu Hadi <span class="highlight">Mlangoni Kwako</span></h2>
+                        <p>Bidhaa bora bei nafuu kila siku! Okoa muda na fedha kwa kuagiza mtandaoni.</p>
+                        <div class="delivery-badge">
+                            <span class="delivery-icon">🛵</span> Delivery ni Saa 1 - 3
+                        </div>
+                        <div class="hero-cta-wrap" style="margin-top: 1.2rem;">
+                            <a href="#custom-builder" class="cta-btn">Nunua Sasa <ion-icon name="arrow-forward-outline"></ion-icon></a>
+                        </div>
+                    </div>
+                    <div class="hero-image">
+                        <div class="blob"></div>
+                        <img src="pics/LP.jpg?v=2" alt="Genge Online Delivery" class="hero-logo-img">
+                    </div>
                 </div>
-                <div class="hero-cta-wrap hero-cta-desktop" style="margin-top: 1.2rem;">
-                    <a href="#custom-builder" class="cta-btn">Nunua Sasa <ion-icon name="arrow-forward-outline"></ion-icon></a>
-                </div>
             </div>
-            <div class="hero-image">
-                <div class="blob"></div>
-                <img src="pics/LP.jpg?v=2" alt="Genge Online Delivery" class="hero-logo-img">
-            </div>
-            <div class="hero-cta-wrap hero-cta-mobile">
-                <a href="#custom-builder" class="cta-btn">Nunua Sasa <ion-icon name="arrow-forward-outline"></ion-icon></a>
-            </div>
+
+            <!-- Slider Navigation Arrows -->
+            <button class="hero-slider-btn prev-btn" id="hero-slider-prev" onclick="moveHeroSlide(-1)" aria-label="Slide Iliyopita">
+                <ion-icon name="chevron-back-outline"></ion-icon>
+            </button>
+            <button class="hero-slider-btn next-btn" id="hero-slider-next" onclick="moveHeroSlide(1)" aria-label="Slide Ifuatayo">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+
+            <!-- Dots Indicator & Progress Bar -->
+            <div class="hero-slider-dots" id="hero-slider-dots"></div>
+            <div class="hero-slider-progressbar"><div class="hero-slider-progress" id="hero-slider-progress"></div></div>
         </div>
     </section>
 
@@ -868,7 +882,7 @@
         </a>
     </nav>
 
-    <script src="script.js?v=20"></script>
+    <script src="script.js?v=21"></script>
 
     <script>
         if ('serviceWorker' in navigator) {

@@ -123,6 +123,7 @@ const formatCurrency = (amount) => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
+    initHeroSlider();
     renderCategoryTiles('all');
     await loadPackagesFromAPI();
     await loadProductsFromAPI();
@@ -135,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!document.hidden) {
             loadPackagesFromAPI();
             loadProductsFromAPI();
+            loadBannersFromAPI();
         }
     });
 });
@@ -1650,3 +1652,228 @@ window.addEventListener('scroll', () => {
         window.setActiveNav('bnav-home');
     }
 }, { passive: true });
+
+// ══════════════════════════════════════════════════════════════════════
+// MODERN GENGE FRESH HERO SLIDING PROMO CAROUSEL
+// ══════════════════════════════════════════════════════════════════════
+let heroSliderBanners = [
+    {
+        id: 'ban-1',
+        title: 'Vifurushi vya Familia kwa Bei Nafuu!',
+        subtitle: 'Okoa muda na fedha kwa kuchagua vifurushi vilivyosheheni mchele, unga, mafuta na mahitaji yote muhimu.',
+        tag: '🔥 OFA KABAMBE YA WIKI',
+        badgeColor: '#ef4444',
+        image: 'pics/LP.jpg?v=2',
+        btnText: 'Tazama Vifurushi',
+        link: '#vifurushi',
+        discountText: 'Kuanzia Tsh 55,000/='
+    },
+    {
+        id: 'ban-2',
+        title: 'Mboga & Matunda Mabichi kutoka Shambani',
+        subtitle: 'Nyanya freshi, vitunguu, karoti, matikiti maji na mananasi yaliyochaguliwa kwa uangalifu mkubwa kila asubuhi.',
+        tag: '🥑 100% FRESH & HALISI',
+        badgeColor: '#10b981',
+        image: 'pics/tikiti.webp',
+        btnText: 'Nunua Mboga & Matunda',
+        link: '#kategoria-sec',
+        discountText: 'Delivery Ndani ya Saa 1-3'
+    },
+    {
+        id: 'ban-3',
+        title: 'Kuku wa Kienyeji, Kisasa & Samaki Freshi',
+        subtitle: 'Kuku mzima aliyesafishwa vizuri na samaki fresh toka ziwani. Tayari kupikwa kwa afya ya familia yako.',
+        tag: '🍗 NYAMA & SAMAKI FRESH',
+        badgeColor: '#f59e0b',
+        image: 'images/kuku_mzima1.png',
+        btnText: 'Weka Oda Sasa',
+        link: '#custom-builder',
+        discountText: 'Bei za Jumla & Rejareja'
+    },
+    {
+        id: 'ban-4',
+        title: 'Tengeneza Kifurushi Chako Mwenyewe!',
+        subtitle: 'Chagua unachotaka, pima kiasi unachohitaji, na ulipe kiurahisi kwa simu yako kupitia M-Pesa au Tigo Pesa.',
+        tag: '🎯 RAHISI & KISASA',
+        badgeColor: '#8b5cf6',
+        image: 'pics/nyanya.jpg',
+        btnText: 'Tengeneza Chako',
+        link: '#custom-builder',
+        discountText: 'Kuanzia Tsh 10,000/='
+    }
+];
+
+let heroSlideIndex = 0;
+let heroSliderTimer = null;
+let heroProgressBarTimer = null;
+let isHeroSliderPaused = false;
+const HERO_SLIDE_DURATION = 5500; // 5.5 seconds per slide
+
+async function initHeroSlider() {
+    renderHeroSlides();
+    await loadBannersFromAPI();
+    startHeroSliderAutoplay();
+    setupHeroSliderGestures();
+}
+
+async function loadBannersFromAPI() {
+    try {
+        const res = await fetch(API_URL + '/api/banners?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+            const liveBanners = await res.json();
+            if (Array.isArray(liveBanners) && liveBanners.length > 0) {
+                heroSliderBanners = liveBanners;
+                renderHeroSlides();
+            }
+        }
+    } catch (e) {
+        // Fallback to initial local banners if offline
+    }
+}
+
+function renderHeroSlides() {
+    const wrapper = document.getElementById('hero-slides-wrapper');
+    const dotsContainer = document.getElementById('hero-slider-dots');
+    if (!wrapper) return;
+
+    wrapper.innerHTML = heroSliderBanners.map((banner, idx) => {
+        const isActive = idx === heroSlideIndex;
+        const discountBadge = banner.discountText 
+            ? `<div class="hero-promo-pill"><ion-icon name="pricetag-outline"></ion-icon> <span>${banner.discountText}</span></div>` 
+            : '';
+
+        return `
+            <div class="hero-promo-card hero-slide ${isActive ? 'active' : ''}" data-index="${idx}">
+                <div class="hero-content">
+                    <div class="tag-badge" style="border-color:${banner.badgeColor || '#10b981'};">
+                        <span class="badge-fire">🔥</span> 
+                        <span>${banner.tag || 'OFA MAALUM'}</span>
+                    </div>
+                    <h2>${banner.title}</h2>
+                    <p>${banner.subtitle || ''}</p>
+                    ${discountBadge}
+                    <div class="delivery-badge" style="margin-bottom: 1.2rem;">
+                        <span class="delivery-icon">🛵</span> Delivery ni Saa 1 - 3 popote ulipo
+                    </div>
+                    <div class="hero-cta-wrap">
+                        <a href="${banner.link || '#vifurushi'}" class="cta-btn">
+                            ${banner.btnText || 'Nunua Sasa'} <ion-icon name="arrow-forward-outline"></ion-icon>
+                        </a>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="blob"></div>
+                    <img src="${banner.image}" alt="${banner.title}" class="hero-slide-img" onerror="this.src='pics/15.png'">
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (dotsContainer) {
+        dotsContainer.innerHTML = heroSliderBanners.map((_, idx) => `
+            <div class="hero-dot ${idx === heroSlideIndex ? 'active' : ''}" onclick="goToHeroSlide(${idx})" title="Slide ${idx + 1}"></div>
+        `).join('');
+    }
+
+    resetHeroProgressBar();
+}
+
+window.moveHeroSlide = function(direction) {
+    if (!heroSliderBanners || heroSliderBanners.length <= 1) return;
+    heroSlideIndex += direction;
+    if (heroSlideIndex >= heroSliderBanners.length) {
+        heroSlideIndex = 0;
+    } else if (heroSlideIndex < 0) {
+        heroSlideIndex = heroSliderBanners.length - 1;
+    }
+    updateHeroSlideView();
+    startHeroSliderAutoplay(); // Reset timer after manual click
+};
+
+window.goToHeroSlide = function(index) {
+    if (index >= 0 && index < heroSliderBanners.length) {
+        heroSlideIndex = index;
+        updateHeroSlideView();
+        startHeroSliderAutoplay();
+    }
+};
+
+function updateHeroSlideView() {
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+
+    slides.forEach((slide, idx) => {
+        if (idx === heroSlideIndex) {
+            slide.classList.remove('prev-exit');
+            slide.classList.add('active');
+        } else {
+            slide.classList.remove('active');
+            if (idx < heroSlideIndex) {
+                slide.classList.add('prev-exit');
+            } else {
+                slide.classList.remove('prev-exit');
+            }
+        }
+    });
+
+    dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === heroSlideIndex);
+    });
+
+    resetHeroProgressBar();
+}
+
+function startHeroSliderAutoplay() {
+    if (heroSliderTimer) clearInterval(heroSliderTimer);
+    heroSliderTimer = setInterval(() => {
+        if (!isHeroSliderPaused) {
+            window.moveHeroSlide(1);
+        }
+    }, HERO_SLIDE_DURATION);
+
+    resetHeroProgressBar();
+}
+
+function resetHeroProgressBar() {
+    const progressBar = document.getElementById('hero-slider-progress');
+    if (!progressBar) return;
+    progressBar.style.transition = 'none';
+    progressBar.style.width = '0%';
+
+    setTimeout(() => {
+        progressBar.style.transition = `width ${HERO_SLIDE_DURATION}ms linear`;
+        progressBar.style.width = '100%';
+    }, 50);
+}
+
+function setupHeroSliderGestures() {
+    const container = document.getElementById('hero-slider-container');
+    if (!container) return;
+
+    // Mouse pause on hover
+    container.addEventListener('mouseenter', () => { isHeroSliderPaused = true; });
+    container.addEventListener('mouseleave', () => { isHeroSliderPaused = false; });
+
+    // Touch swipe support on phones
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    container.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        isHeroSliderPaused = true;
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 40) {
+            if (diff > 0) {
+                window.moveHeroSlide(1); // Swipe left -> Next
+            } else {
+                window.moveHeroSlide(-1); // Swipe right -> Prev
+            }
+        }
+        setTimeout(() => { isHeroSliderPaused = false; }, 1000);
+    }, { passive: true });
+}
+
