@@ -937,7 +937,13 @@ app.post('/api/auth/register', async (req, res) => {
 
         const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
 
-        // Check if user already exists
+        // Validate Tanzania phone format
+        const normalizedPhone = cleanPhone.startsWith('255') ? '0' + cleanPhone.slice(3) : cleanPhone;
+        if (!/^0[67]\d{8}$/.test(normalizedPhone) && !/^255[67]\d{8}$/.test(cleanPhone)) {
+            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au 06XXXXXXXX).' });
+        }
+
+
         const existing = await User.findOne({ phone: cleanPhone });
         if (existing) {
             return res.status(400).json({ message: 'Namba hii ya simu imekwisha kusajiliwa tayari.' });

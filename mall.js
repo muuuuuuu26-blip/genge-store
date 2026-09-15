@@ -764,6 +764,103 @@ window.switchAuthMode = function(mode) {
 
 window.selectRegisterRole = function() {};
 
+// ── PHONE & NIDA/TIN VALIDATION ────────────────────────────────────────
+function getTanzaniaNetwork(phone) {
+    let digits = phone.replace(/[\s\-\+]/g, '');
+    if (digits.startsWith('255')) digits = '0' + digits.slice(3);
+    if (digits.startsWith('+255')) digits = '0' + digits.slice(4);
+    const p = digits.substring(0, 3);
+    if (['074','075','076'].includes(p)) return { name: 'Vodacom M-Pesa', icon: '📱', color: '#e53e3e', valid: true };
+    if (['071','065','067'].includes(p)) return { name: 'Tigo Pesa', icon: '💙', color: '#2563eb', valid: true };
+    if (['068','069','078'].includes(p)) return { name: 'Airtel Money', icon: '🔴', color: '#dc2626', valid: true };
+    if (['062','061'].includes(p)) return { name: 'HaloPesa (Halotel)', icon: '🟡', color: '#d97706', valid: true };
+    if (['073'].includes(p)) return { name: 'TTCL', icon: '🟢', color: '#16a34a', valid: true };
+    return { name: 'Mtandao Haujulikani', icon: '❌', color: '#ef4444', valid: false };
+}
+
+function isValidTanzaniaPhone(phone) {
+    let digits = phone.replace(/[\s\-\+]/g, '');
+    if (digits.startsWith('255')) digits = '0' + digits.slice(3);
+    if (digits.startsWith('+255')) digits = '0' + digits.slice(4);
+    return /^0[67]\d{8}$/.test(digits);
+}
+
+function isValidNidaOrTin(val) {
+    const v = val.trim();
+    const nidaPattern = /^\d{8}-\d{5}-\d{5}-\d$/;
+    const tinPattern = /^\d{3}-\d{3}-\d{3}$/;
+    const minOk = v.replace(/[-\s]/g, '').length >= 9 && /^[\d\-]+$/.test(v.trim());
+    return nidaPattern.test(v) || tinPattern.test(v) || minOk;
+}
+
+window.handleRegPhoneInput = function(input) {
+    const badge = document.getElementById('reg-phone-network-badge');
+    const phone = input.value.trim();
+    if (!phone) {
+        if (badge) badge.style.display = 'none';
+        input.style.borderColor = '';
+        return;
+    }
+    if (!isValidTanzaniaPhone(phone)) {
+        input.style.borderColor = '#ef4444';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#ef4444'; badge.textContent = '❌ Namba si sahihi. Mfano: 0712345678 au 0612345678'; }
+        return;
+    }
+    const net = getTanzaniaNetwork(phone);
+    input.style.borderColor = net.valid ? '#10b981' : '#ef4444';
+    if (badge) { badge.style.display = 'block'; badge.style.color = net.color; badge.textContent = (net.valid ? '✅ ' : '❌ ') + net.icon + ' ' + net.name; }
+};
+
+window.handleRegNidaInput = function(input) {
+    const badge = document.getElementById('reg-nida-badge');
+    const val = input.value.trim();
+    if (!val) { if (badge) badge.style.display = 'none'; input.style.borderColor = ''; return; }
+
+    const nidaOk = /^\d{8}-\d{5}-\d{5}-\d$/.test(val);
+    const tinOk = /^\d{3}-\d{3}-\d{3}$/.test(val);
+    const minOk = val.replace(/[-\s]/g, '').length >= 9 && /^[\d\-]+$/.test(val);
+
+    if (nidaOk) {
+        input.style.borderColor = '#10b981';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#10b981'; badge.textContent = '✅ Namba ya NIDA — Muundo Sahihi'; }
+    } else if (tinOk) {
+        input.style.borderColor = '#10b981';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#10b981'; badge.textContent = '✅ Namba ya TIN — Muundo Sahihi'; }
+    } else if (minOk) {
+        input.style.borderColor = '#f59e0b';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#f59e0b'; badge.textContent = '⚠️ NIDA: YYYYMMDD-XXXXX-XXXXX-X  au  TIN: XXX-XXX-XXX'; }
+    } else {
+        input.style.borderColor = '#ef4444';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#ef4444'; badge.textContent = '❌ Namba fupi sana. Ingiza NIDA au TIN sahihi.'; }
+    }
+};
+
+window.handleVstkPhoneInput = function(input) {
+    const badge = document.getElementById('vstk-network-badge');
+    const phone = input.value.trim();
+    if (!phone) { if (badge) badge.style.display = 'none'; input.style.borderColor = ''; return; }
+
+    if (!isValidTanzaniaPhone(phone)) {
+        input.style.borderColor = '#ef4444';
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#ef4444'; badge.textContent = '❌ Namba si sahihi. Mfano: 0712345678'; }
+        return;
+    }
+    const net = getTanzaniaNetwork(phone);
+    input.style.borderColor = net.valid ? '#10b981' : '#ef4444';
+    if (badge) { badge.style.display = 'block'; badge.style.color = net.color; badge.textContent = (net.valid ? '✅ ' : '❌ ') + net.icon + ' ' + net.name; }
+
+    // Auto-select matching network radio button
+    if (net.valid) {
+        const radios = document.querySelectorAll('input[name="vstk_provider"]');
+        radios.forEach(r => {
+            if (net.name.includes('Vodacom') && r.value === 'VodaCom M-Pesa') { r.checked = true; if (typeof updateVstkNetwork === 'function') updateVstkNetwork(r); }
+            else if (net.name.includes('Tigo') && r.value === 'Tigo Pesa') { r.checked = true; if (typeof updateVstkNetwork === 'function') updateVstkNetwork(r); }
+            else if (net.name.includes('Airtel') && r.value === 'Airtel Money') { r.checked = true; if (typeof updateVstkNetwork === 'function') updateVstkNetwork(r); }
+            else if (net.name.includes('Halo') && r.value === 'HaloPesa') { r.checked = true; if (typeof updateVstkNetwork === 'function') updateVstkNetwork(r); }
+        });
+    }
+};
+
 // ── VENDOR REGISTRATION & STK PUSH FLOW ─────────────────────────────
 let pendingVendorRegistration = null;
 let vstkCountdownInterval = null;
@@ -791,6 +888,18 @@ window.handleMallRegister = async function(e) {
             msgDiv.textContent = 'Tafadhali jaza taarifa zote za duka lako zenye alama ya (*)';
             msgDiv.style.color = '#EF4444';
         }
+        return;
+    }
+
+    // Validate Tanzania phone number
+    if (!isValidTanzaniaPhone(phone)) {
+        if (msgDiv) { msgDiv.textContent = '❌ Namba ya simu si sahihi. Weka namba halali: 07XXXXXXXX au 06XXXXXXXX (tarakimu 10)'; msgDiv.style.color = '#EF4444'; }
+        return;
+    }
+
+    // Validate NIDA or TIN
+    if (!isValidNidaOrTin(nidaOrTin)) {
+        if (msgDiv) { msgDiv.textContent = '❌ Namba ya NIDA au TIN si sahihi. NIDA: YYYYMMDD-XXXXX-XXXXX-X au TIN: XXX-XXX-XXX'; msgDiv.style.color = '#EF4444'; }
         return;
     }
 

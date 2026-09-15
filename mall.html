@@ -470,7 +470,8 @@
 
                 <div class="auth-field">
                     <label><ion-icon name="card-outline"></ion-icon> Namba ya NIDA au TIN Number *</label>
-                    <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789" required>
+                    <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789" required oninput="handleRegNidaInput(this)">
+                    <div id="reg-nida-badge" style="display:none; font-size: 0.78rem; font-weight: 700; margin-top: 5px;"></div>
                 </div>
 
                 <div class="auth-field">
@@ -489,7 +490,8 @@
 
                 <div class="auth-field">
                     <label><ion-icon name="logo-whatsapp"></ion-icon> Namba ya Simu (WhatsApp ya Biashara) *</label>
-                    <input type="tel" id="reg-phone" placeholder="07XXXXXXXX" required>
+                    <input type="tel" id="reg-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required oninput="handleRegPhoneInput(this)">
+                    <div id="reg-phone-network-badge" style="display:none; font-size: 0.8rem; font-weight: 700; margin-top: 5px;"></div>
                 </div>
 
                 <div class="auth-field">
@@ -569,7 +571,8 @@
             <!-- Phone input -->
             <div class="vstk-field-group" style="margin-top: 1rem;">
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Namba ya Kupokea Ombi la PIN (USSD Push):</label>
-                <input type="tel" id="vstk-phone-input" placeholder="07XXXXXXXX au 06XXXXXXXX" style="width: 100%; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem; font-weight: 700;">
+                <input type="tel" id="vstk-phone-input" placeholder="07XXXXXXXX au 06XXXXXXXX" style="width: 100%; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem; font-weight: 700;" oninput="handleVstkPhoneInput(this)">
+                <div id="vstk-network-badge" style="display:none; font-size: 0.82rem; font-weight: 700; margin-top: 6px; padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,0.4); width: fit-content;"></div>
                 <small style="color: #94a3b8; font-size: 0.76rem; display: block; margin-top: 4px;">Namba hii imechukuliwa kutoka kwenye fomu yako ya usajili.</small>
             </div>
 
@@ -645,6 +648,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=12"></script>
+    <script src="mall.js?v=13"></script>
 </body>
 </html>
