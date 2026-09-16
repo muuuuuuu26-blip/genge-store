@@ -20,9 +20,76 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '')));
 
+// Phone normalization helper across all formats (07..., 255..., +255...)
+function getPhoneVariants(phone) {
+    if (!phone) return [];
+    const digits = String(phone).replace(/\D/g, '');
+    if (!digits) return [String(phone).trim()];
+    
+    const set = new Set();
+    set.add(digits);
+    set.add('+' + digits);
+
+    if (digits.startsWith('0') && digits.length === 10) {
+        const intl = '255' + digits.slice(1);
+        set.add(intl);
+        set.add('+' + intl);
+    } else if (digits.startsWith('255') && digits.length === 12) {
+        const local = '0' + digits.slice(3);
+        set.add(local);
+    } else if (digits.length === 9) {
+        set.add('0' + digits);
+        set.add('255' + digits);
+        set.add('+255' + digits);
+    }
+    return Array.from(set);
+}
+
+// Startup Database Migrations & Cleanup
+async function runStartupDatabaseMigrations() {
+    try {
+        // 1. Clean any legacy pics/12.png from product vendorAvatar
+        const prodRes = await Product.updateMany(
+            { $or: [{ vendorAvatar: 'pics/12.png' }, { vendorAvatar: /12\.png/i }] },
+            { vendorAvatar: 'mall/genge-mall-logo.jpg' }
+        );
+        if (prodRes.modifiedCount > 0) {
+            console.log(`[DB MIGRATION] Cleaned ${prodRes.modifiedCount} products with pics/12.png -> mall/genge-mall-logo.jpg`);
+        }
+
+        // 2. Clean any legacy pics/12.png from User avatar
+        const userRes = await User.updateMany(
+            { $or: [{ avatar: 'pics/12.png' }, { avatar: /12\.png/i }] },
+            { avatar: 'mall/genge-mall-logo.jpg' }
+        );
+        if (userRes.modifiedCount > 0) {
+            console.log(`[DB MIGRATION] Cleaned ${userRes.modifiedCount} users with pics/12.png -> mall/genge-mall-logo.jpg`);
+        }
+
+        // 3. Sync all products to the vendor's actual saved avatar if vendor has a custom profile photo
+        const vendorsWithAvatar = await User.find({
+            avatar: { $exists: true, $ne: null, $nin: ['', 'pics/12.png', 'mall/genge-mall-logo.jpg'] }
+        });
+
+        for (const vendor of vendorsWithAvatar) {
+            const variants = getPhoneVariants(vendor.phone);
+            const syncRes = await Product.updateMany(
+                { vendorPhone: { $in: variants } },
+                { vendorAvatar: vendor.avatar, vendorShopName: vendor.shopName || vendor.name }
+            );
+            if (syncRes.modifiedCount > 0) {
+                console.log(`[DB MIGRATION] Synced real avatar to ${syncRes.modifiedCount} products for vendor: ${vendor.phone} (${vendor.shopName || vendor.name})`);
+            }
+        }
+    } catch (e) {
+        console.error('[DB MIGRATION ERROR]:', e);
+    }
+}
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI).then(() => {
     console.log('Connected to MongoDB');
+    runStartupDatabaseMigrations();
 }).catch((err) => {
     console.error('Error connecting to MongoDB:', err);
 });
@@ -922,16 +989,22 @@ app.post('/api/vendor/products', async (req, res) => {
         }
 
         const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
+        const phoneVariants = getPhoneVariants(cleanPhone);
 
         // Verify vendor limit
-        const vendor = await User.findOne({ phone: cleanPhone });
+        const vendor = await User.findOne({ phone: { $in: phoneVariants } });
         const maxLimit = vendor?.package?.maxProducts || 25;
-        const currentCount = await Product.countDocuments({ vendorPhone: cleanPhone });
+        const currentCount = await Product.countDocuments({ vendorPhone: { $in: phoneVariants } });
 
         if (currentCount >= maxLimit) {
             return res.status(403).json({ 
                 message: `Umefikia kikomo cha bidhaa (${maxLimit}) kwa kifurushi chako cha ${vendor?.package?.name || 'Basic'}. Boresha kifurushi kupakia zaidi.` 
             });
+        }
+
+        let effectiveAvatar = vendorAvatar || vendor?.avatar;
+        if (!effectiveAvatar || effectiveAvatar.includes('12.png')) {
+            effectiveAvatar = 'mall/genge-mall-logo.jpg';
         }
 
         const id = 'vprod_' + Date.now();
@@ -942,14 +1015,14 @@ app.post('/api/vendor/products', async (req, res) => {
             priceUnit: 'Tsh',
             category: dept || category || 'all',
             dept: dept || category || 'all',
-            icon: image || 'pics/12.png',
+            icon: image || 'mall/genge-mall-logo.jpg',
             isImage: true,
             desc: desc ? desc.trim() : '',
             location: location ? location.trim() : 'Dar es Salaam',
             vendorPhone: cleanPhone,
             vendorName: vendorName ? vendorName.trim() : (vendor?.name || 'Muuzaji'),
             vendorShopName: vendorShopName ? vendorShopName.trim() : (vendor?.shopName || 'Duka Langu'),
-            vendorAvatar: vendorAvatar || vendor?.avatar || 'pics/12.png',
+            vendorAvatar: effectiveAvatar,
             vendorNidaOrTin: vendorNidaOrTin || vendor?.nidaOrTin || '',
             isVendorActive: true,
             createdAt: new Date()
@@ -972,15 +1045,13 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
             return res.status(400).json({ message: 'Namba ya simu inahitajika.' });
         }
 
-        const raw = String(phone).trim().replace(/[\s\-]/g, '');
-        const norm0 = raw.startsWith('255') ? '0' + raw.slice(3) : raw;
-        const norm255 = raw.startsWith('0') ? '255' + raw.slice(1) : raw;
-        const phoneVariants = [raw, norm0, norm255];
+        const phoneVariants = getPhoneVariants(phone);
 
         const updateData = {};
         if (shopName) updateData.shopName = shopName.trim();
         if (bio !== undefined) updateData.bio = bio.trim();
-        if (avatar) updateData.avatar = avatar;
+        if (location !== undefined) updateData.location = location.trim();
+        if (avatar && !avatar.includes('12.png')) updateData.avatar = avatar;
 
         const updatedUser = await User.findOneAndUpdate(
             { phone: { $in: phoneVariants } },
@@ -995,12 +1066,13 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
         // Also update existing products belonging to this vendor so the mall displays the updated avatar and shopName
         const prodUpdates = {};
         if (shopName) prodUpdates.vendorShopName = shopName.trim();
-        if (avatar) prodUpdates.vendorAvatar = avatar;
+        if (avatar && !avatar.includes('12.png')) prodUpdates.vendorAvatar = avatar;
+        if (location) prodUpdates.location = location.trim();
         if (Object.keys(prodUpdates).length > 0) {
             await Product.updateMany({ vendorPhone: { $in: phoneVariants } }, prodUpdates);
         }
 
-        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${raw}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
+        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${phone}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
         res.json({ message: 'Taarifa za muuzaji zimesasishwa kikamilifu.', user: updatedUser });
     } catch (err) {
         console.error('[VENDOR PROFILE UPDATE ERROR]:', err);
@@ -1011,24 +1083,29 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
 // 9f. Get Vendor Profile & Products by Phone
 app.get('/api/vendor/profile/:phone', async (req, res) => {
     try {
-        const raw = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const norm0 = raw.startsWith('255') ? '0' + raw.slice(3) : raw;
-        const norm255 = raw.startsWith('0') ? '255' + raw.slice(1) : raw;
-        const phoneVariants = [raw, norm0, norm255];
+        const phoneVariants = getPhoneVariants(req.params.phone);
 
         const user = await User.findOne({ phone: { $in: phoneVariants } });
         if (!user) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
         const products = await Product.find({ vendorPhone: { $in: phoneVariants } }).sort({ createdAt: -1 });
+
+        let avatar = user.avatar;
+        if (!avatar || avatar.includes('12.png')) {
+            avatar = 'mall/genge-mall-logo.jpg';
+        }
+
         res.json({
             vendor: {
                 name: user.name,
                 phone: user.phone,
-                shopName: user.shopName,
-                avatar: user.avatar || 'mall/genge-mall-logo.jpg',
+                shopName: user.shopName || user.name,
+                avatar: avatar,
                 bio: user.bio || '',
                 package: user.package,
-                status: user.status
+                status: user.status,
+                followersCount: user.followers ? user.followers.length : 0
             },
+            productCount: products.length,
             products: products
         });
     } catch (err) {
@@ -1303,7 +1380,8 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
         }
 
         const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
-        const vendor = await User.findOne({ phone: cleanPhone, role: 'vendor' });
+        const phoneVariants = getPhoneVariants(cleanPhone);
+        const vendor = await User.findOne({ phone: { $in: phoneVariants }, role: 'vendor' });
 
         if (!vendor) {
             return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
@@ -1314,7 +1392,7 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
         }
 
         // Check Product Limit for Vendor's Package
-        const currentProductsCount = await Product.countDocuments({ vendorPhone: cleanPhone });
+        const currentProductsCount = await Product.countDocuments({ vendorPhone: { $in: phoneVariants } });
         const maxAllowed = vendor.package ? (vendor.package.maxProducts || 25) : 25;
 
         if (currentProductsCount >= maxAllowed) {
@@ -1332,6 +1410,11 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
 
         const specsArray = specs ? (Array.isArray(specs) ? specs : specs.split(',').map(s => s.trim())) : [];
 
+        let effectiveAvatar = vendor.avatar;
+        if (!effectiveAvatar || effectiveAvatar.includes('12.png')) {
+            effectiveAvatar = 'mall/genge-mall-logo.jpg';
+        }
+
         const newProduct = new Product({
             id: id,
             name: name,
@@ -1348,7 +1431,7 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
             vendorPhone: cleanPhone,
             vendorName: vendor.name,
             vendorShopName: vendor.shopName || vendor.name,
-            vendorAvatar: vendor.avatar || 'pics/12.png',
+            vendorAvatar: effectiveAvatar,
             vendorNidaOrTin: vendor.nidaOrTin || '',
             isVendorActive: true
         });
@@ -1364,38 +1447,6 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
     } catch (err) {
         console.error('[VENDOR PRODUCT UPLOAD ERROR]:', err);
         res.status(500).json({ message: 'Kosa wakati wa kupakia bidhaa.', error: err.message });
-    }
-});
-
-// F. Get Vendor Profile & Products
-app.get('/api/vendor/profile/:phone', async (req, res) => {
-    try {
-        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const vendor = await User.findOne({ phone: cleanPhone });
-
-        if (!vendor) {
-            return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
-        }
-
-        const products = await Product.find({ vendorPhone: cleanPhone });
-
-        res.json({
-            vendor: {
-                name: vendor.name,
-                shopName: vendor.shopName,
-                phone: vendor.phone,
-                nidaOrTin: vendor.nidaOrTin,
-                avatar: vendor.avatar,
-                bio: vendor.bio,
-                package: vendor.package,
-                status: vendor.status,
-                followersCount: vendor.followers ? vendor.followers.length : 0
-            },
-            productCount: products.length,
-            products: products
-        });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
     }
 });
 

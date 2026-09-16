@@ -584,6 +584,8 @@ function getVendorForProduct(item) {
         const cleanPhone = formatWhatsAppPhone(rawPhone);
 
         let avatar = item.vendorAvatar;
+        if (avatar && avatar.includes('12.png')) avatar = null;
+
         let shopName = item.vendorShopName || item.vendorName || 'Muuzaji wa Genge';
         let bio = item.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
         let location = item.location || 'Dar es Salaam';
@@ -591,7 +593,7 @@ function getVendorForProduct(item) {
         // Check if there is an updated profile picture in localStorage
         const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + rawPhone) 
                       || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
-        if (savedPic) avatar = savedPic;
+        if (savedPic && !savedPic.includes('12.png')) avatar = savedPic;
 
         // Check if current active vendor matches
         const savedVendor = localStorage.getItem('genge_vendor');
@@ -600,11 +602,16 @@ function getVendorForProduct(item) {
                 const sv = JSON.parse(savedVendor);
                 if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === rawPhone)) {
                     if (sv.shopName) shopName = sv.shopName;
-                    if (sv.avatar) avatar = sv.avatar;
+                    if (sv.avatar && !sv.avatar.includes('12.png')) avatar = sv.avatar;
                     if (sv.bio) bio = sv.bio;
                     if (sv.location) location = sv.location;
                 }
             } catch(_) {}
+        }
+
+        // Enforce strict fallback: Never show pics/12.png on Genge Mall
+        if (!avatar || avatar.includes('12.png')) {
+            avatar = 'mall/genge-mall-logo.jpg';
         }
 
         return {
@@ -613,7 +620,7 @@ function getVendorForProduct(item) {
             phone: cleanPhone,
             rawPhone: rawPhone,
             nida: item.vendorNida || item.vendorNidaOrTin || 'NIDA Verified',
-            avatar: avatar || 'mall/genge-mall-logo.jpg',
+            avatar: avatar,
             bio: bio,
             followersCount: item.followersCount || '2.3k',
             location: location
@@ -1924,6 +1931,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         const refProd = customVendorProducts[0] || clickedItem;
         
         let customAvatar = refProd.vendorAvatar;
+        if (customAvatar && customAvatar.includes('12.png')) customAvatar = null;
         let customShopName = refProd.vendorShopName || refProd.vendorName || 'Duka Rasmi';
         let customBio = refProd.desc || refProd.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
         let customLocation = refProd.location || 'Dar es Salaam';
@@ -1931,7 +1939,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         // Check if there is an updated profile picture saved in localStorage
         const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
                       || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
-        if (savedPic) customAvatar = savedPic;
+        if (savedPic && !savedPic.includes('12.png')) customAvatar = savedPic;
 
         const savedVendor = localStorage.getItem('genge_vendor');
         if (savedVendor) {
@@ -1939,7 +1947,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                 const sv = JSON.parse(savedVendor);
                 if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === phone)) {
                     if (sv.shopName) customShopName = sv.shopName;
-                    if (sv.avatar) customAvatar = sv.avatar;
+                    if (sv.avatar && !sv.avatar.includes('12.png')) customAvatar = sv.avatar;
                     if (sv.bio) customBio = sv.bio;
                     if (sv.location) customLocation = sv.location;
                 }
@@ -1951,7 +1959,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             ownerName: refProd.vendorName || customShopName,
             phone: cleanPhone,
             nida: refProd.vendorNidaOrTin || 'NIDA Verified',
-            avatar: customAvatar || 'mall/genge-mall-logo.jpg',
+            avatar: (customAvatar && !customAvatar.includes('12.png')) ? customAvatar : 'mall/genge-mall-logo.jpg',
             bio: customBio,
             followersCount: refProd.followersCount || '1.8k',
             location: customLocation
@@ -1971,13 +1979,24 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         const res = await fetch(`/api/vendor/profile/${cleanPhone}`);
         if (res.ok) {
             const data = await res.json();
-            if (data.vendor) v = { ...v, ...data.vendor };
+            if (data.vendor) {
+                if (data.vendor.avatar && !data.vendor.avatar.includes('12.png')) {
+                    v.avatar = data.vendor.avatar;
+                }
+                if (data.vendor.shopName) v.shopName = data.vendor.shopName;
+                if (data.vendor.bio) v.bio = data.vendor.bio;
+                if (data.vendor.name) v.ownerName = data.vendor.name;
+            }
         }
     } catch (e) {}
 
     // Populate Modal UI with THIS vendor's exact details
     const avatarEl = document.getElementById('vp-modal-avatar');
-    if (avatarEl) avatarEl.src = v.avatar || 'mall/genge-mall-logo.jpg';
+    if (avatarEl) {
+        let finalAvatar = v.avatar;
+        if (!finalAvatar || finalAvatar.includes('12.png')) finalAvatar = 'mall/genge-mall-logo.jpg';
+        avatarEl.src = finalAvatar;
+    }
     const shopEl = document.getElementById('vp-modal-shop');
     if (shopEl) shopEl.textContent = v.shopName || v.name;
     const ownerEl = document.getElementById('vp-modal-owner');

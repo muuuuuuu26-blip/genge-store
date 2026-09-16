@@ -131,10 +131,12 @@ function updateVendorUI() {
     // Load saved profile picture
     const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + (currentVendor.phone || ''));
     const avatarEl = document.getElementById('vp-profile-avatar');
-    if (avatarEl && savedPic) {
-        avatarEl.src = savedPic;
-    } else if (avatarEl && currentVendor.avatar) {
-        avatarEl.src = currentVendor.avatar;
+    if (avatarEl) {
+        let curAvatar = savedPic || currentVendor.avatar;
+        if (!curAvatar || curAvatar.includes('12.png')) {
+            curAvatar = 'mall/genge-mall-logo.jpg';
+        }
+        avatarEl.src = curAvatar;
     }
 
     const pkg = currentVendor.package || { name: 'Basic', price: 5000, maxProducts: 25 };
@@ -262,7 +264,7 @@ function renderVendorProducts(products) {
 }
 
 function buildVpsCard(p) {
-    const img   = p.image || p.icon || 'pics/12.png';
+    const img   = p.image || p.icon || 'mall/genge-mall-logo.jpg';
     const title = p.name || p.title || 'Bidhaa';
     const price = `Tsh ${(p.price || 0).toLocaleString()}`;
     const loc   = p.location || '';
@@ -270,7 +272,7 @@ function buildVpsCard(p) {
     return `
         <div class="vps-card">
             <div class="vps-card-inner">
-                <img src="${img}" alt="${title}" class="vps-card-img" onerror="this.src='pics/12.png'">
+                <img src="${img}" alt="${title}" class="vps-card-img" onerror="this.src='mall/genge-mall-logo.jpg'">
                 <div class="vps-card-body">
                     <div class="vps-card-title">${title}</div>
                     <div class="vps-card-meta"><ion-icon name="location-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> ${loc}</div>
@@ -462,7 +464,9 @@ async function handleProductUpload(e) {
             vendorPhone: currentVendor.phone,
             vendorName: currentVendor.name || '',
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
-            vendorAvatar: currentVendor.avatar || 'mall/genge-mall-logo.jpg',
+            vendorAvatar: (currentVendor.avatar && !currentVendor.avatar.includes('12.png')) 
+                          ? currentVendor.avatar 
+                          : (localStorage.getItem('genge_vendor_profile_pic_' + currentVendor.phone) || 'mall/genge-mall-logo.jpg'),
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
             image: compressedBase64
         };
