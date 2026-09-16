@@ -642,6 +642,14 @@ function initMallApp() {
     fetchServerMallProducts();
     updateMallCartUI();
     initSponsoredSlider();
+
+    // Auto-open registration form if accessed with ?register=1 or ?action=register
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('register') === '1' || urlParams.get('action') === 'register') {
+        setTimeout(() => {
+            openAuthModal('register');
+        }, 400);
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -703,19 +711,21 @@ function openUserDropdownOrDashboard() {
     if (!currentUser) return openAuthModal('login');
 
     if (currentUser.role === 'vendor') {
-        // Offer vendor quick actions
-        const choice = confirm(`Habari ${currentUser.shopName || currentUser.name}! 🏬\n\nBonyeza OK kwenda Dashibodi ya Duka lako.\nBonyeza CANCEL ili usimame au ufanye kitu kingine.`);
-        if (choice) {
-            window.location.href = 'vendor-admin.html';
+        const modal = document.getElementById('vendor-actions-modal');
+        const shopEl = document.getElementById('vam-shop-name');
+        const ownerEl = document.getElementById('vam-owner-name');
+
+        if (shopEl) shopEl.textContent = '🏬 ' + (currentUser.shopName || 'Duka Lako');
+        if (ownerEl) ownerEl.textContent = `Mmiliki: ${currentUser.name} (${currentUser.phone || ''})`;
+
+        if (modal) {
+            modal.classList.add('open');
+            modal.style.display = 'flex';
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
         } else {
-            // Show a second prompt for secondary actions
-            const action = confirm(`Ungependa kufanya nini?\n\nOK = Ongeza Duka Jipya 🏪\nCANCEL = Toka (Logout)`);
-            if (action) {
-                // Open registration form for a new shop
-                openAuthModal('register');
-            } else {
-                logoutUser();
-            }
+            // Fallback
+            window.location.href = 'vendor-admin.html';
         }
     } else {
         const choice = confirm(`Habari ${currentUser.name}!\n\nJe, unataka kutoka kwenye akaunti yako?\n\n[OK] = Toka (Logout)\n[CANCEL] = Baki Sokoni`);
@@ -724,6 +734,31 @@ function openUserDropdownOrDashboard() {
         }
     }
 }
+
+window.closeVendorActionsModal = function() {
+    const modal = document.getElementById('vendor-actions-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+    }
+};
+
+window.goToVendorDashboard = function() {
+    closeVendorActionsModal();
+    window.location.href = 'vendor-admin.html';
+};
+
+window.openNewShopRegistration = function() {
+    closeVendorActionsModal();
+    openAuthModal('register');
+};
+
+window.handleVendorLogoutFromMenu = function() {
+    closeVendorActionsModal();
+    logoutUser();
+};
 
 function logoutUser() {
     localStorage.removeItem('genge_user');
