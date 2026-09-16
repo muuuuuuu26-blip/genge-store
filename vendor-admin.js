@@ -462,7 +462,7 @@ async function handleProductUpload(e) {
             vendorPhone: currentVendor.phone,
             vendorName: currentVendor.name || '',
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
-            vendorAvatar: currentVendor.avatar || 'pics/12.png',
+            vendorAvatar: currentVendor.avatar || 'mall/genge-mall-logo.jpg',
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
             image: compressedBase64
         };

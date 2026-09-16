@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema({
     vendorPhone: { type: String, default: '' },
     vendorName: { type: String, default: 'Genge Direct' },
     vendorShopName: { type: String, default: 'Genge Official' },
-    vendorAvatar: { type: String, default: 'pics/12.png' },
+    vendorAvatar: { type: String, default: 'mall/genge-mall-logo.jpg' },
     vendorNidaOrTin: { type: String, default: '' },
     isVendorActive: { type: Boolean, default: true },
     

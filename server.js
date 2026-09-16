@@ -949,14 +949,18 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
             return res.status(400).json({ message: 'Namba ya simu inahitajika.' });
         }
 
-        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+        const raw = String(phone).trim().replace(/[\s\-]/g, '');
+        const norm0 = raw.startsWith('255') ? '0' + raw.slice(3) : raw;
+        const norm255 = raw.startsWith('0') ? '255' + raw.slice(1) : raw;
+        const phoneVariants = [raw, norm0, norm255];
+
         const updateData = {};
         if (shopName) updateData.shopName = shopName.trim();
         if (bio !== undefined) updateData.bio = bio.trim();
         if (avatar) updateData.avatar = avatar;
 
         const updatedUser = await User.findOneAndUpdate(
-            { phone: cleanPhone },
+            { phone: { $in: phoneVariants } },
             updateData,
             { new: true }
         );
@@ -970,10 +974,10 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
         if (shopName) prodUpdates.vendorShopName = shopName.trim();
         if (avatar) prodUpdates.vendorAvatar = avatar;
         if (Object.keys(prodUpdates).length > 0) {
-            await Product.updateMany({ vendorPhone: cleanPhone }, prodUpdates);
+            await Product.updateMany({ vendorPhone: { $in: phoneVariants } }, prodUpdates);
         }
 
-        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${cleanPhone}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
+        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${raw}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
         res.json({ message: 'Taarifa za muuzaji zimesasishwa kikamilifu.', user: updatedUser });
     } catch (err) {
         console.error('[VENDOR PROFILE UPDATE ERROR]:', err);
@@ -984,16 +988,20 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
 // 9f. Get Vendor Profile & Products by Phone
 app.get('/api/vendor/profile/:phone', async (req, res) => {
     try {
-        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const user = await User.findOne({ phone: cleanPhone });
+        const raw = req.params.phone.trim().replace(/[\s\-]/g, '');
+        const norm0 = raw.startsWith('255') ? '0' + raw.slice(3) : raw;
+        const norm255 = raw.startsWith('0') ? '255' + raw.slice(1) : raw;
+        const phoneVariants = [raw, norm0, norm255];
+
+        const user = await User.findOne({ phone: { $in: phoneVariants } });
         if (!user) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
-        const products = await Product.find({ vendorPhone: cleanPhone }).sort({ createdAt: -1 });
+        const products = await Product.find({ vendorPhone: { $in: phoneVariants } }).sort({ createdAt: -1 });
         res.json({
             vendor: {
                 name: user.name,
                 phone: user.phone,
                 shopName: user.shopName,
-                avatar: user.avatar || 'pics/12.png',
+                avatar: user.avatar || 'mall/genge-mall-logo.jpg',
                 bio: user.bio || '',
                 package: user.package,
                 status: user.status

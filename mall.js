@@ -613,7 +613,7 @@ function getVendorForProduct(item) {
             phone: cleanPhone,
             rawPhone: rawPhone,
             nida: item.vendorNida || item.vendorNidaOrTin || 'NIDA Verified',
-            avatar: avatar || 'pics/12.png',
+            avatar: avatar || 'mall/genge-mall-logo.jpg',
             bio: bio,
             followersCount: item.followersCount || '2.3k',
             location: location
@@ -1645,6 +1645,25 @@ window.clearMallSearch = function() {
     renderMallProducts();
 };
 
+// Fetch vendor products dynamically from MongoDB database
+async function fetchServerMallProducts() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/products?t=` + Date.now());
+        if (res.ok) {
+            const allProducts = await res.json();
+            if (Array.isArray(allProducts)) {
+                // Keep only vendor products or products meant for mall departments
+                serverMallProducts = allProducts.filter(p => {
+                    return p.vendorPhone || p.dept || ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'].includes(p.category);
+                });
+                renderMallProducts();
+            }
+        }
+    } catch (e) {
+        console.warn('Could not fetch server mall products:', e);
+    }
+}
+
 // Render Products to Grid (Instagram Style Social Cards)
 function renderMallProducts() {
     const grid = document.getElementById('mall-products-grid');
@@ -1719,7 +1738,7 @@ function renderMallProducts() {
         const instHeaderHtml = `
             <div class="inst-card-header">
                 <div class="inst-vendor-info" onclick="openVendorProfileModal('${vendorPhone}', '${item.id}')" title="Bonyeza kuona profile ya duka">
-                    <img src="${vendorAvatar}" alt="${vendorShop}" class="inst-avatar" onerror="this.src='pics/12.png'">
+                    <img src="${vendorAvatar || 'mall/genge-mall-logo.jpg'}" alt="${vendorShop}" class="inst-avatar" onerror="this.src='mall/genge-mall-logo.jpg'">
                     <div class="inst-vendor-name">
                         <span>${vendorShop}</span>
                         <ion-icon name="checkmark-circle" class="inst-verified-icon" title="NIDA Imethibitishwa"></ion-icon>
@@ -1887,7 +1906,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             ownerName: refProd.vendorName || customShopName,
             phone: cleanPhone,
             nida: refProd.vendorNidaOrTin || 'NIDA Verified',
-            avatar: customAvatar || 'pics/12.png',
+            avatar: customAvatar || 'mall/genge-mall-logo.jpg',
             bio: customBio,
             followersCount: refProd.followersCount || '1.8k',
             location: customLocation
@@ -1913,7 +1932,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     // Populate Modal UI with THIS vendor's exact details
     const avatarEl = document.getElementById('vp-modal-avatar');
-    if (avatarEl) avatarEl.src = v.avatar || 'pics/12.png';
+    if (avatarEl) avatarEl.src = v.avatar || 'mall/genge-mall-logo.jpg';
     const shopEl = document.getElementById('vp-modal-shop');
     if (shopEl) shopEl.textContent = v.shopName || v.name;
     const ownerEl = document.getElementById('vp-modal-owner');

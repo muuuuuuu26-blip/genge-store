@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     // Vendor Specific Fields
     nidaOrTin: { type: String, default: '' },
     shopName: { type: String, default: '' },
-    avatar: { type: String, default: 'pics/12.png' },
+    avatar: { type: String, default: 'mall/genge-mall-logo.jpg' },
     bio: { type: String, default: 'Sisi ni wauzaji waaminifu katika Genge Mall.' },
     
     // Vendor Subscription Package
