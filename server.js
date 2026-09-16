@@ -127,8 +127,31 @@ const initialProducts = [
 // 1. Get all products (with auto-seed if database is empty)
 app.get('/api/products', async (req, res) => {
     try {
-        let products = await Product.find({ isVendorActive: { $ne: false } });
-        if (products.length === 0) {
+        const { scope } = req.query;
+        let filter = { isVendorActive: { $ne: false } };
+
+        const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama'];
+        const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
+
+        if (scope === 'mall') {
+            filter = {
+                isVendorActive: { $ne: false },
+                $or: [
+                    { vendorPhone: { $exists: true, $ne: '' } },
+                    { dept: { $in: mallCategories } },
+                    { category: { $in: mallCategories } }
+                ],
+                category: { $nin: freshCategories }
+            };
+        } else if (scope === 'fresh') {
+            filter = {
+                isVendorActive: { $ne: false },
+                category: { $in: freshCategories }
+            };
+        }
+
+        let products = await Product.find(filter);
+        if (products.length === 0 && (!scope || scope === 'fresh')) {
             console.log('[AUTO-SEED] Seeding initial products into database...');
             products = await Product.insertMany(initialProducts);
         }

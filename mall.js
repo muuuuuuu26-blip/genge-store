@@ -1683,13 +1683,23 @@ window.clearMallSearch = function() {
 // Fetch vendor products dynamically from MongoDB database
 async function fetchServerMallProducts() {
     try {
-        const res = await fetch(`${BACKEND_URL}/api/products?t=` + Date.now());
+        const res = await fetch(`${BACKEND_URL}/api/products?scope=mall&t=` + Date.now());
         if (res.ok) {
             const allProducts = await res.json();
             if (Array.isArray(allProducts)) {
-                // Keep only vendor products or products meant for mall departments
+                const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama'];
+                const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
+
+                // Strictly keep only Mall products and never allow Genge Fresh food items
                 serverMallProducts = allProducts.filter(p => {
-                    return p.vendorPhone || p.dept || ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'].includes(p.category);
+                    const cat = (p.category || '').toLowerCase();
+                    const dept = (p.dept || '').toLowerCase();
+
+                    // Never include fresh food items
+                    if (freshCategories.includes(cat) || freshCategories.includes(dept)) return false;
+
+                    // Must be a vendor product or belonging to a Mall category
+                    return (p.vendorPhone && p.vendorPhone.trim().length > 0) || mallCategories.includes(cat) || mallCategories.includes(dept);
                 });
                 renderMallProducts();
             }
