@@ -200,7 +200,7 @@ async function loadPackagesFromAPI() {
 
 async function loadProductsFromAPI() {
     try {
-        const res = await fetch(API_URL + '/api/products?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(API_URL + '/api/products?scope=fresh&t=' + Date.now(), { cache: 'no-store' });
         if (res.ok) {
             customProducts = await res.json();
             renderCustomProducts('all');

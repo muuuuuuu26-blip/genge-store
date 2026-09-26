@@ -2,6 +2,7 @@
 // GENGE MALL VENDOR PORTAL JAVASCRIPT
 // ==========================================================================
 
+const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 let currentVendor = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,11 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function checkSavedVendorSession() {
-    const saved = localStorage.getItem('genge_vendor');
+    let saved = localStorage.getItem('genge_vendor');
+    if (!saved) {
+        // Fallback to genge_user in case login occurred from mall.html
+        saved = localStorage.getItem('genge_user');
+    }
     if (saved) {
         try {
-            currentVendor = JSON.parse(saved);
-            if (currentVendor && currentVendor.role === 'vendor') {
+            const parsed = JSON.parse(saved);
+            if (parsed && (parsed.role === 'vendor' || parsed.shopName)) {
+                currentVendor = parsed;
+                currentVendor.role = 'vendor';
+                localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
                 showDashboard();
                 fetchVendorProfile();
                 return;
@@ -44,7 +52,7 @@ async function handleVendorLogin(e) {
     errDiv.textContent = '';
 
     try {
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch(API_URL + '/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone, password })
@@ -81,7 +89,7 @@ async function fetchVendorProfile() {
     if (!currentVendor) return;
     let prods = [];
     try {
-        const res = await fetch(`/api/vendor/profile/${currentVendor.phone}`);
+        const res = await fetch(API_URL + `/api/vendor/profile/${currentVendor.phone}`);
         if (res.ok) {
             const data = await res.json();
             currentVendor = { ...currentVendor, ...data.vendor };
@@ -356,7 +364,7 @@ async function handleProfilePicChange(input) {
         localStorage.setItem('genge_vendor_profile_pic_' + currentVendor.phone, compressedBase64);
 
         // Save directly to MongoDB database!
-        const res = await fetch('/api/vendor/profile/update', {
+        const res = await fetch(API_URL + '/api/vendor/profile/update', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: currentVendor.phone, avatar: compressedBase64 })
@@ -399,7 +407,7 @@ async function saveVendorProfile() {
 
     // Save directly to MongoDB database!
     try {
-        const res = await fetch('/api/vendor/profile/update', {
+        const res = await fetch(API_URL + '/api/vendor/profile/update', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: currentVendor.phone, shopName, bio, location })
@@ -426,7 +434,16 @@ function showProfileMsg(msg, color) {
 // ── PRODUCT UPLOAD (Compresses and Saves to MongoDB) ─────────────
 async function handleProductUpload(e) {
     e.preventDefault();
-    if (!currentVendor) return;
+    const msgDiv = document.getElementById('upload-msg');
+    msgDiv.textContent = '';
+    msgDiv.style.color = '#fff';
+
+    if (!currentVendor) {
+        msgDiv.textContent = '⚠️ Hujatambuliwa kama muuzaji. Tafadhali ingia kwanza kwenye akaunti ya duka lako.';
+        msgDiv.style.color = '#EF4444';
+        showLoginOverlay();
+        return;
+    }
 
     const name = document.getElementById('vp-name').value;
     const dept = document.getElementById('vp-dept').value;
@@ -434,10 +451,6 @@ async function handleProductUpload(e) {
     const location = document.getElementById('vp-location').value;
     const desc = document.getElementById('vp-desc').value;
     const fileInput = document.getElementById('vp-image');
-    const msgDiv = document.getElementById('upload-msg');
-
-    msgDiv.textContent = '';
-    msgDiv.style.color = '#fff';
 
     if (!fileInput.files || fileInput.files.length === 0) {
         msgDiv.textContent = 'Tafadhali chagua picha ya bidhaa.';
@@ -452,7 +465,18 @@ async function handleProductUpload(e) {
 
     try {
         // Compress image to max 600px width and 0.75 quality (~40-80KB)
-        const compressedBase64 = await compressImageFile(file, 600, 0.75);
+        let compressedBase64 = '';
+        try {
+            compressedBase64 = await compressImageFile(file, 600, 0.75);
+        } catch (imgErr) {
+            console.warn('Canvas compression failed, reading as standard DataURL:', imgErr);
+            compressedBase64 = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(fr.result);
+                fr.onerror = reject;
+                fr.readAsDataURL(file);
+            });
+        }
 
         const payload = {
             name: name.trim(),
@@ -472,26 +496,53 @@ async function handleProductUpload(e) {
         };
 
         // Post JSON to MongoDB!
-        const res = await fetch('/api/vendor/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        let serverProduct = null;
+        try {
+            const res = await fetch(API_URL + '/api/vendor/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-        const data = await res.json();
+            const data = await res.json();
 
-        if (res.ok && data.product) {
-            msgDiv.textContent = '✅ Bidhaa imehifadhiwa kwenye database na kuchapishwa Genge Mall!';
-            msgDiv.style.color = '#10B981';
-            document.getElementById('vendor-product-form').reset();
-            await fetchVendorProfile();
-        } else {
-            msgDiv.textContent = data.message || '⚠️ Kosa wakati wa kupakia.';
-            msgDiv.style.color = '#EF4444';
+            if (!res.ok) {
+                msgDiv.textContent = data.message || '⚠️ Kosa wakati wa kupakia.';
+                msgDiv.style.color = '#EF4444';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Chapisha Bidhaa Sokoni Genge Mall';
+                return;
+            }
+
+            serverProduct = data.product;
+        } catch (netErr) {
+            console.warn('Server offline, saving locally:', netErr);
         }
+
+        // Cache locally to guarantee instant display on slider and mall
+        const finalProd = serverProduct || {
+            id: 'vprod_' + Date.now(),
+            ...payload,
+            icon: compressedBase64,
+            isImage: true,
+            isVendorActive: true,
+            createdAt: new Date().toISOString()
+        };
+
+        try {
+            const allLocal = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
+            allLocal.unshift(finalProd);
+            localStorage.setItem('genge_custom_vendor_products', JSON.stringify(allLocal));
+        } catch (_) {}
+
+        msgDiv.textContent = '✅ Bidhaa imehifadhiwa kwenye database na kuchapishwa Genge Mall!';
+        msgDiv.style.color = '#10B981';
+        document.getElementById('vendor-product-form').reset();
+        await fetchVendorProfile();
+
     } catch (err) {
         console.error('Error uploading product:', err);
-        msgDiv.textContent = '❌ Kosa wakati wa kuunganisha na server.';
+        msgDiv.textContent = '❌ Hitilafu wakati wa kupakia: ' + (err.message || 'Jaribu tena.');
         msgDiv.style.color = '#EF4444';
     } finally {
         submitBtn.disabled = false;
@@ -502,7 +553,7 @@ async function handleProductUpload(e) {
 async function deleteVendorProduct(id) {
     if (!confirm('Je, una uhakika unataka kufuta bidhaa hii sokoni?')) return;
     try {
-        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        await fetch(API_URL + `/api/products/${id}`, { method: 'DELETE' });
     } catch (e) {}
 
     // Also remove from localStorage

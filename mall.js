@@ -1694,7 +1694,7 @@ async function fetchServerMallProducts() {
         if (res.ok) {
             const allProducts = await res.json();
             if (Array.isArray(allProducts)) {
-                const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama'];
+                const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
                 const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
 
                 // Strictly keep only Mall products and never allow Genge Fresh food items
@@ -2363,6 +2363,9 @@ window.loginToShop = async function(phone, password, shopName, btn) {
 function finishLogin(user) {
     currentUser = user;
     localStorage.setItem('genge_user', JSON.stringify(user));
+    if (user.role === 'vendor') {
+        localStorage.setItem('genge_vendor', JSON.stringify(user));
+    }
     updateHeaderAuthUI();
     closeAuthModal();
     showMallToast(`✅ Karibu ${user.shopName || user.name}! Umeingia kwenye Genge Mall.`);

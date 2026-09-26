@@ -197,14 +197,14 @@ app.get('/api/products', async (req, res) => {
         const { scope } = req.query;
         let filter = { isVendorActive: { $ne: false } };
 
-        const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama'];
+        const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
         const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
 
         if (scope === 'mall') {
             filter = {
                 isVendorActive: { $ne: false },
                 $or: [
-                    { vendorPhone: { $exists: true, $ne: '' } },
+                    { vendorPhone: { $exists: true, $nin: ['', null] } },
                     { dept: { $in: mallCategories } },
                     { category: { $in: mallCategories } }
                 ],
@@ -213,14 +213,25 @@ app.get('/api/products', async (req, res) => {
         } else if (scope === 'fresh') {
             filter = {
                 isVendorActive: { $ne: false },
-                category: { $in: freshCategories }
+                category: { $in: freshCategories },
+                $or: [
+                    { vendorPhone: { $exists: false } },
+                    { vendorPhone: '' },
+                    { vendorPhone: null }
+                ]
             };
         }
 
         let products = await Product.find(filter);
-        if (products.length === 0 && (!scope || scope === 'fresh')) {
-            console.log('[AUTO-SEED] Seeding initial products into database...');
-            products = await Product.insertMany(initialProducts);
+        if (!scope || scope === 'fresh') {
+            // Check specifically if Fresh products exist (separate from Mall vendor products)
+            const freshFilter = { isVendorActive: { $ne: false }, category: { $in: freshCategories } };
+            const freshCount = await Product.countDocuments(freshFilter);
+            if (freshCount === 0) {
+                console.log('[AUTO-SEED] Hakuna bidhaa za Fresh — Inaseed bidhaa za mwanzo...');
+                await Product.insertMany(initialProducts);
+                products = await Product.find(scope === 'fresh' ? freshFilter : filter);
+            }
         }
         res.json(products);
     } catch (err) {
@@ -545,6 +556,26 @@ app.patch('/api/products/:id/price', async (req, res) => {
         const product = await Product.findOneAndUpdate({ id: id }, { price: Number(price) }, { new: true });
         if (!product) return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
         res.json({ message: 'Bei imebadilishwa.', product });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 1d-3. Update product image
+app.post('/api/products/:id/image', upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) {
+            return res.status(400).json({ message: 'Tafadhali chagua picha.' });
+        }
+        const iconPath = 'pics/' + req.file.filename;
+        const product = await Product.findOneAndUpdate(
+            { id: id },
+            { icon: iconPath, isImage: true },
+            { new: true }
+        );
+        if (!product) return res.status(404).json({ message: 'Bidhaa haijapatikana.' });
+        res.json({ message: 'Picha ya bidhaa imesasishwa kikamilifu.', product });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
