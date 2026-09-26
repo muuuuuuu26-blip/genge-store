@@ -286,8 +286,11 @@ function buildVpsCard(p) {
                     <div class="vps-card-meta"><ion-icon name="location-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> ${loc}</div>
                     <div class="vps-card-price">${price}</div>
                     <div class="vps-card-actions">
+                        <button class="vps-share-btn" onclick="shareVendorProduct('${id}', '${title.replace(/'/g, "\\'")}', ${p.price || 0})">
+                            <ion-icon name="share-social-outline"></ion-icon> Shiriki
+                        </button>
                         <button class="vps-delete-btn" onclick="deleteVendorProduct('${id}')">
-                            <ion-icon name="trash-outline"></ion-icon> Futa Sokoni
+                            <ion-icon name="trash-outline"></ion-icon> Futa
                         </button>
                     </div>
                 </div>
@@ -535,8 +538,27 @@ async function handleProductUpload(e) {
             localStorage.setItem('genge_custom_vendor_products', JSON.stringify(allLocal));
         } catch (_) {}
 
-        msgDiv.textContent = '✅ Bidhaa imehifadhiwa kwenye database na kuchapishwa Genge Mall!';
-        msgDiv.style.color = '#10B981';
+        const shareUrl = getProductShareUrl(finalProd.id, currentVendor.phone);
+        const shopDisplayName = currentVendor.shopName || currentVendor.name || 'Duka Langu';
+        const shareText = `Habari! Nimechapisha bidhaa mpya "${finalProd.name}" kwa Tsh ${Number(finalProd.price).toLocaleString()} kwenye duka langu la ${shopDisplayName} ndani ya Genge Mall.\nBofya link hii kuagiza sasa:\n${shareUrl}`;
+
+        msgDiv.innerHTML = `
+            <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);border-radius:14px;padding:1.1rem;margin-top:0.8rem;text-align:left;">
+                <div style="color:#34d399;font-weight:800;font-size:0.95rem;margin-bottom:4px;">✅ Bidhaa imechapishwa kikamilifu Genge Mall!</div>
+                <div style="font-size:0.8rem;color:#cbd5e1;margin-bottom:12px;">Shiriki sasa kwenye mitandao ya kijamii ili wateja waje moja kwa moja kwenye duka lako:</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;">
+                        <ion-icon name="logo-whatsapp" style="font-size:1.1rem;"></ion-icon> Shiriki WhatsApp
+                    </a>
+                    <button type="button" onclick="shareVendorProduct('${finalProd.id}', '${finalProd.name.replace(/'/g, "\\'")}', ${finalProd.price})" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.25);font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer;">
+                        <ion-icon name="share-social-outline" style="font-size:1.1rem;"></ion-icon> Mitandao Zaidi...
+                    </button>
+                    <button type="button" onclick="copyDirectLink('${shareUrl}', this)" style="display:inline-flex;align-items:center;gap:6px;background:#10b981;color:#fff;border:none;font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer;">
+                        <ion-icon name="copy-outline" style="font-size:1.1rem;"></ion-icon> <span>Nakili Link</span>
+                    </button>
+                </div>
+            </div>
+        `;
         document.getElementById('vendor-product-form').reset();
         await fetchVendorProfile();
 
@@ -578,3 +600,117 @@ function requestPackageUpgrade(pkgName, price, maxProducts) {
     alert(`Ombi la kuboresha kifurushi cha ${pkgName} (Tsh ${price.toLocaleString()}) limetumwa kwa Utawala wa Genge! Tafadhali fanya malipo kwa M-Pesa/Tigo Pesa namba +255 799 689 961.`);
     closeUpgradePackageModal();
 }
+
+// ── SHARING SYSTEM (Deep-Linking to Mall) ─────────────────────────
+let activeShareData = null;
+
+function getProductShareUrl(productId, vendorPhone) {
+    const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
+        ? window.location.origin
+        : 'http://localhost:3000';
+    let path = window.location.pathname;
+    const lastSlash = path.lastIndexOf('/');
+    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
+    return `${origin}${basePath}mall.html?p=${encodeURIComponent(productId)}&shop=${encodeURIComponent(vendorPhone || '')}`;
+}
+
+window.shareVendorProduct = function(id, title, price) {
+    const phone = currentVendor ? currentVendor.phone : '';
+    const shop = currentVendor ? (currentVendor.shopName || currentVendor.name || 'Duka Langu') : 'Duka Langu';
+    const shareUrl = getProductShareUrl(id, phone);
+    const priceFormatted = `Tsh ${Number(price).toLocaleString()}`;
+    const shareText = `Habari! Tazama bidhaa hii mpya "${title}" kwa ${priceFormatted} kwenye duka langu la ${shop} ndani ya Genge Mall.\nBofya link hii kuagiza moja kwa moja au kuona bidhaa zangu zote:\n${shareUrl}`;
+
+    activeShareData = {
+        title,
+        shop,
+        price: priceFormatted,
+        url: shareUrl,
+        text: shareText
+    };
+
+    openShareModal(activeShareData);
+};
+
+function openShareModal(data) {
+    const modal = document.getElementById('vendor-share-modal');
+    if (!modal) return;
+
+    document.getElementById('share-modal-prod-title').textContent = data.title;
+    document.getElementById('share-modal-prod-price').textContent = data.price;
+    document.getElementById('share-link-input').value = data.url;
+
+    // Reset copy btn
+    const copyTxt = document.getElementById('share-copy-text');
+    if (copyTxt) copyTxt.textContent = 'Nakili';
+
+    // Set Social Links
+    const encodedText = encodeURIComponent(data.text);
+    const encodedUrl = encodeURIComponent(data.url);
+
+    const waBtn = document.getElementById('share-wa-btn');
+    if (waBtn) waBtn.href = `https://wa.me/?text=${encodedText}`;
+
+    const fbBtn = document.getElementById('share-fb-btn');
+    if (fbBtn) fbBtn.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+
+    const xBtn = document.getElementById('share-x-btn');
+    if (xBtn) xBtn.href = `https://twitter.com/intent/tweet?text=${encodedText}`;
+
+    const tgBtn = document.getElementById('share-tg-btn');
+    if (tgBtn) tgBtn.href = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+
+    const nativeBtn = document.getElementById('share-native-btn');
+    if (nativeBtn) {
+        if (navigator.share) {
+            nativeBtn.style.display = 'flex';
+        } else {
+            nativeBtn.style.display = 'none';
+        }
+    }
+
+    modal.style.display = 'flex';
+}
+
+window.closeShareModal = function() {
+    const modal = document.getElementById('vendor-share-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.copyShareModalLink = function() {
+    const input = document.getElementById('share-link-input');
+    if (!input) return;
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value).then(() => {
+        const copyTxt = document.getElementById('share-copy-text');
+        if (copyTxt) copyTxt.textContent = '✅ Imenakiliwa!';
+        setTimeout(() => { if (copyTxt) copyTxt.textContent = 'Nakili'; }, 3000);
+    }).catch(() => {
+        document.execCommand('copy');
+        const copyTxt = document.getElementById('share-copy-text');
+        if (copyTxt) copyTxt.textContent = '✅ Imenakiliwa!';
+        setTimeout(() => { if (copyTxt) copyTxt.textContent = 'Nakili'; }, 3000);
+    });
+};
+
+window.copyDirectLink = function(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+        const span = btn.querySelector('span');
+        if (span) span.textContent = '✅ Imenakiliwa!';
+        setTimeout(() => { if (span) span.textContent = 'Nakili Link'; }, 2500);
+    }).catch(() => {
+        const span = btn.querySelector('span');
+        if (span) span.textContent = '✅ Imenakiliwa!';
+        setTimeout(() => { if (span) span.textContent = 'Nakili Link'; }, 2500);
+    });
+};
+
+window.triggerNativeShare = function() {
+    if (!activeShareData || !navigator.share) return;
+    navigator.share({
+        title: activeShareData.title,
+        text: activeShareData.text,
+        url: activeShareData.url
+    }).catch(() => {});
+};

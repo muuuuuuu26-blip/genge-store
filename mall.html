@@ -18,7 +18,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=9">
+    <link rel="stylesheet" href="mall.css?v=10">
 </head>
 <body>
 
@@ -640,16 +640,31 @@
                         <a href="#" id="vp-modal-wa-btn" target="_blank" class="vp-wa-btn">
                             <ion-icon name="logo-whatsapp"></ion-icon> Chat WhatsApp
                         </a>
+                        <button type="button" class="vp-share-btn" id="vp-modal-share-btn" onclick="shareCurrentModalShop()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);padding:0.45rem 0.85rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;">
+                            <ion-icon name="share-social-outline"></ion-icon> Shiriki Duka
+                        </button>
                     </div>
                 </div>
             </div>
 
+            <!-- Targeted / Shared Product Box (Shown when visitor clicked a direct link) -->
+            <div id="vp-modal-target-box" style="display: none; background: rgba(16,185,129,0.1); border: 1.5px solid rgba(16,185,129,0.4); border-radius: 16px; padding: 1.1rem; margin-bottom: 1.5rem;">
+                <!-- Injected dynamically by JS -->
+            </div>
+
             <!-- Vendor Products Grid -->
             <div class="vprofile-products-sec">
-                <h3>Bidhaa Zote za Duka Hili</h3>
+                <h3 id="vp-modal-grid-heading">Bidhaa Zote za Duka Hili</h3>
                 <div class="vprofile-products-grid" id="vp-modal-products-grid">
                     <!-- Injected by JS -->
                 </div>
+            </div>
+
+            <!-- Browse Other Shops / All Mall CTA -->
+            <div style="text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                <button type="button" class="mall-primary-cta" onclick="closeVendorProfileModal(); window.scrollTo({top: 450, behavior: 'smooth'});" style="padding: 0.75rem 2rem; border-radius: 30px; font-size: 0.95rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
+                    <ion-icon name="storefront-outline" style="font-size: 1.2rem;"></ion-icon> Vinjari Maduka na Bidhaa Nyingine Sokoni
+                </button>
             </div>
         </div>
     </div>
@@ -683,6 +698,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=18"></script>
+    <script src="mall.js?v=19"></script>
 </body>
 </html>

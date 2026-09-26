@@ -657,6 +657,15 @@ function initMallApp() {
             openAuthModal('register');
         }, 400);
     }
+
+    // Deep-linking: ?p=... or ?product=... or ?shop=...
+    const targetProduct = urlParams.get('p') || urlParams.get('product');
+    const targetShop = urlParams.get('shop') || urlParams.get('vendor');
+    if (targetProduct || targetShop) {
+        setTimeout(() => {
+            handleMallDeepLink(targetProduct, targetShop);
+        }, 500);
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -1709,6 +1718,14 @@ async function fetchServerMallProducts() {
                     return (p.vendorPhone && p.vendorPhone.trim().length > 0) || mallCategories.includes(cat) || mallCategories.includes(dept);
                 });
                 renderMallProducts();
+
+                // Check if deep link is waiting for server products
+                const urlParams = new URLSearchParams(window.location.search);
+                const targetProduct = urlParams.get('p') || urlParams.get('product');
+                const targetShop = urlParams.get('shop') || urlParams.get('vendor');
+                if (targetProduct || targetShop) {
+                    handleMallDeepLink(targetProduct, targetShop);
+                }
             }
         }
     } catch (e) {
@@ -1774,6 +1791,8 @@ function renderMallProducts() {
         const card = document.createElement('div');
         card.className = 'mall-card glass-panel';
 
+        card.id = 'mall-card-' + item.id;
+
         const itemTitle = item.title || item.name;
         const itemImage = item.image || item.icon;
         const deptKey = item.dept || item.category || 'nyumba';
@@ -1814,12 +1833,15 @@ function renderMallProducts() {
                     <ion-icon name="${isLiked ? 'heart' : 'heart-outline'}"></ion-icon>
                     <span class="like-count">${likeCount}</span> Likes
                 </button>
-                <div style="display:flex;gap:6px;">
-                    <a href="https://wa.me/${vendorPhone}?text=${waMsg}" target="_blank" class="btn-card-wa" style="padding:0.45rem 0.8rem;font-size:0.8rem;">
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <a href="https://wa.me/${vendorPhone}?text=${waMsg}" target="_blank" class="btn-card-wa" style="padding:0.45rem 0.75rem;font-size:0.8rem;">
                         <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp
                     </a>
-                    <button type="button" class="btn-card-cart" style="padding:0.45rem 0.8rem;font-size:0.8rem;" onclick="addToMallCart('${item.id}')">
+                    <button type="button" class="btn-card-cart" style="padding:0.45rem 0.75rem;font-size:0.8rem;" onclick="addToMallCart('${item.id}')">
                         <ion-icon name="cart-outline"></ion-icon> Kapu
+                    </button>
+                    <button type="button" class="btn-card-share" onclick="shareMallProduct('${item.id}', '${itemTitle.replace(/'/g, "\\'")}', '${vendorShop.replace(/'/g, "\\'")}', ${item.price}, '${vendorPhone}')" title="Shiriki Bidhaa Hii">
+                        <ion-icon name="share-social-outline"></ion-icon>
                     </button>
                 </div>
             </div>
@@ -1976,7 +1998,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     // Try API if available
     try {
-        const res = await fetch(`/api/vendor/profile/${cleanPhone}`);
+        const res = await fetch(`${BACKEND_URL}/api/vendor/profile/${cleanPhone}`);
         if (res.ok) {
             const data = await res.json();
             if (data.vendor) {
@@ -1989,6 +2011,8 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             }
         }
     } catch (e) {}
+
+    currentModalVendor = v;
 
     // Populate Modal UI with THIS vendor's exact details
     const avatarEl = document.getElementById('vp-modal-avatar');
@@ -2003,6 +2027,49 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     if (ownerEl) ownerEl.textContent = 'Mwenye Duka: ' + (v.ownerName || v.shopName || 'Genge Merchant');
     const bioEl = document.getElementById('vp-modal-bio');
     if (bioEl) bioEl.textContent = v.bio || 'Wauzaji waaminifu Genge Mall';
+
+    // Highlight Targeted Product if accessed directly or clicked
+    const targetBox = document.getElementById('vp-modal-target-box');
+    const gridHeading = document.getElementById('vp-modal-grid-heading');
+    const cleanVPhone = formatWhatsAppPhone(v.phone || cleanPhone);
+
+    if (clickedItem && targetBox) {
+        const tTitle = clickedItem.title || clickedItem.name;
+        const tImg = clickedItem.image || clickedItem.icon;
+        const tPrice = formatTZS(clickedItem.price);
+        const tWaMsg = encodeURIComponent(`Habari ${v.shopName}, nimevutiwa na bidhaa hii Genge Mall: ${tTitle} (${tPrice}). Tafadhali naomba utaratibu wa kuipata.`);
+
+        targetBox.style.display = 'block';
+        targetBox.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;gap:6px;color:#34d399;font-size:0.82rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;">
+                    <ion-icon name="sparkles" style="font-size:1.1rem;color:#10b981;"></ion-icon> Bidhaa Uliyoichagua:
+                </div>
+                <button type="button" onclick="shareMallProduct('${clickedItem.id}', '${tTitle.replace(/'/g, "\\'")}', '${v.shopName.replace(/'/g, "\\'")}', ${clickedItem.price}, '${cleanVPhone}')" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#38bdf8;padding:4px 9px;border-radius:6px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
+                    <ion-icon name="share-social-outline"></ion-icon> Shiriki
+                </button>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:0.75rem;">
+                <img src="${tImg}" alt="${tTitle}" style="width:78px;height:78px;object-fit:cover;border-radius:10px;flex-shrink:0;" onerror="this.src='pics/15.png'">
+                <div style="flex:1;min-width:0;">
+                    <h4 style="margin:0 0 3px;font-size:0.95rem;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tTitle}</h4>
+                    <div style="color:#10b981;font-weight:900;font-size:1.05rem;margin-bottom:7px;">${tPrice}</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <a href="https://wa.me/${cleanVPhone}?text=${tWaMsg}" target="_blank" class="btn-card-wa" style="padding:0.4rem 0.85rem;font-size:0.78rem;">
+                            <ion-icon name="logo-whatsapp"></ion-icon> Agiza Moja kwa Moja
+                        </a>
+                        <button type="button" class="btn-card-cart" style="padding:0.4rem 0.85rem;font-size:0.78rem;" onclick="addToMallCart('${clickedItem.id}')">
+                            <ion-icon name="cart-outline"></ion-icon> Weka Kapuni
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        if (gridHeading) gridHeading.textContent = 'Tazama Pia Bidhaa Nyingine za Duka Hili:';
+    } else if (targetBox) {
+        targetBox.style.display = 'none';
+        if (gridHeading) gridHeading.textContent = 'Bidhaa Zote za Duka Hili';
+    }
 
     // STRICT ISOLATION OF PRODUCTS:
     // If it's a custom vendor: ONLY show products uploaded by this exact vendor phone!
@@ -2022,6 +2089,9 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         });
     }
 
+    // If a product is already featured in targetBox, don't duplicate it in the other products grid
+    let otherProds = clickedItem ? vendorProds.filter(p => p.id !== clickedItem.id) : vendorProds;
+
     const prodCountEl = document.getElementById('vp-modal-prod-count');
     if (prodCountEl) prodCountEl.textContent = vendorProds.length;
     const followersEl = document.getElementById('vp-modal-followers-count');
@@ -2029,16 +2099,14 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     const waBtn = document.getElementById('vp-modal-wa-btn');
     if (waBtn) {
-        const cleanVPhone = formatWhatsAppPhone(v.phone || cleanPhone);
         const waHello = encodeURIComponent(`Habari ${v.shopName}, nimeona duka lenu Genge Mall na nina maswali kuhusu bidhaa zenu.`);
         waBtn.href = `https://wa.me/${cleanVPhone}?text=${waHello}`;
     }
 
     const grid = document.getElementById('vp-modal-products-grid');
     if (grid) {
-        if (vendorProds.length > 0) {
-            const cleanVPhone = formatWhatsAppPhone(v.phone || cleanPhone);
-            grid.innerHTML = vendorProds.map(p => {
+        if (otherProds.length > 0) {
+            grid.innerHTML = otherProds.map(p => {
                 const pTitle = p.title || p.name;
                 const pImg = p.image || p.icon;
                 return `
@@ -2057,6 +2125,8 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                     </div>
                 `;
             }).join('');
+        } else if (clickedItem) {
+            grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:1.5rem;font-size:0.85rem;">Hii ndio bidhaa iliyopo kwa sasa kutoka duka hili.</p>';
         } else {
             grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;">Bado hakuna bidhaa zilizopakiwa na duka hili.</p>';
         }
@@ -2081,6 +2151,108 @@ window.closeVendorProfileModal = function() {
 window.toggleFollowVendorModal = function() {
     if (modalVendorPhone) {
         toggleFollowVendor(modalVendorPhone);
+    }
+};
+
+// ── SOCIAL SHARING & DEEP LINKING SYSTEM ─────────────────────────
+let deepLinkProcessed = false;
+
+function handleMallDeepLink(productId, shopPhone) {
+    if (deepLinkProcessed) return;
+
+    const combinedAll = [...serverMallProducts, ...mallProducts];
+    if (combinedAll.length === 0) return;
+
+    let targetItem = null;
+    if (productId) {
+        targetItem = combinedAll.find(p => String(p.id) === String(productId));
+    }
+
+    if (targetItem) {
+        deepLinkProcessed = true;
+
+        // Reset department to 'all' so card is rendered and not filtered out
+        if (typeof selectedDept !== 'undefined' && selectedDept !== 'all') {
+            if (typeof selectDepartment === 'function') {
+                selectDepartment('all');
+            }
+        }
+
+        // Scroll to card and highlight with glow
+        setTimeout(() => {
+            const cardEl = document.getElementById('mall-card-' + targetItem.id);
+            if (cardEl) {
+                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                cardEl.classList.add('card-highlight-glow');
+                setTimeout(() => cardEl.classList.remove('card-highlight-glow'), 6000);
+            }
+        }, 350);
+
+        // Open vendor modal featuring this exact product
+        setTimeout(() => {
+            const phone = targetItem.vendorPhone || shopPhone || '';
+            openVendorProfileModal(phone, targetItem.id);
+        }, 700);
+        return;
+    }
+
+    if (shopPhone) {
+        deepLinkProcessed = true;
+        setTimeout(() => {
+            openVendorProfileModal(shopPhone, null);
+        }, 500);
+    }
+}
+
+window.shareMallProduct = function(productId, title, shopName, price, vendorPhone) {
+    const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
+        ? window.location.origin
+        : 'http://localhost:3000';
+    let path = window.location.pathname;
+    const lastSlash = path.lastIndexOf('/');
+    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
+    const shareUrl = `${origin}${basePath}mall.html?p=${encodeURIComponent(productId)}&shop=${encodeURIComponent(vendorPhone || '')}`;
+    const priceFormatted = formatTZS(price);
+    const shareText = `Habari! Tazama "${title}" kwa ${priceFormatted} kwenye duka la ${shopName} ndani ya Genge Mall!\nBofya link hii kuagiza au kuona bidhaa zote:\n${shareUrl}`;
+
+    if (navigator.share) {
+        navigator.share({
+            title: `${title} - ${shopName}`,
+            text: shareText,
+            url: shareUrl
+        }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showMallToast('✅ Link ya bidhaa imenakiliwa! Unaweza kuishare mitandaoni.');
+        }).catch(() => {
+            prompt('Nakili kiungo cha bidhaa hii:', shareUrl);
+        });
+    }
+};
+
+window.shareCurrentModalShop = function() {
+    if (!currentModalVendor) return;
+    const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
+        ? window.location.origin
+        : 'http://localhost:3000';
+    let path = window.location.pathname;
+    const lastSlash = path.lastIndexOf('/');
+    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
+    const shopUrl = `${origin}${basePath}mall.html?shop=${encodeURIComponent(currentModalVendor.phone || '')}`;
+    const shopText = `Tembelea duka la "${currentModalVendor.shopName}" ndani ya Genge Mall kuona bidhaa zetu zote!\nBofya link hii:\n${shopUrl}`;
+
+    if (navigator.share) {
+        navigator.share({
+            title: currentModalVendor.shopName,
+            text: shopText,
+            url: shopUrl
+        }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(shopUrl).then(() => {
+            showMallToast('✅ Kiungo cha duka hili kimenakiliwa!');
+        }).catch(() => {
+            prompt('Nakili link ya duka hili:', shopUrl);
+        });
     }
 };
 

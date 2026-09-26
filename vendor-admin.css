@@ -844,6 +844,8 @@ body {
 .vps-card-actions { display: flex; gap: 6px; margin-top: 4px; }
 .vps-delete-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #f87171; font-size: 0.78rem; font-weight: 700; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .vps-delete-btn:hover { background: #ef4444; color: #fff; }
+.vps-share-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #34d399; font-size: 0.78rem; font-weight: 700; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.vps-share-btn:hover { background: #10b981; color: #fff; }
 .vps-nav-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px 4px; gap: 8px; }
 .vps-nav-btn { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.07); border: 1px solid var(--border-color); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1rem; flex-shrink: 0; }
 .vps-nav-btn:hover { background: var(--primary); border-color: var(--primary); }

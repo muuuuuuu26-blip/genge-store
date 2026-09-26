@@ -825,6 +825,39 @@ body {
     color: #ffffff;
 }
 
+.btn-card-share {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #cbd5e1;
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.btn-card-share:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    transform: translateY(-2px);
+}
+
+@keyframes cardGlowPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); border-color: #10b981; }
+    50% { box-shadow: 0 0 30px 10px rgba(16, 185, 129, 0.5); border-color: #34d399; }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.card-highlight-glow {
+    animation: cardGlowPulse 1.8s ease-in-out 3;
+    border: 2px solid #10b981 !important;
+}
+
 /* ── Instagram-Style Product Card ─────────────────────────── */
 .inst-card-header {
     display: flex;
