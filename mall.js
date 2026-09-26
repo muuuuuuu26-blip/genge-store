@@ -1292,7 +1292,7 @@ function initSponsoredSlider() {
         {
             id: 'sp-03',
             shopName: 'Kariakoo Smart Tech & Appliances',
-            vendorPhone: '255675583884',
+            vendorPhone: '255752112233',
             verified: true,
             badgeText: '⭐ GOLD VIP VENDOR',
             title: 'Samsung Smart 4K UHD Frameless TV (55 Inch)',
@@ -1338,7 +1338,7 @@ function renderSponsoredSlides() {
         return `
             <div class="sponsored-slide-card" data-index="${idx}">
                 <div class="slide-img-box">
-                    <img src="${item.image}" alt="${item.title}" loading="lazy" onerror="this.src='pics/15.png'">
+                    <img src="${item.image}" alt="${item.title}" loading="lazy" onerror="this.src='mall/genge-mall-logo.jpg'">
                     <div class="slide-gold-ribbon">
                         <ion-icon name="sparkles"></ion-icon> ${item.badgeText}
                     </div>
@@ -1850,7 +1850,7 @@ function renderMallProducts() {
         card.innerHTML = `
             ${instHeaderHtml}
             <div class="mall-card-img-wrap">
-                <img src="${itemImage}" alt="${itemTitle}" loading="lazy" class="mall-card-img" onerror="this.src='pics/15.png'">
+                <img src="${itemImage}" alt="${itemTitle}" loading="lazy" class="mall-card-img" onerror="this.src='mall/genge-mall-logo.jpg'">
                 ${item.badge ? `<span class="mall-badge ${item.badgeClass || 'badge-rent'}">${item.badge}</span>` : ''}
             </div>
             <div class="mall-card-body">
@@ -2050,7 +2050,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                 </button>
             </div>
             <div style="display:flex;gap:12px;align-items:center;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:0.75rem;">
-                <img src="${tImg}" alt="${tTitle}" style="width:78px;height:78px;object-fit:cover;border-radius:10px;flex-shrink:0;" onerror="this.src='pics/15.png'">
+                <img src="${tImg}" alt="${tTitle}" style="width:78px;height:78px;object-fit:cover;border-radius:10px;flex-shrink:0;" onerror="this.src='mall/genge-mall-logo.jpg'">
                 <div style="flex:1;min-width:0;">
                     <h4 style="margin:0 0 3px;font-size:0.95rem;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tTitle}</h4>
                     <div style="color:#10b981;font-weight:900;font-size:1.05rem;margin-bottom:7px;">${tPrice}</div>
@@ -2111,7 +2111,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                 const pImg = p.image || p.icon;
                 return `
                     <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;padding:0.7rem;display:flex;flex-direction:column;gap:6px;">
-                        <img src="${pImg}" alt="${pTitle}" style="width:100%;height:130px;object-fit:cover;border-radius:8px;" onerror="this.src='pics/15.png'">
+                        <img src="${pImg}" alt="${pTitle}" style="width:100%;height:130px;object-fit:cover;border-radius:8px;" onerror="this.src='mall/genge-mall-logo.jpg'">
                         <h4 style="font-size:0.85rem;margin:0.2rem 0;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pTitle}</h4>
                         <div style="color:var(--primary);font-weight:800;font-size:0.95rem;">${formatTZS(p.price)}</div>
                         <div style="display:flex;gap:4px;margin-top:auto;">
@@ -2333,7 +2333,7 @@ function updateMallCartUI() {
         const row = document.createElement('div');
         row.className = 'mall-cart-item';
         row.innerHTML = `
-            <img src="${item.image}" alt="${item.title}" class="cart-item-img" onerror="this.src='pics/15.png'">
+            <img src="${item.image}" alt="${item.title}" class="cart-item-img" onerror="this.src='mall/genge-mall-logo.jpg'">
             <div class="cart-item-info">
                 <div class="cart-item-title">${item.title}</div>
                 <div class="cart-item-price">${formatTZS(item.price)}</div>
