@@ -470,6 +470,7 @@ let mallCart = [];
 
 let currentUser = null;
 let serverMallProducts = [];
+let serverProductsLoadingPromise = null;
 let modalVendorPhone = null;
 
 // Realistic Tanzanian Vendor Profiles by Category
@@ -658,13 +659,15 @@ function initMallApp() {
         }, 400);
     }
 
-    // Deep-linking: ?p=... or ?product=... or ?shop=...
+    // Deep-linking: wait for server products; fallback after 3.5s if offline
     const targetProduct = urlParams.get('p') || urlParams.get('product');
     const targetShop = urlParams.get('shop') || urlParams.get('vendor');
     if (targetProduct || targetShop) {
         setTimeout(() => {
-            handleMallDeepLink(targetProduct, targetShop);
-        }, 500);
+            if (!deepLinkProcessed) {
+                handleMallDeepLink(targetProduct, targetShop);
+            }
+        }, 3500);
     }
 }
 
@@ -1697,40 +1700,43 @@ window.clearMallSearch = function() {
 };
 
 // Fetch vendor products dynamically from MongoDB database
-async function fetchServerMallProducts() {
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/products?scope=mall&t=` + Date.now());
-        if (res.ok) {
-            const allProducts = await res.json();
-            if (Array.isArray(allProducts)) {
-                const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
-                const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
+function fetchServerMallProducts() {
+    serverProductsLoadingPromise = (async () => {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/products?scope=mall&t=` + Date.now());
+            if (res.ok) {
+                const allProducts = await res.json();
+                if (Array.isArray(allProducts)) {
+                    const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
+                    const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
 
-                // Strictly keep only Mall products and never allow Genge Fresh food items
-                serverMallProducts = allProducts.filter(p => {
-                    const cat = (p.category || '').toLowerCase();
-                    const dept = (p.dept || '').toLowerCase();
+                    // Strictly keep only Mall products and never allow Genge Fresh food items
+                    serverMallProducts = allProducts.filter(p => {
+                        const cat = (p.category || '').toLowerCase();
+                        const dept = (p.dept || '').toLowerCase();
 
-                    // Never include fresh food items
-                    if (freshCategories.includes(cat) || freshCategories.includes(dept)) return false;
+                        // Never include fresh food items
+                        if (freshCategories.includes(cat) || freshCategories.includes(dept)) return false;
 
-                    // Must be a vendor product or belonging to a Mall category
-                    return (p.vendorPhone && p.vendorPhone.trim().length > 0) || mallCategories.includes(cat) || mallCategories.includes(dept);
-                });
-                renderMallProducts();
+                        // Must be a vendor product or belonging to a Mall category
+                        return (p.vendorPhone && p.vendorPhone.trim().length > 0) || mallCategories.includes(cat) || mallCategories.includes(dept);
+                    });
+                    renderMallProducts();
 
-                // Check if deep link is waiting for server products
-                const urlParams = new URLSearchParams(window.location.search);
-                const targetProduct = urlParams.get('p') || urlParams.get('product');
-                const targetShop = urlParams.get('shop') || urlParams.get('vendor');
-                if (targetProduct || targetShop) {
-                    handleMallDeepLink(targetProduct, targetShop);
+                    // Check if deep link is waiting for server products
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const targetProduct = urlParams.get('p') || urlParams.get('product');
+                    const targetShop = urlParams.get('shop') || urlParams.get('vendor');
+                    if (targetProduct || targetShop) {
+                        handleMallDeepLink(targetProduct, targetShop);
+                    }
                 }
             }
+        } catch (e) {
+            console.warn('Could not fetch server mall products:', e);
         }
-    } catch (e) {
-        console.warn('Could not fetch server mall products:', e);
-    }
+    })();
+    return serverProductsLoadingPromise;
 }
 
 // Render Products to Grid (Instagram Style Social Cards)
@@ -1931,8 +1937,13 @@ window.toggleFollowVendor = async function(vendorPhone) {
 window.openVendorProfileModal = async function(phone, productIdOrDept) {
     const modal = document.getElementById('vendor-profile-modal');
     if (!modal) return;
-    modalVendorPhone = phone;
 
+    // Await server products if currently loading so product list is complete & accurate
+    if (typeof serverProductsLoadingPromise !== 'undefined' && serverProductsLoadingPromise) {
+        try { await serverProductsLoadingPromise; } catch(_) {}
+    }
+
+    modalVendorPhone = phone;
     const cleanPhone = formatWhatsAppPhone(phone);
     const combinedAll = [...serverMallProducts, ...mallProducts];
 
@@ -1944,7 +1955,17 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         return p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone;
     });
 
-    const isCustomVendor = customVendorProducts.length > 0 || (clickedItem && clickedItem.vendorPhone);
+    // Check backend API to verify whether this phone belongs to a registered vendor
+    let apiVendor = null;
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/vendor/profile/${cleanPhone}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.vendor) apiVendor = data.vendor;
+        }
+    } catch (e) {}
+
+    const isCustomVendor = !!apiVendor || customVendorProducts.length > 0 || (clickedItem && clickedItem.vendorPhone);
 
     let v = null;
 
@@ -1952,11 +1973,12 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         // Real custom vendor! Use this vendor's exact data
         const refProd = customVendorProducts[0] || clickedItem;
         
-        let customAvatar = refProd.vendorAvatar;
+        let customAvatar = (apiVendor && apiVendor.avatar) || (refProd && refProd.vendorAvatar);
         if (customAvatar && customAvatar.includes('12.png')) customAvatar = null;
-        let customShopName = refProd.vendorShopName || refProd.vendorName || 'Duka Rasmi';
-        let customBio = refProd.desc || refProd.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
-        let customLocation = refProd.location || 'Dar es Salaam';
+        let customShopName = (apiVendor && apiVendor.shopName) || (refProd && (refProd.vendorShopName || refProd.vendorName)) || 'Duka Rasmi';
+        let customBio = (apiVendor && apiVendor.bio) || (refProd && (refProd.desc || refProd.vendorBio)) || 'Muuzaji aliyethibitishwa Genge Mall';
+        let customLocation = (refProd && refProd.location) || 'Dar es Salaam';
+        let customOwner = (apiVendor && apiVendor.name) || (refProd && refProd.vendorName) || customShopName;
 
         // Check if there is an updated profile picture saved in localStorage
         const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
@@ -1972,18 +1994,19 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                     if (sv.avatar && !sv.avatar.includes('12.png')) customAvatar = sv.avatar;
                     if (sv.bio) customBio = sv.bio;
                     if (sv.location) customLocation = sv.location;
+                    if (sv.name) customOwner = sv.name;
                 }
             } catch(_) {}
         }
 
         v = {
             shopName: customShopName,
-            ownerName: refProd.vendorName || customShopName,
+            ownerName: customOwner,
             phone: cleanPhone,
-            nida: refProd.vendorNidaOrTin || 'NIDA Verified',
+            nida: (refProd && refProd.vendorNidaOrTin) || (apiVendor && apiVendor.nidaOrTin) || 'NIDA Verified',
             avatar: (customAvatar && !customAvatar.includes('12.png')) ? customAvatar : 'mall/genge-mall-logo.jpg',
             bio: customBio,
-            followersCount: refProd.followersCount || '1.8k',
+            followersCount: (refProd && refProd.followersCount) || '1.8k',
             location: customLocation
         };
     } else {
@@ -1995,22 +2018,6 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             phone: formatWhatsAppPhone(def.phone)
         };
     }
-
-    // Try API if available
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/vendor/profile/${cleanPhone}`);
-        if (res.ok) {
-            const data = await res.json();
-            if (data.vendor) {
-                if (data.vendor.avatar && !data.vendor.avatar.includes('12.png')) {
-                    v.avatar = data.vendor.avatar;
-                }
-                if (data.vendor.shopName) v.shopName = data.vendor.shopName;
-                if (data.vendor.bio) v.bio = data.vendor.bio;
-                if (data.vendor.name) v.ownerName = data.vendor.name;
-            }
-        }
-    } catch (e) {}
 
     currentModalVendor = v;
 
@@ -2077,7 +2084,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     let vendorProds = [];
     if (isCustomVendor) {
         vendorProds = combinedAll.filter(p => p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone);
-        if (clickedItem && !vendorProds.some(p => p.id === clickedItem.id)) {
+        if (clickedItem && clickedItem.vendorPhone && formatWhatsAppPhone(clickedItem.vendorPhone) === cleanPhone && !vendorProds.some(p => p.id === clickedItem.id)) {
             vendorProds.unshift(clickedItem);
         }
     } else {
