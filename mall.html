@@ -18,7 +18,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=10">
+    <link rel="stylesheet" href="mall.css?v=11">
 </head>
 <body>
 
@@ -611,61 +611,68 @@
     <!-- Vendor Public Profile Modal (Instagram Style) -->
     <div class="vendor-profile-modal-overlay" id="vendor-profile-modal" style="display: none;" onclick="if(event.target === this) closeVendorProfileModal()">
         <div class="vendor-profile-card glass-panel">
-            <button class="auth-modal-close" onclick="closeVendorProfileModal()">&times;</button>
-            <div class="vprofile-header">
-                <img src="mall/genge-mall-logo.jpg" alt="Avatar" id="vp-modal-avatar" class="vprofile-avatar">
-                <div class="vprofile-details">
-                    <div class="vprofile-title-row">
-                        <h2 id="vp-modal-shop">Jina la Duka</h2>
-                        <span class="vprofile-verified-badge"><ion-icon name="checkmark-circle"></ion-icon> NIDA Verified</span>
-                    </div>
-                    <p class="vprofile-owner" id="vp-modal-owner">Mwenye Duka</p>
-                    <p class="vprofile-bio" id="vp-modal-bio">Wauzaji waaminifu Genge Mall</p>
-                    
-                    <div class="vprofile-stats-row">
-                        <div class="vp-stat-item">
-                            <strong id="vp-modal-prod-count">0</strong>
-                            <span>Bidhaa</span>
-                        </div>
-                        <div class="vp-stat-item">
-                            <strong id="vp-modal-followers-count">0</strong>
-                            <span>Wafuasi</span>
-                        </div>
-                    </div>
+            <!-- Top Bar with close -->
+            <div class="vp-top-bar">
+                <button class="auth-modal-close" onclick="closeVendorProfileModal()">&times;</button>
+            </div>
 
-                    <div class="vprofile-actions">
-                        <button class="vp-follow-btn" id="vp-modal-follow-btn" onclick="toggleFollowVendorModal()">
-                            <ion-icon name="person-add-outline"></ion-icon> Follow Duka Hili
-                        </button>
-                        <a href="#" id="vp-modal-wa-btn" target="_blank" class="vp-wa-btn">
-                            <ion-icon name="logo-whatsapp"></ion-icon> Chat WhatsApp
-                        </a>
-                        <button type="button" class="vp-share-btn" id="vp-modal-share-btn" onclick="shareCurrentModalShop()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);padding:0.45rem 0.85rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;">
-                            <ion-icon name="share-social-outline"></ion-icon> Shiriki Duka
-                        </button>
+            <!-- Scrollable inner content -->
+            <div class="vp-card-inner">
+                <div class="vprofile-header">
+                    <img src="mall/genge-mall-logo.jpg" alt="Avatar" id="vp-modal-avatar" class="vprofile-avatar">
+                    <div class="vprofile-details">
+                        <div class="vprofile-title-row">
+                            <h2 id="vp-modal-shop">Jina la Duka</h2>
+                            <span class="vprofile-verified-badge"><ion-icon name="checkmark-circle"></ion-icon> NIDA Verified</span>
+                        </div>
+                        <p class="vprofile-owner" id="vp-modal-owner">Mwenye Duka</p>
+                        <p class="vprofile-bio" id="vp-modal-bio">Wauzaji waaminifu Genge Mall</p>
+                        
+                        <div class="vprofile-stats-row">
+                            <div class="vp-stat-item">
+                                <strong id="vp-modal-prod-count">0</strong>
+                                <span>Bidhaa</span>
+                            </div>
+                            <div class="vp-stat-item">
+                                <strong id="vp-modal-followers-count">0</strong>
+                                <span>Wafuasi</span>
+                            </div>
+                        </div>
+
+                        <div class="vprofile-actions">
+                            <button class="vp-follow-btn" id="vp-modal-follow-btn" onclick="toggleFollowVendorModal()">
+                                <ion-icon name="person-add-outline"></ion-icon> Follow Duka Hili
+                            </button>
+                            <a href="#" id="vp-modal-wa-btn" target="_blank" class="vp-wa-btn">
+                                <ion-icon name="logo-whatsapp"></ion-icon> Chat WhatsApp
+                            </a>
+                            <button type="button" class="vp-share-btn" id="vp-modal-share-btn" onclick="shareCurrentModalShop()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);padding:0.45rem 0.85rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;">
+                                <ion-icon name="share-social-outline"></ion-icon> Shiriki Duka
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Targeted / Shared Product Box (Shown when visitor clicked a direct link) -->
-            <div id="vp-modal-target-box" style="display: none; background: rgba(16,185,129,0.1); border: 1.5px solid rgba(16,185,129,0.4); border-radius: 16px; padding: 1.1rem; margin-bottom: 1.5rem;">
-                <!-- Injected dynamically by JS -->
-            </div>
-
-            <!-- Vendor Products Grid -->
-            <div class="vprofile-products-sec">
-                <h3 id="vp-modal-grid-heading">Bidhaa Zote za Duka Hili</h3>
-                <div class="vprofile-products-grid" id="vp-modal-products-grid">
-                    <!-- Injected by JS -->
+                <!-- Targeted / Shared Product Box (Shown when visitor clicked a direct link) -->
+                <div id="vp-modal-target-box" style="display: none; background: rgba(16,185,129,0.1); border: 1.5px solid rgba(16,185,129,0.4); border-radius: 16px; padding: 1.1rem; margin-bottom: 1.5rem;">
+                    <!-- Injected dynamically by JS -->
                 </div>
-            </div>
 
-            <!-- Browse Other Shops / All Mall CTA -->
-            <div style="text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <button type="button" class="mall-primary-cta" onclick="closeVendorProfileModal(); window.scrollTo({top: 450, behavior: 'smooth'});" style="padding: 0.75rem 2rem; border-radius: 30px; font-size: 0.95rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
-                    <ion-icon name="storefront-outline" style="font-size: 1.2rem;"></ion-icon> Vinjari Maduka na Bidhaa Nyingine Sokoni
-                </button>
-            </div>
+                <!-- Vendor Products Grid -->
+                <div class="vprofile-products-sec">
+                    <h3 id="vp-modal-grid-heading">Bidhaa Zote za Duka Hili</h3>
+                    <div class="vprofile-products-grid" id="vp-modal-products-grid">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Browse Other Shops / All Mall CTA -->
+                <div style="text-align: center; margin-top: 2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <button type="button" class="mall-primary-cta" onclick="closeVendorProfileModal(); window.scrollTo({top: 450, behavior: 'smooth'});" style="padding: 0.75rem 2rem; border-radius: 30px; font-size: 0.9rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
+                        <ion-icon name="storefront-outline" style="font-size: 1.1rem;"></ion-icon> Vinjari Maduka na Bidhaa Nyingine Sokoni
+                    </button>
+                </div>
+            </div><!-- end .vp-card-inner -->
         </div>
     </div>
 
@@ -698,6 +705,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=21"></script>
+    <script src="mall.js?v=22"></script>
 </body>
 </html>

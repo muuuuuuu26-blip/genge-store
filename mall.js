@@ -2114,28 +2114,32 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     if (grid) {
         if (otherProds.length > 0) {
             grid.innerHTML = otherProds.map(p => {
-                const pTitle = p.title || p.name;
+                const pTitle = (p.title || p.name || '').replace(/'/g, "&#39;");
                 const pImg = p.image || p.icon;
+                const pPrice = formatTZS(p.price);
+                const waText = encodeURIComponent(`Habari ${v.shopName}, nahitaji kuagiza "${pTitle}" ya ${pPrice} niliyoona kwenye Genge Mall.`);
                 return `
-                    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;padding:0.7rem;display:flex;flex-direction:column;gap:6px;">
-                        <img src="${pImg}" alt="${pTitle}" style="width:100%;height:130px;object-fit:cover;border-radius:8px;" onerror="this.src='mall/genge-mall-logo.jpg'">
-                        <h4 style="font-size:0.85rem;margin:0.2rem 0;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pTitle}</h4>
-                        <div style="color:var(--primary);font-weight:800;font-size:0.95rem;">${formatTZS(p.price)}</div>
-                        <div style="display:flex;gap:4px;margin-top:auto;">
-                            <button type="button" class="btn-card-cart" style="flex:1;padding:0.35rem 0.5rem;font-size:0.78rem;" onclick="addToMallCart('${p.id}')">
-                                <ion-icon name="cart-outline"></ion-icon> Kapu
-                            </button>
-                            <a href="https://wa.me/${cleanVPhone}?text=${encodeURIComponent(`Habari ${v.shopName}, nahitaji kuagiza ${pTitle} ya ${formatTZS(p.price)}`)}" target="_blank" class="btn-card-wa" style="padding:0.35rem 0.6rem;font-size:0.78rem;">
-                                <ion-icon name="logo-whatsapp"></ion-icon>
-                            </a>
+                    <div class="vpm-prod-card" onclick="addToMallCart('${p.id}')" style="cursor:pointer;" title="Bonyeza kuongeza kwenye kapu">
+                        <img src="${pImg}" alt="${pTitle}" class="vpm-prod-img" onerror="this.src='mall/genge-mall-logo.jpg'">
+                        <div class="vpm-prod-body">
+                            <div class="vpm-prod-name">${pTitle}</div>
+                            <div class="vpm-prod-price">${pPrice}</div>
+                            <div class="vpm-prod-actions" onclick="event.stopPropagation()">
+                                <button type="button" class="vpm-btn-cart" onclick="addToMallCart('${p.id}')">
+                                    <ion-icon name="cart-outline"></ion-icon> Kapu
+                                </button>
+                                <a href="https://wa.me/${cleanVPhone}?text=${waText}" target="_blank" class="vpm-btn-wa" title="Agiza WhatsApp">
+                                    <ion-icon name="logo-whatsapp"></ion-icon>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         } else if (clickedItem) {
-            grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:1.5rem;font-size:0.85rem;">Hii ndio bidhaa iliyopo kwa sasa kutoka duka hili.</p>';
+            grid.innerHTML = `<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:1.5rem 1rem;font-size:0.85rem;"><ion-icon name="information-circle-outline" style="font-size:1.5rem;display:block;margin:0 auto 0.5rem;color:#10b981;"></ion-icon>Hii ndio bidhaa iliyopo kwa sasa kutoka duka hili. Bidhaa zaidi zinaweza kuongezwa hivi karibuni.</p>`;
         } else {
-            grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;">Bado hakuna bidhaa zilizopakiwa na duka hili.</p>';
+            grid.innerHTML = `<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2.5rem 1rem;"><ion-icon name="bag-handle-outline" style="font-size:2.5rem;display:block;margin:0 auto 0.8rem;color:rgba(255,255,255,0.2);"></ion-icon>Bado hakuna bidhaa zilizopakiwa na duka hili.</p>`;
         }
     }
 
