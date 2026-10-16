@@ -495,16 +495,23 @@ async function handleProductUpload(e) {
                           ? currentVendor.avatar 
                           : (localStorage.getItem('genge_vendor_profile_pic_' + currentVendor.phone) || 'mall/genge-mall-logo.jpg'),
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
-            image: compressedBase64
         };
 
-        // Post JSON to MongoDB!
+        const imageBlob = await (await fetch(compressedBase64)).blob();
+        const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+        if (!allowedImageTypes.includes(imageBlob.type)) throw new Error("Tafadhali tumia picha ya JPEG, PNG, WebP au GIF.");
+        if (imageBlob.size > 5 * 1024 * 1024) throw new Error("Ukubwa wa picha haupaswi kuzidi 5MB.");
+        const imageExtension = imageBlob.type.split("/")[1];
+        const formData = new FormData();
+        ["name", "category", "dept", "price", "location", "desc", "vendorPhone"].forEach(key => formData.append(key, payload[key]));
+        formData.append("image", imageBlob, `product.${imageExtension}`);
+
+        // Post multipart form data to MongoDB!
         let serverProduct = null;
         try {
             const res = await fetch(API_URL + '/api/vendor/products', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData
             });
 
             const data = await res.json();
