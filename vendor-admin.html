@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="vendor-admin.css?v=3">
+    <link rel="stylesheet" href="vendor-admin.css?v=4">
 </head>
 <body>
 
@@ -25,11 +25,16 @@
             <form id="vendor-login-form" onsubmit="handleVendorLogin(event)">
                 <div class="form-group">
                     <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu ya Duka</label>
-                    <input type="tel" id="vlogin-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required autocomplete="off">
+                    <input type="tel" id="vlogin-phone" placeholder="07XXXXXXXX au +2557XXXXXXXX" inputmode="tel" required autocomplete="tel">
                 </div>
                 <div class="form-group">
                     <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri</label>
-                    <input type="password" id="vlogin-password" placeholder="Neno lako la siri" required>
+                    <div class="vendor-password-input-wrap">
+                        <input type="password" id="vlogin-password" placeholder="Neno lako la siri" autocomplete="current-password" required>
+                        <button type="button" class="vendor-password-toggle" onclick="toggleVendorPasswordVisibility('vlogin-password', this)" aria-label="Onyesha neno la siri" aria-pressed="false">
+                            <ion-icon name="eye-outline"></ion-icon>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="vendor-btn-primary">Ingia Kwenye Dashboard ya Duka &rsaquo;</button>
                 <div id="vlogin-error" class="vendor-error-msg"></div>
@@ -398,6 +403,6 @@
         </div>
     </div>
 
-    <script src="vendor-admin.js?v=10"></script>
+    <script src="vendor-admin.js?v=11"></script>
 </body>
 </html>

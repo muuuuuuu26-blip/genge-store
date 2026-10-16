@@ -810,6 +810,17 @@ function isValidTanzaniaPhone(phone) {
     return /^0[67]\d{8}$/.test(digits);
 }
 
+window.togglePasswordVisibility = function(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (!input || !button) return;
+    const showPassword = input.type === 'password';
+    input.type = showPassword ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(showPassword));
+    button.setAttribute('aria-label', showPassword ? 'Ficha neno la siri' : 'Onyesha neno la siri');
+    const icon = button.querySelector('ion-icon');
+    if (icon) icon.setAttribute('name', showPassword ? 'eye-off-outline' : 'eye-outline');
+};
+
 function isValidNidaOrTin(val) {
     const v = val.trim();
     const nidaPattern = /^\d{8}-\d{5}-\d{5}-\d$/;
@@ -828,7 +839,7 @@ window.handleRegPhoneInput = function(input) {
     }
     if (!isValidTanzaniaPhone(phone)) {
         input.style.borderColor = '#ef4444';
-        if (badge) { badge.style.display = 'block'; badge.style.color = '#ef4444'; badge.textContent = '❌ Namba si sahihi. Mfano: 0712345678 au 0612345678'; }
+        if (badge) { badge.style.display = 'block'; badge.style.color = '#ef4444'; badge.textContent = '❌ Namba si sahihi. Mfano: 0712345678 au +255712345678'; }
         return;
     }
     const net = getTanzaniaNetwork(phone);
@@ -918,7 +929,7 @@ window.handleMallRegister = async function(e) {
 
     // Validate Tanzania phone number
     if (!isValidTanzaniaPhone(phone)) {
-        if (msgDiv) { msgDiv.textContent = '❌ Namba ya simu si sahihi. Weka namba halali: 07XXXXXXXX au 06XXXXXXXX (tarakimu 10)'; msgDiv.style.color = '#EF4444'; }
+        if (msgDiv) { msgDiv.textContent = '❌ Namba ya simu si sahihi. Weka 07XXXXXXXX au +2557XXXXXXXX.'; msgDiv.style.color = '#EF4444'; }
         return;
     }
 

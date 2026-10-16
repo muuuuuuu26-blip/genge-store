@@ -101,6 +101,39 @@ body {
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
+.vendor-password-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.vendor-password-input-wrap input {
+    flex: 1;
+    min-width: 0;
+}
+
+.vendor-password-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 46px;
+    min-height: 46px;
+    padding: 0;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.vendor-password-toggle:hover,
+.vendor-password-toggle:focus-visible {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
 .vendor-btn-primary {
     width: 100%;
     padding: 0.85rem;

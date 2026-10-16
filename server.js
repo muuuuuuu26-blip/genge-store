@@ -106,6 +106,16 @@ function getPhoneVariants(phone) {
     return Array.from(set);
 }
 
+function normalizeTanzaniaPhone(phone) {
+    let digits = String(phone || '').replace(/\D/g, '');
+    if (digits.startsWith('255') && digits.length === 12) {
+        digits = '0' + digits.slice(3);
+    } else if (digits.length === 9) {
+        digits = '0' + digits;
+    }
+    return digits;
+}
+
 // Startup Database Migrations & Cleanup
 async function runStartupDatabaseMigrations() {
     try {
@@ -1298,17 +1308,18 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ message: 'Tafadhali jaza majina yako, namba ya simu na neno la siri.' });
         }
 
-        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+        const cleanPhone = normalizeTanzaniaPhone(phone);
 
         // Validate Tanzania phone format
-        const normalizedPhone = cleanPhone.startsWith('255') ? '0' + cleanPhone.slice(3) : cleanPhone;
-        if (!/^0[67]\d{8}$/.test(normalizedPhone) && !/^255[67]\d{8}$/.test(cleanPhone)) {
-            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au 06XXXXXXXX).' });
+        if (!/^0[67]\d{8}$/.test(cleanPhone)) {
+            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au +2557XXXXXXXX).' });
         }
 
-
         // Check if this exact shop name already registered under this phone
-        const existing = await User.findOne({ phone: cleanPhone, shopName: (shopName || '').trim() });
+        const existing = await User.findOne({
+            phone: { $in: getPhoneVariants(cleanPhone) },
+            shopName: (shopName || '').trim()
+        });
         if (existing) {
             return res.status(400).json({ message: `Duka hili "${(shopName || '').trim()}" limesha sajiliwa kwa namba hii ya simu. Jaribu jina lingine la duka.` });
         }
@@ -1456,10 +1467,10 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ message: 'Tafadhali weka namba ya simu na neno la siri.' });
         }
 
-        const cleanPhone = phone.trim().replace(/[\s\-]/g, '');
+        const cleanPhone = normalizeTanzaniaPhone(phone);
 
         // Find all accounts under this phone
-        const allUsers = await User.find({ phone: cleanPhone });
+        const allUsers = await User.find({ phone: { $in: getPhoneVariants(cleanPhone) } });
         if (!allUsers || allUsers.length === 0) {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
         }

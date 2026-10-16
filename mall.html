@@ -18,7 +18,7 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <link rel="stylesheet" href="mall.css?v=11">
+    <link rel="stylesheet" href="mall.css?v=12">
 </head>
 <body>
 
@@ -441,11 +441,16 @@
                 
                 <div class="auth-field">
                     <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu ya Muuzaji *</label>
-                    <input type="tel" id="login-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required>
+                    <input type="tel" id="login-phone" placeholder="07XXXXXXXX au +2557XXXXXXXX" inputmode="tel" autocomplete="tel" required>
                 </div>
                 <div class="auth-field">
                     <label><ion-icon name="lock-closed-outline"></ion-icon> Neno la Siri (Password) *</label>
-                    <input type="password" id="login-password" placeholder="Weka neno lako la siri" required>
+                    <div class="password-input-wrap">
+                        <input type="password" id="login-password" placeholder="Weka neno lako la siri" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)" aria-label="Onyesha neno la siri" aria-pressed="false">
+                            <ion-icon name="eye-outline"></ion-icon>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="auth-submit-btn">Ingia Kwenye Dashboard &rsaquo;</button>
                 <div id="login-form-msg" class="auth-status-msg"></div>
@@ -497,13 +502,18 @@
 
                 <div class="auth-field">
                     <label><ion-icon name="logo-whatsapp"></ion-icon> Namba ya Simu (WhatsApp ya Biashara) *</label>
-                    <input type="tel" id="reg-phone" placeholder="07XXXXXXXX au 06XXXXXXXX" required oninput="handleRegPhoneInput(this)">
+                    <input type="tel" id="reg-phone" placeholder="07XXXXXXXX au +2557XXXXXXXX" inputmode="tel" autocomplete="tel" required oninput="handleRegPhoneInput(this)">
                     <div id="reg-phone-network-badge" style="display:none; font-size: 0.8rem; font-weight: 700; margin-top: 5px;"></div>
                 </div>
 
                 <div class="auth-field">
                     <label><ion-icon name="lock-closed-outline"></ion-icon> Tengeneza Neno la Siri *</label>
-                    <input type="password" id="reg-password" placeholder="Tengeneza neno la siri" required>
+                    <div class="password-input-wrap">
+                        <input type="password" id="reg-password" placeholder="Tengeneza neno la siri" autocomplete="new-password" required>
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('reg-password', this)" aria-label="Onyesha neno la siri" aria-pressed="false">
+                            <ion-icon name="eye-outline"></ion-icon>
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" class="auth-submit-btn">Kamilisha Usajili wa Duka &rsaquo;</button>
@@ -706,6 +716,6 @@
         </div>
     </div>
 
-    <script src="mall.js?v=27"></script>
+    <script src="mall.js?v=28"></script>
 </body>
 </html>

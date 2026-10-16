@@ -79,6 +79,19 @@ async function handleVendorLogin(e) {
     }
 }
 
+function toggleVendorPasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (!input || !button) return;
+    const showPassword = input.type === 'password';
+    input.type = showPassword ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(showPassword));
+    button.setAttribute('aria-label', showPassword ? 'Ficha neno la siri' : 'Onyesha neno la siri');
+    const icon = button.querySelector('ion-icon');
+    if (icon) icon.setAttribute('name', showPassword ? 'eye-off-outline' : 'eye-outline');
+}
+
+window.toggleVendorPasswordVisibility = toggleVendorPasswordVisibility;
+
 function handleVendorLogout() {
     localStorage.removeItem('genge_vendor');
     currentVendor = null;

@@ -1897,6 +1897,39 @@ body {
     border-color: var(--primary);
 }
 
+.password-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.password-input-wrap input {
+    flex: 1;
+    min-width: 0;
+}
+
+.password-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    min-height: 44px;
+    padding: 0;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus-visible {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
 .auth-submit-btn {
     width: 100%;
     padding: 0.85rem;
