@@ -166,6 +166,10 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage });
+const vendorProductImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 const initialProducts = [
     // --- MATUNDA ---
@@ -1531,7 +1535,7 @@ app.get('/api/auth/me/:phone', async (req, res) => {
 });
 
 // E. Vendor Product Upload with Package Limit Checks (25, 45, 60)
-app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
+app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async (req, res) => {
     try {
         const { name, price, category, dept, subType, desc, location, specs, vendorPhone } = req.body;
 
@@ -1565,7 +1569,7 @@ app.post('/api/vendor/products', upload.single('image'), async (req, res) => {
             return res.status(400).json({ message: 'Tafadhali pakia picha ya bidhaa.' });
         }
 
-        const iconPath = 'pics/' + req.file.filename;
+        const iconPath = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const id = 'vprod_' + Date.now();
 
         const specsArray = specs ? (Array.isArray(specs) ? specs : specs.split(',').map(s => s.trim())) : [];
