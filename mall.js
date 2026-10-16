@@ -498,23 +498,27 @@ function getVendorForProduct(item) {
         let bio = item.vendorBio || 'Muuzaji aliyethibitishwa Genge Mall';
         let location = item.location || 'Dar es Salaam';
 
-        // Check if there is an updated profile picture in localStorage
-        const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + rawPhone) 
-                      || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
-        if (savedPic && !savedPic.includes('12.png')) avatar = savedPic;
-
-        // Check if current active vendor matches
+        // Only apply locally saved profile details when they belong to this exact shop.
         const savedVendor = localStorage.getItem('genge_vendor');
+        let savedVendorMatchesShop = false;
         if (savedVendor) {
             try {
                 const sv = JSON.parse(savedVendor);
-                if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === rawPhone)) {
+                savedVendorMatchesShop = !!sv &&
+                    (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === rawPhone) &&
+                    sv.shopName && sv.shopName.trim().toLowerCase() === shopName.trim().toLowerCase();
+                if (savedVendorMatchesShop) {
                     if (sv.shopName) shopName = sv.shopName;
                     if (sv.avatar && !sv.avatar.includes('12.png')) avatar = sv.avatar;
                     if (sv.bio) bio = sv.bio;
                     if (sv.location) location = sv.location;
                 }
             } catch(_) {}
+        }
+        if (savedVendorMatchesShop) {
+            const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + rawPhone)
+                          || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+            if (savedPic && !savedPic.includes('12.png')) avatar = savedPic;
         }
 
         // Enforce strict fallback: Never show pics/12.png on Genge Mall
@@ -1268,7 +1272,7 @@ window.cancelVendorStkPayment = function() {
     openAuthModal('register');
 };
 
-// ── AUTO-SLIDING SPONSORED ADS CAROUSEL (GOLD VIP VENDORS) ──────────
+// ── AUTO-SLIDING SPONSORED ADS CAROUSEL ─────────────────────────────
 let sponsoredSliderIndex = 0;
 let sponsoredSliderTimer = null;
 let sponsoredSliderItems = [];
@@ -1287,24 +1291,27 @@ function refreshSponsoredSlider(products) {
     [...products]
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .forEach(product => {
-            const phone = String(product.vendorPhone || '').trim();
+            const phone = formatWhatsAppPhone(product.vendorPhone);
             const shopName = product.vendorShopName || product.vendorName;
             if (!phone || !shopName) return;
             const shopKey = `${phone}:${shopName.trim().toLowerCase()}`;
-            if (!shops.has(shopKey)) shops.set(shopKey, product);
+            if (!shops.has(shopKey)) shops.set(shopKey, []);
+            if (shops.get(shopKey).length < 4) shops.get(shopKey).push(product);
         });
 
-    sponsoredSliderItems = Array.from(shops.values()).map(product => ({
-        id: product.id,
-        shopName: product.vendorShopName || product.vendorName,
-        vendorPhone: product.vendorPhone,
-        title: product.name || product.title || 'Bidhaa ya duka',
-        price: Number(product.price) || 0,
-        priceUnit: product.priceUnit || 'Tsh',
-        image: product.icon || product.image || 'mall/genge-mall-logo.jpg',
-        location: product.location || 'Tanzania',
-        specs: Array.isArray(product.specs) ? product.specs : []
-    }));
+    sponsoredSliderItems = Array.from(shops.values()).flatMap(shopProducts =>
+        shopProducts.map(product => ({
+            id: product.id,
+            shopName: product.vendorShopName || product.vendorName,
+            vendorPhone: product.vendorPhone,
+            title: product.name || product.title || 'Bidhaa ya duka',
+            price: Number(product.price) || 0,
+            priceUnit: product.priceUnit || 'Tsh',
+            image: product.icon || product.image || 'mall/genge-mall-logo.jpg',
+            location: product.location || 'Tanzania',
+            specs: Array.isArray(product.specs) ? product.specs : []
+        }))
+    );
     sponsoredSliderIndex = 0;
     renderSponsoredSlides();
     if (sponsoredSliderItems.length > 1) startSponsoredSliderAutoplay();
@@ -1326,7 +1333,6 @@ function renderSponsoredSlides() {
         const cleanPhone = formatWhatsAppPhone(item.vendorPhone);
         const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall. Naomba kujua zaidi.`);
         const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
-        const telLink = `tel:+${cleanPhone}`;
         const safeShopName = escapeMallHtml(item.shopName);
         const safeTitle = escapeMallHtml(item.title);
         const safeLocation = escapeMallHtml(item.location);
@@ -1366,9 +1372,9 @@ function renderSponsoredSlides() {
                             <a href="${waLink}" target="_blank" class="slide-btn-whatsapp">
                                 <ion-icon name="logo-whatsapp"></ion-icon> Agiza WhatsApp
                             </a>
-                            <a href="${telLink}" class="slide-btn-call">
-                                <ion-icon name="call-outline"></ion-icon> Piga
-                            </a>
+                            <button type="button" class="slide-btn-call" onclick="openVendorProfileModal('${cleanPhone}', '${item.id}')">
+                                <ion-icon name="storefront-outline"></ion-icon> Ingia Dukani
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1764,17 +1770,33 @@ function renderMallProducts() {
         return true;
     });
 
-    if (countEl) countEl.innerText = filtered.length;
+    const shops = new Map();
+    filtered.forEach(product => {
+        const phone = formatWhatsAppPhone(product.vendorPhone);
+        const shopName = product.vendorShopName || product.vendorName || 'Muuzaji wa Genge';
+        const shopKey = `${phone}:${shopName.trim().toLowerCase()}`;
+        if (!shops.has(shopKey)) shops.set(shopKey, []);
+        shops.get(shopKey).push(product);
+    });
+    const allShopProductCounts = new Map();
+    serverMallProducts.forEach(product => {
+        const phone = formatWhatsAppPhone(product.vendorPhone);
+        const shopName = (product.vendorShopName || product.vendorName || 'Muuzaji wa Genge').trim().toLowerCase();
+        const shopKey = `${phone}:${shopName}`;
+        allShopProductCounts.set(shopKey, (allShopProductCounts.get(shopKey) || 0) + 1);
+    });
+
+    if (countEl) countEl.innerText = shops.size;
     if (deptLabel) {
         const dObj = mallDepartments.find(d => d.id === currentDepartment);
         deptLabel.innerText = dObj ? `(${dObj.name})` : '';
     }
 
-    if (filtered.length === 0) {
+    if (shops.size === 0) {
         grid.innerHTML = `
             <div style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
                 <span style="font-size: 3.5rem; display: block; margin-bottom: 1rem;">🔍</span>
-                <h3 style="color: #ffffff; margin-bottom: 0.5rem; font-size: 1.3rem;">Hakuna bidhaa zilizopatikana</h3>
+                <h3 style="color: #ffffff; margin-bottom: 0.5rem; font-size: 1.3rem;">Hakuna maduka yaliyopatikana</h3>
                 <p>Jaribu kubadilisha jina unalotafuta au bonyeza kategoria nyingine hapo juu.</p>
                 <button class="mall-primary-cta" style="margin-top: 1rem; padding: 0.6rem 1.5rem;" onclick="selectDepartment('all')">Onyesha Bidhaa Zote</button>
             </div>
@@ -1783,85 +1805,48 @@ function renderMallProducts() {
     }
 
     grid.innerHTML = '';
-    filtered.forEach(item => {
+    shops.forEach((shopProducts, shopKey) => {
+        const item = shopProducts[0];
         const card = document.createElement('div');
         card.className = 'mall-card glass-panel';
-
         card.id = 'mall-card-' + item.id;
 
-        const itemTitle = item.title || item.name;
-        const itemImage = item.image || item.icon;
-        const deptKey = item.dept || item.category || 'nyumba';
         const vendor = getVendorForProduct(item);
+        const vendorPhone = formatWhatsAppPhone(item.vendorPhone);
+        const vendorShop = escapeMallHtml(vendor.shopName);
+        const itemImage = escapeMallHtml(item.icon || item.image || 'mall/genge-mall-logo.jpg');
+        const itemTitle = escapeMallHtml(item.name || item.title || 'Bidhaa za duka');
+        const itemLocation = escapeMallHtml(item.location || vendor.location || 'Tanzania');
+        const totalShopProducts = allShopProductCounts.get(shopKey) || shopProducts.length;
+        const productCountLabel = `${totalShopProducts} bidhaa`;
 
-        const vendorShop = vendor.shopName;
-        const vendorPhone = vendor.phone;
-        const vendorAvatar = vendor.avatar;
-        const likeCount = item.likeCount || (item.likes ? item.likes.length : 0);
-        const likedLocally = localStorage.getItem('genge_liked_' + item.id) === 'true';
-        const isLiked = likedLocally || (currentUser && item.likes && item.likes.includes(currentUser.phone));
-
-        // Instagram Card Header
-        const instHeaderHtml = `
-            <div class="inst-card-header">
-                <div class="inst-vendor-info" onclick="openVendorProfileModal('${vendorPhone}', '${item.id}')" title="Bonyeza kuona profile ya duka">
-                    <img src="${vendorAvatar || 'mall/genge-mall-logo.jpg'}" alt="${vendorShop}" class="inst-avatar" onerror="this.src='mall/genge-mall-logo.jpg'">
-                    <div class="inst-vendor-name">
-                        <span>${vendorShop}</span>
-                        <ion-icon name="storefront-outline" class="inst-verified-icon" title="Duka lililosajiliwa Genge Mall"></ion-icon>
-                    </div>
-                </div>
-                <button class="inst-follow-btn" onclick="event.stopPropagation(); toggleFollowVendor('${vendorPhone}')">
+        card.innerHTML = `
+            <div class="mall-card-img-wrap">
+                <img src="${itemImage}" alt="${itemTitle}" loading="lazy" class="mall-card-img" onerror="this.src='mall/genge-mall-logo.jpg'">
+                <span class="mall-badge badge-verified">${productCountLabel}</span>
+            </div>
+            <div class="mall-card-body">
+                <span class="location-tag"><ion-icon name="location-outline"></ion-icon> ${itemLocation}</span>
+                <h3 class="mall-card-title">${vendorShop}</h3>
+                <p class="mall-card-desc">${itemTitle}</p>
+                <p class="mall-card-desc">Fungua duka hili kuona bidhaa zake zote.</p>
+            </div>
+            <div class="inst-card-actions">
+                <button type="button" class="btn-card-cart" data-open-shop>
+                    <ion-icon name="storefront-outline"></ion-icon> Ingia Dukani
+                </button>
+                <button type="button" class="inst-follow-btn" data-follow-shop>
                     + Follow
                 </button>
             </div>
         `;
 
-        // Specs list HTML
-        const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${s}</span>`).join('');
-
-        // Action Buttons
-        const waMsg = encodeURIComponent(`Habari ${vendorShop}, nimevutiwa na bidhaa hii Genge Mall: ${itemTitle} ya ${formatTZS(item.price)}. Namba yangu ni ${currentUser ? currentUser.phone : ''}. Tafadhali nifahamishe utaratibu.`);
-
-        const actionButtonsHtml = `
-            <div class="inst-card-actions">
-                <button class="inst-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLikeProduct('${item.id}', this)">
-                    <ion-icon name="${isLiked ? 'heart' : 'heart-outline'}"></ion-icon>
-                    <span class="like-count">${likeCount}</span> Likes
-                </button>
-                <div style="display:flex;gap:5px;align-items:center;">
-                    <a href="https://wa.me/${vendorPhone}?text=${waMsg}" target="_blank" class="btn-card-wa" style="padding:0.45rem 0.75rem;font-size:0.8rem;">
-                        <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp
-                    </a>
-                    <button type="button" class="btn-card-cart" style="padding:0.45rem 0.75rem;font-size:0.8rem;" onclick="addToMallCart('${item.id}')">
-                        <ion-icon name="cart-outline"></ion-icon> Kapu
-                    </button>
-                    <button type="button" class="btn-card-share" onclick="shareMallProduct('${item.id}', '${itemTitle.replace(/'/g, "\\'")}', '${vendorShop.replace(/'/g, "\\'")}', ${item.price}, '${vendorPhone}')" title="Shiriki Bidhaa Hii">
-                        <ion-icon name="share-social-outline"></ion-icon>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        card.innerHTML = `
-            ${instHeaderHtml}
-            <div class="mall-card-img-wrap">
-                <img src="${itemImage}" alt="${itemTitle}" loading="lazy" class="mall-card-img" onerror="this.src='mall/genge-mall-logo.jpg'">
-                ${item.badge ? `<span class="mall-badge ${item.badgeClass || 'badge-rent'}">${item.badge}</span>` : ''}
-            </div>
-            <div class="mall-card-body">
-                <span class="location-tag"><ion-icon name="location-outline"></ion-icon> ${item.location || vendor.location || 'Dar es Salaam'}</span>
-                <h3 class="mall-card-title">${itemTitle}</h3>
-                <p class="mall-card-desc">${item.desc || ''}</p>
-                ${specsHtml ? `<div class="specs-wrap">${specsHtml}</div>` : ''}
-                <div class="mall-price-row">
-                    <span class="price-amount">${formatTZS(item.price)}</span>
-                    ${item.priceUnit ? `<span class="price-unit">${item.priceUnit}</span>` : ''}
-                </div>
-            </div>
-            ${actionButtonsHtml}
-        `;
-
+        card.querySelector('[data-open-shop]').addEventListener('click', () => {
+            openVendorProfileModal(vendorPhone, item.id);
+        });
+        card.querySelector('[data-follow-shop]').addEventListener('click', () => {
+            toggleFollowVendor(vendorPhone);
+        });
         grid.appendChild(card);
     });
 }
@@ -1939,10 +1924,13 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     // Find the specific item clicked
     const clickedItem = combinedAll.find(p => String(p.id) === String(productIdOrDept));
+    const clickedShopName = clickedItem && (clickedItem.vendorShopName || clickedItem.vendorName || '').trim().toLowerCase();
 
     // Check if this vendor is a custom/registered vendor who uploaded products
     const customVendorProducts = combinedAll.filter(p => {
-        return p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone;
+        const samePhone = p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone;
+        const shopName = (p.vendorShopName || p.vendorName || '').trim().toLowerCase();
+        return samePhone && (!clickedShopName || shopName === clickedShopName);
     });
 
     // Check backend API to verify whether this phone belongs to a registered vendor
@@ -1965,21 +1953,21 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
         
         let customAvatar = (apiVendor && apiVendor.avatar) || (refProd && refProd.vendorAvatar);
         if (customAvatar && customAvatar.includes('12.png')) customAvatar = null;
-        let customShopName = (apiVendor && apiVendor.shopName) || (refProd && (refProd.vendorShopName || refProd.vendorName)) || 'Duka Rasmi';
+        let customShopName = (refProd && (refProd.vendorShopName || refProd.vendorName)) || (apiVendor && apiVendor.shopName) || 'Duka Rasmi';
         let customBio = (apiVendor && apiVendor.bio) || (refProd && (refProd.desc || refProd.vendorBio)) || 'Muuzaji aliyethibitishwa Genge Mall';
         let customLocation = (refProd && refProd.location) || 'Dar es Salaam';
-        let customOwner = (apiVendor && apiVendor.name) || (refProd && refProd.vendorName) || customShopName;
+        let customOwner = (refProd && refProd.vendorName) || (apiVendor && apiVendor.name) || customShopName;
 
-        // Check if there is an updated profile picture saved in localStorage
-        const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
-                      || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
-        if (savedPic && !savedPic.includes('12.png')) customAvatar = savedPic;
-
+        // Only reuse saved profile data when it identifies this exact shop.
         const savedVendor = localStorage.getItem('genge_vendor');
+        let savedVendorMatchesShop = false;
         if (savedVendor) {
             try {
                 const sv = JSON.parse(savedVendor);
-                if (sv && (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === phone)) {
+                savedVendorMatchesShop = !!sv &&
+                    (formatWhatsAppPhone(sv.phone) === cleanPhone || sv.phone === phone) &&
+                    sv.shopName && sv.shopName.trim().toLowerCase() === customShopName.trim().toLowerCase();
+                if (savedVendorMatchesShop) {
                     if (sv.shopName) customShopName = sv.shopName;
                     if (sv.avatar && !sv.avatar.includes('12.png')) customAvatar = sv.avatar;
                     if (sv.bio) customBio = sv.bio;
@@ -1987,6 +1975,11 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                     if (sv.name) customOwner = sv.name;
                 }
             } catch(_) {}
+        }
+        if (savedVendorMatchesShop) {
+            const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
+                          || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+            if (savedPic && !savedPic.includes('12.png')) customAvatar = savedPic;
         }
 
         v = {
@@ -2071,7 +2064,11 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     // If it's a demo department vendor: ONLY show demo products in this dept (excluding custom vendors)
     let vendorProds = [];
     if (isCustomVendor) {
-        vendorProds = combinedAll.filter(p => p.vendorPhone && formatWhatsAppPhone(p.vendorPhone) === cleanPhone);
+        vendorProds = combinedAll.filter(p => {
+            if (!p.vendorPhone || formatWhatsAppPhone(p.vendorPhone) !== cleanPhone) return false;
+            const shopName = (p.vendorShopName || p.vendorName || '').trim().toLowerCase();
+            return !clickedShopName || shopName === clickedShopName;
+        });
         if (clickedItem && clickedItem.vendorPhone && formatWhatsAppPhone(clickedItem.vendorPhone) === cleanPhone && !vendorProds.some(p => p.id === clickedItem.id)) {
             vendorProds.unshift(clickedItem);
         }
