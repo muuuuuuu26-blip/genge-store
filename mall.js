@@ -460,7 +460,7 @@ const mallProducts = [
         specs: ['Mop 360 Spin', 'Ndoo ya Chuma Ndani', 'Vipuri 2 vya Taulo Bure'],
         actionType: 'cart'
     }
-];
+].filter(item => item.vendorPhone);
 
 // App State & Constants
 let currentDepartment = 'all';
@@ -473,99 +473,6 @@ let serverMallProducts = [];
 let serverProductsLoadingPromise = null;
 let modalVendorPhone = null;
 
-// Realistic Tanzanian Vendor Profiles by Category
-const defaultVendorProfiles = {
-    nyumba: {
-        shopName: 'Kilimanjaro Prime Real Estate',
-        ownerName: 'Mhandisi Juma Rashid',
-        phone: '255799689961',
-        nida: '19880512-11105-00001-23',
-        avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80',
-        bio: 'Wataalamu walioidhinishwa wa viwanja, nyumba na apartments za kisasa Dar es Salaam na Dodoma.',
-        followersCount: '4.8k',
-        location: 'Mikocheni B, Dar es Salaam'
-    },
-    magari: {
-        shopName: 'Boma Motors Tanzania',
-        ownerName: 'Salim Bakari',
-        phone: '255712345678',
-        nida: '19910408-22104-00002-14',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        bio: 'Magari used safi na zero mileage yaliyoagizwa kutoka Japan na Ulaya. Showroom Mwenge.',
-        followersCount: '8.2k',
-        location: 'Mwenge ITV, Dar es Salaam'
-    },
-    mitindo: {
-        shopName: 'Zanzibar Chic Boutique',
-        ownerName: 'Amina Hassan',
-        phone: '255755123456',
-        nida: '19940215-33102-00003-91',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
-        bio: 'Mitindo ya kijanja, magauni ya kisasa, suti na nguo za kipekee kutoka Uturuki na Dubai.',
-        followersCount: '12.4k',
-        location: 'Kariakoo & Sinza Mori'
-    },
-    urembo: {
-        shopName: 'Neema Glamour Cosmetics',
-        ownerName: 'Neema Mwangi',
-        phone: '255767890123',
-        nida: '19960719-44101-00004-77',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
-        bio: 'Vipodozi asilia vilivyothibitishwa na TBS na daktari wa ngozi. Glow safi bila kemikali.',
-        followersCount: '6.5k',
-        location: 'Mlimani City Mall, Dar'
-    },
-    viatu: {
-        shopName: 'Kariakoo Sole Master',
-        ownerName: 'Peter Shirima',
-        phone: '255784567890',
-        nida: '19891124-55106-00005-42',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-        bio: 'Sneakers, viatu rasmi vya ofisi na sandals za ngozi asilia (pure leather) Kariakoo.',
-        followersCount: '9.1k',
-        location: 'Kariakoo Msimbazi, Dar'
-    },
-    manukato: {
-        shopName: 'Oud & Arabian Scents Tz',
-        ownerName: 'Khadija Nassor',
-        phone: '255718901234',
-        nida: '19930803-66103-00006-88',
-        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
-        bio: 'Mafuta asilia ya Oud, Perfumes original na designer scents zinazokaa masaa 48+.',
-        followersCount: '5.7k',
-        location: 'Posta Mpya, Dar es Salaam'
-    },
-    simu_umeme: {
-        shopName: 'Mlimani Tech Hub',
-        ownerName: 'Baraka Msuya',
-        phone: '255752112233',
-        nida: '19900318-77109-00007-15',
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-        bio: 'Smartphones (iPhone & Samsung), Laptops, Smart TVs na vifaa vyote vyenye warranty ya miezi 12-24.',
-        followersCount: '15.3k',
-        location: 'Survey Mlimani, Dar es Salaam'
-    },
-    ujenzi: {
-        shopName: 'Barafu Building & Hardware',
-        ownerName: 'Geoffrey Mushi',
-        phone: '255763998877',
-        nida: '19850910-88108-00008-63',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
-        bio: 'Vifaa bora vya ujenzi: Nondo, Saruji, Gypsum, Rangi na mabomba. Usafiri bure Dar es Salaam.',
-        followersCount: '3.9k',
-        location: 'Buguruni Chama, Dar es Salaam'
-    },
-    usafi_nyumbani: {
-        shopName: 'Safisha Living Solutions',
-        ownerName: 'Dorice Mlay',
-        phone: '255787445566',
-        nida: '19921201-99107-00009-54',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        bio: 'Dawa safi za usafi, cleaners, roboti za usafi na vifaa vya kisasa vya kupendezesha sebule na jiko.',
-        followersCount: '4.2k',
-        location: 'Kinondoni Morocco, Dar'
-    }
-};
 
 // Format WhatsApp Phone for international routing (+255)
 function formatWhatsAppPhone(phone) {
@@ -620,24 +527,71 @@ function getVendorForProduct(item) {
             ownerName: item.vendorName || shopName,
             phone: cleanPhone,
             rawPhone: rawPhone,
-            nida: item.vendorNida || item.vendorNidaOrTin || 'NIDA Verified',
+            nida: item.vendorNida || item.vendorNidaOrTin || '',
             avatar: avatar,
             bio: bio,
-            followersCount: item.followersCount || '2.3k',
+            followersCount: String(item.followers?.length || 0),
             location: location
         };
     }
-    const dept = item.dept || item.category || 'nyumba';
-    const def = defaultVendorProfiles[dept] || defaultVendorProfiles.nyumba;
     return {
-        ...def,
-        phone: formatWhatsAppPhone(def.phone)
+        shopName: item.vendorShopName || item.vendorName || 'Duka la Genge Mall',
+        ownerName: item.vendorName || item.vendorShopName || 'Muuzaji',
+        phone: formatWhatsAppPhone(item.vendorPhone || item.phone || ''),
+        rawPhone: item.vendorPhone || item.phone || '',
+        nida: item.vendorNidaOrTin || '',
+        avatar: 'mall/genge-mall-logo.jpg',
+        bio: item.vendorBio || '',
+        followersCount: String(item.followers?.length || 0),
+        location: item.location || 'Tanzania'
     };
 }
 
 // Format Currency TZS
 function formatTZS(amount) {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+}
+
+function escapeMallHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[char]);
+}
+
+async function refreshVendorRegistrationPaymentState() {
+    const status = document.getElementById('registration-payment-status');
+    const packageSelect = document.getElementById('reg-package-select');
+    if (!status || !packageSelect) return;
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/settings`);
+        if (!res.ok) throw new Error(`Settings request failed (${res.status})`);
+        const settings = await res.json();
+        if (typeof settings.payment_enabled !== 'boolean') {
+            throw new Error('Hali ya malipo iliyopokelewa si sahihi.');
+        }
+
+        packageSelect.querySelectorAll('option').forEach(option => {
+            const paidLabel = option.dataset.paidLabel;
+            if (!paidLabel) return;
+            option.textContent = settings.payment_enabled
+                ? paidLabel
+                : paidLabel.replace(/Tsh [\d,]+\/=/, 'BURE kwa sasa');
+        });
+
+        status.textContent = settings.payment_enabled
+            ? 'Malipo yanahitajika kwa usajili; chagua kifurushi chako.'
+            : 'Kwa sasa usajili ni bure. Bei zitaonekana tena malipo yakishawashwa.';
+        status.style.color = settings.payment_enabled ? 'var(--text-muted)' : '#10b981';
+    } catch (err) {
+        console.error('Imeshindwa kupakia hali ya malipo ya usajili:', err);
+        status.textContent = 'Imeshindwa kuthibitisha ada kwa sasa. Jaribu tena baadaye.';
+        status.style.color = '#ef4444';
+    }
 }
 
 // Initialize on DOM Loaded or immediately if DOM is already ready
@@ -826,6 +780,7 @@ window.switchAuthMode = function(mode) {
         formReg.classList.toggle('hidden', mode !== 'register');
         formReg.style.display = (mode === 'register') ? 'block' : 'none';
     }
+    if (mode === 'register') refreshVendorRegistrationPaymentState();
 };
 
 window.selectRegisterRole = function() {};
@@ -983,8 +938,30 @@ window.handleMallRegister = async function(e) {
         price
     };
 
-    // Close auth modal and open STK Push modal directly!
+    // Close auth modal first
     closeAuthModal();
+
+    // Check if payments are enabled (admin can disable via admin panel)
+    try {
+        const settingsRes = await fetch(`${BACKEND_URL}/api/settings`);
+        if (!settingsRes.ok) {
+            throw new Error(`Settings request failed (${settingsRes.status})`);
+        }
+        const settings = await settingsRes.json();
+
+        if (settings.payment_enabled === false) {
+            // ── MALIPO YAMEZIMWA: Sajili moja kwa moja bila kulipa ──
+            showMallToast('⏳ Inasajili duka lako...');
+            await completeFreeVendorRegistration();
+            return;
+        }
+    } catch (err) {
+        console.error('Imeshindwa kusoma hali ya malipo ya Genge Mall:', err);
+        showMallToast('❌ Imeshindwa kuthibitisha hali ya malipo. Tafadhali jaribu tena baadaye.');
+        return;
+    }
+
+    // Payments are ON — open STK Push modal
     openVendorStkModal(pendingVendorRegistration);
 };
 
@@ -1011,6 +988,62 @@ window.closeVendorStkModal = function() {
     if (modal) modal.style.display = 'none';
     if (vstkCountdownInterval) clearInterval(vstkCountdownInterval);
 };
+
+/**
+ * Sajili mfanyabiashara bila malipo — inatumika wakati admin amezima mfumo wa malipo.
+ * Inafanya kazi sawa na confirmVendorPaymentManually() ila bila kukagua malipo.
+ */
+async function completeFreeVendorRegistration() {
+    if (!pendingVendorRegistration) {
+        showMallToast('❌ Taarifa za usajili hazipo. Jaza fomu tena.');
+        return;
+    }
+
+    const data = pendingVendorRegistration;
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: data.name,
+                phone: data.phone,
+                password: data.password,
+                role: 'vendor',
+                nidaOrTin: data.nidaOrTin,
+                shopName: data.shopName,
+                packageName: data.packageName,
+                paymentStatus: 'free_registration', // admin disabled payments
+                harakaOrderId: ''
+            })
+        });
+        const resData = await res.json();
+        if (!res.ok) {
+            throw new Error(resData.message || 'Usajili haukukamilika.');
+        }
+        if (!resData.user) {
+            throw new Error('Server haikurudisha taarifa za akaunti iliyosajiliwa.');
+        }
+
+        currentUser = { ...resData.user, sessionToken: resData.sessionToken };
+    } catch (err) {
+        console.error('Usajili wa bure wa Genge Mall umeshindikana:', err);
+        showMallToast(`❌ ${err.message || 'Usajili umeshindikana. Tafadhali jaribu tena.'}`);
+        return;
+    }
+
+    localStorage.setItem('genge_user', JSON.stringify(currentUser));
+    localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
+    pendingVendorRegistration = null;
+
+    showMallToast('✅ Duka lako limesajiliwa kikamilifu! Karibu Genge Mall.');
+
+    // Redirect to vendor dashboard after 1.5s
+    setTimeout(() => {
+        window.location.href = 'vendor-admin.html';
+    }, 1500);
+}
+
 
 window.updateVstkNetwork = function(radio) {
     document.querySelectorAll('.vstk-net-card').forEach(card => card.classList.remove('active'));
@@ -1052,7 +1085,12 @@ window.triggerVendorStkPayment = async function() {
         const res = await fetch(`${BACKEND_URL}/api/vendor/register-stk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...pendingVendorRegistration, phone, provider: selectedProvider })
+            body: JSON.stringify({
+                ...pendingVendorRegistration,
+                vendorPhone: pendingVendorRegistration.phone,
+                phone,
+                provider: selectedProvider
+            })
         });
 
         const data = await res.json();
@@ -1089,7 +1127,7 @@ window.triggerVendorStkPayment = async function() {
                 pollCount++;
                 if (pollCount > 24 || vstkPaymentConfirmed) { clearInterval(vstkPollInterval); return; }
                 try {
-                    const r = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${vstkHarakaOrderId}`);
+                    const r = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${encodeURIComponent(vstkHarakaOrderId)}`);
                     const s = await r.json();
                     const payStatus = s.payment?.status || s.status || '';
                     if (payStatus === 'completed') {
@@ -1152,7 +1190,7 @@ window.confirmVendorPaymentManually = async function() {
         if (statusSub) statusSub.textContent = 'Tafadhali subiri sekunde chache tunapowasiliana na mtandao wa simu kuthibitisha...';
 
         try {
-            const checkRes = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${vstkHarakaOrderId}`);
+            const checkRes = await fetch(`${BACKEND_URL}/api/vendor/stk-status/${encodeURIComponent(vstkHarakaOrderId)}`);
             const checkData = await checkRes.json();
             const currentStatus = checkData.payment?.status || checkData.status || '';
 
@@ -1171,8 +1209,6 @@ window.confirmVendorPaymentManually = async function() {
     }
 
     const data = pendingVendorRegistration;
-    const limit = data.packageName === 'Gold' ? 60 : data.packageName === 'Silver' ? 45 : 25;
-    let registeredUser = null;
 
     try {
         const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
@@ -1190,42 +1226,21 @@ window.confirmVendorPaymentManually = async function() {
                 harakaOrderId: vstkHarakaOrderId || ''
             })
         });
-        if (res.ok) {
-            const resData = await res.json();
-            registeredUser = resData.user;
+        const resData = await res.json();
+        if (!res.ok) {
+            throw new Error(resData.message || 'Usajili haukukamilika.');
         }
-    } catch (_) {}
 
-    if (!registeredUser) {
-        registeredUser = {
-            id: 'vdr_' + Date.now(),
-            name: data.name,
-            phone: data.phone,
-            role: 'vendor',
-            nidaOrTin: data.nidaOrTin,
-            shopName: data.shopName,
-            packageName: data.packageName,
-            productLimit: limit,
-            status: 'active',
-            package: {
-                name: data.packageName,
-                price: data.price,
-                maxProducts: limit,
-                status: 'active',
-                durationDays: 30,
-                activatedAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-            },
-            createdAt: new Date().toISOString()
-        };
-        try {
-            const existingUsers = JSON.parse(localStorage.getItem('genge_registered_users') || '[]');
-            existingUsers.push(registeredUser);
-            localStorage.setItem('genge_registered_users', JSON.stringify(existingUsers));
-        } catch (_) {}
+        if (!resData.user) {
+            throw new Error('Server haikurudisha taarifa za akaunti iliyosajiliwa.');
+        }
+        currentUser = { ...resData.user, sessionToken: resData.sessionToken };
+    } catch (err) {
+        console.error('Usajili wa Genge Mall baada ya malipo umeshindikana:', err);
+        showMallToast(`❌ ${err.message || 'Usajili umeshindikana. Tafadhali jaribu tena.'}`);
+        return;
     }
 
-    currentUser = registeredUser;
     localStorage.setItem('genge_user', JSON.stringify(currentUser));
     localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
     updateHeaderAuthUI();
@@ -1261,68 +1276,39 @@ let isSponsoredSliderPaused = false;
 
 function initSponsoredSlider() {
     const track = document.getElementById('sponsored-slides-track');
-    const dotsContainer = document.getElementById('sponsored-dots-indicator');
     if (!track) return;
 
-    // Curated high-impact sponsored listings for Gold/VIP vendors
-    sponsoredSliderItems = [
-        {
-            id: 'sp-01',
-            shopName: 'Dar Luxury Homes & Real Estate',
-            vendorPhone: '255799689961',
-            verified: true,
-            badgeText: '⭐ GOLD VIP VENDOR',
-            title: 'Apartment ya Kisasa (Vyumba 3) Mbezi Beach',
-            price: 650000,
-            priceUnit: '/ Mwezi',
-            image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
-            location: 'Mbezi Beach, Dar es Salaam',
-            specs: ['Vyumba 3 Master', 'Gypsum & Tiles', 'Paving & Fensi', 'Maji Dawasco 24/7']
-        },
-        {
-            id: 'sp-02',
-            shopName: 'Classic Auto Motors Tanzania',
-            vendorPhone: '255692970687',
-            verified: true,
-            badgeText: '⭐ GOLD VIP VENDOR',
-            title: 'Toyota Harrier New Model (Black Edition)',
-            price: 34500000,
-            priceUnit: 'Tsh (Inauzwa)',
-            image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-            location: 'Magomeni Mikumi, Dar es Salaam',
-            specs: ['Mwaka 2017', 'Full Options', 'Leather Seats', 'Kadi Halisi ya TRA']
-        },
-        {
-            id: 'sp-03',
-            shopName: 'Kariakoo Smart Tech & Appliances',
-            vendorPhone: '255752112233',
-            verified: true,
-            badgeText: '⭐ GOLD VIP VENDOR',
-            title: 'Samsung Smart 4K UHD Frameless TV (55 Inch)',
-            price: 1150000,
-            priceUnit: 'Tsh',
-            image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80',
-            location: 'Mtaa wa Msimbazi, Kariakoo',
-            specs: ['55 Inch', '4K Ultra HD', 'Voice Remote', 'Waranti Miaka 2']
-        },
-        {
-            id: 'sp-04',
-            shopName: 'Zanzibar Queen Fashion & Perfumes',
-            vendorPhone: '255799689961',
-            verified: true,
-            badgeText: '⭐ GOLD VIP VENDOR',
-            title: 'Seti ya Manukato ya Asili ya Oud & Dubai Silk Abaya',
-            price: 185000,
-            priceUnit: 'Seti Kamili',
-            image: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=800&q=80',
-            location: 'Posta Mpya, Dar es Salaam',
-            specs: ['Oud Halisi', 'Harufu ya Siku 3', 'Kitambaa cha Hariri', 'Free Delivery']
-        }
-    ];
-
     renderSponsoredSlides();
-    startSponsoredSliderAutoplay();
     initSponsoredSliderGestures();
+}
+
+function refreshSponsoredSlider(products) {
+    const shops = new Map();
+    [...products]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .forEach(product => {
+            const phone = String(product.vendorPhone || '').trim();
+            const shopName = product.vendorShopName || product.vendorName;
+            if (!phone || !shopName) return;
+            const shopKey = `${phone}:${shopName.trim().toLowerCase()}`;
+            if (!shops.has(shopKey)) shops.set(shopKey, product);
+        });
+
+    sponsoredSliderItems = Array.from(shops.values()).map(product => ({
+        id: product.id,
+        shopName: product.vendorShopName || product.vendorName,
+        vendorPhone: product.vendorPhone,
+        title: product.name || product.title || 'Bidhaa ya duka',
+        price: Number(product.price) || 0,
+        priceUnit: product.priceUnit || 'Tsh',
+        image: product.icon || product.image || 'mall/genge-mall-logo.jpg',
+        location: product.location || 'Tanzania',
+        specs: Array.isArray(product.specs) ? product.specs : []
+    }));
+    sponsoredSliderIndex = 0;
+    renderSponsoredSlides();
+    if (sponsoredSliderItems.length > 1) startSponsoredSliderAutoplay();
+    else if (sponsoredSliderTimer) clearInterval(sponsoredSliderTimer);
 }
 
 function renderSponsoredSlides() {
@@ -1330,35 +1316,42 @@ function renderSponsoredSlides() {
     const dotsContainer = document.getElementById('sponsored-dots-indicator');
     if (!track) return;
 
+    if (sponsoredSliderItems.length === 0) {
+        track.innerHTML = '<div style="width:100%;padding:1.5rem;text-align:center;color:#94a3b8;">Bado hakuna biashara zilizosajiliwa zenye bidhaa za kutangaza.</div>';
+        if (dotsContainer) dotsContainer.innerHTML = '';
+        return;
+    }
+
     track.innerHTML = sponsoredSliderItems.map((item, idx) => {
         const cleanPhone = formatWhatsAppPhone(item.vendorPhone);
-        const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall VIP Showcase. Naomba kujua zaidi.`);
+        const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall. Naomba kujua zaidi.`);
         const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
         const telLink = `tel:+${cleanPhone}`;
-
-        const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${s}</span>`).join('');
+        const safeShopName = escapeMallHtml(item.shopName);
+        const safeTitle = escapeMallHtml(item.title);
+        const safeLocation = escapeMallHtml(item.location);
+        const safePriceUnit = escapeMallHtml(item.priceUnit);
+        const safeImage = escapeMallHtml(item.image);
+        const specsHtml = (item.specs || []).map(s => `<span class="spec-pill">${escapeMallHtml(s)}</span>`).join('');
 
         return `
             <div class="sponsored-slide-card" data-index="${idx}">
                 <div class="slide-img-box">
-                    <img src="${item.image}" alt="${item.title}" loading="lazy" onerror="this.src='mall/genge-mall-logo.jpg'">
+                    <img src="${safeImage}" alt="${safeTitle}" loading="lazy" onerror="this.src='mall/genge-mall-logo.jpg'">
                     <div class="slide-gold-ribbon">
-                        <ion-icon name="sparkles"></ion-icon> ${item.badgeText}
+                        <ion-icon name="megaphone-outline"></ion-icon> TANGAZO LA MUUZAJI
                     </div>
                 </div>
                 <div class="slide-info-box">
                     <div>
                         <div class="slide-vendor-header">
                             <span class="slide-vendor-shop">
-                                <ion-icon name="storefront-outline"></ion-icon> ${item.shopName}
-                            </span>
-                            <span class="slide-verified-badge">
-                                <ion-icon name="checkmark-circle"></ion-icon> NIDA Verified
+                                <ion-icon name="storefront-outline"></ion-icon> ${safeShopName}
                             </span>
                         </div>
-                        <h3 class="slide-title">${item.title}</h3>
+                        <h3 class="slide-title">${safeTitle}</h3>
                         <div class="slide-location">
-                            <ion-icon name="location-outline"></ion-icon> ${item.location}
+                            <ion-icon name="location-outline"></ion-icon> ${safeLocation}
                         </div>
                         <div class="slide-specs-pills">
                             ${specsHtml}
@@ -1367,7 +1360,7 @@ function renderSponsoredSlides() {
                     <div>
                         <div class="slide-price-row">
                             <span class="slide-current-price">Tsh ${item.price.toLocaleString()}</span>
-                            <span style="font-size:0.8rem; color:#94a3b8;">${item.priceUnit || ''}</span>
+                            <span style="font-size:0.8rem; color:#94a3b8;">${safePriceUnit}</span>
                         </div>
                         <div class="slide-actions-row">
                             <a href="${waLink}" target="_blank" class="slide-btn-whatsapp">
@@ -1708,8 +1701,6 @@ function fetchServerMallProducts() {
                 const allProducts = await res.json();
                 if (Array.isArray(allProducts)) {
                     const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
-                    const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
-
                     // Strictly keep only Mall products and never allow Genge Fresh food items
                     serverMallProducts = allProducts.filter(p => {
                         const cat = (p.category || '').toLowerCase();
@@ -1718,10 +1709,10 @@ function fetchServerMallProducts() {
                         // Never include fresh food items
                         if (freshCategories.includes(cat) || freshCategories.includes(dept)) return false;
 
-                        // Must be a vendor product or belonging to a Mall category
-                        return (p.vendorPhone && p.vendorPhone.trim().length > 0) || mallCategories.includes(cat) || mallCategories.includes(dept);
+                        return typeof p.vendorPhone === 'string' && p.vendorPhone.trim().length > 0;
                     });
                     renderMallProducts();
+                    refreshSponsoredSlider(serverMallProducts);
 
                     // Check if deep link is waiting for server products
                     const urlParams = new URLSearchParams(window.location.search);
@@ -1747,8 +1738,7 @@ function renderMallProducts() {
 
     if (!grid) return;
 
-    // Combine static catalog and server vendor products
-    const combinedAll = [...serverMallProducts, ...mallProducts];
+    const combinedAll = serverMallProducts;
 
     // Filter logic
     let filtered = combinedAll.filter(item => {
@@ -1807,7 +1797,7 @@ function renderMallProducts() {
         const vendorShop = vendor.shopName;
         const vendorPhone = vendor.phone;
         const vendorAvatar = vendor.avatar;
-        const likeCount = item.likeCount || (item.likes ? item.likes.length : Math.floor(Math.random() * 18) + 5);
+        const likeCount = item.likeCount || (item.likes ? item.likes.length : 0);
         const likedLocally = localStorage.getItem('genge_liked_' + item.id) === 'true';
         const isLiked = likedLocally || (currentUser && item.likes && item.likes.includes(currentUser.phone));
 
@@ -1818,7 +1808,7 @@ function renderMallProducts() {
                     <img src="${vendorAvatar || 'mall/genge-mall-logo.jpg'}" alt="${vendorShop}" class="inst-avatar" onerror="this.src='mall/genge-mall-logo.jpg'">
                     <div class="inst-vendor-name">
                         <span>${vendorShop}</span>
-                        <ion-icon name="checkmark-circle" class="inst-verified-icon" title="NIDA Imethibitishwa"></ion-icon>
+                        <ion-icon name="storefront-outline" class="inst-verified-icon" title="Duka lililosajiliwa Genge Mall"></ion-icon>
                     </div>
                 </div>
                 <button class="inst-follow-btn" onclick="event.stopPropagation(); toggleFollowVendor('${vendorPhone}')">
@@ -1945,7 +1935,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     modalVendorPhone = phone;
     const cleanPhone = formatWhatsAppPhone(phone);
-    const combinedAll = [...serverMallProducts, ...mallProducts];
+    const combinedAll = serverMallProducts;
 
     // Find the specific item clicked
     const clickedItem = combinedAll.find(p => String(p.id) === String(productIdOrDept));
@@ -2003,20 +1993,18 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             shopName: customShopName,
             ownerName: customOwner,
             phone: cleanPhone,
-            nida: (refProd && refProd.vendorNidaOrTin) || (apiVendor && apiVendor.nidaOrTin) || 'NIDA Verified',
+            nida: (refProd && refProd.vendorNidaOrTin) || (apiVendor && apiVendor.nidaOrTin) || '',
             avatar: (customAvatar && !customAvatar.includes('12.png')) ? customAvatar : 'mall/genge-mall-logo.jpg',
             bio: customBio,
-            followersCount: (refProd && refProd.followersCount) || '1.8k',
+            followersCount: String(apiVendor?.followers?.length || 0),
             location: customLocation
         };
     } else {
-        // Default demo vendor for a catalog department
-        const deptKey = (clickedItem && (clickedItem.dept || clickedItem.category)) || productIdOrDept || 'nyumba';
-        const def = defaultVendorProfiles[deptKey] || defaultVendorProfiles.nyumba;
-        v = {
-            ...def,
-            phone: formatWhatsAppPhone(def.phone)
-        };
+        if (!clickedItem || !clickedItem.vendorPhone) {
+            showMallToast('Duka halijapatikana. Tafadhali jaribu tena.');
+            return;
+        }
+        v = getVendorForProduct(clickedItem);
     }
 
     currentModalVendor = v;
@@ -2102,7 +2090,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     const prodCountEl = document.getElementById('vp-modal-prod-count');
     if (prodCountEl) prodCountEl.textContent = vendorProds.length;
     const followersEl = document.getElementById('vp-modal-followers-count');
-    if (followersEl) followersEl.textContent = v.followersCount || '2.4k';
+    if (followersEl) followersEl.textContent = v.followersCount || '0';
 
     const waBtn = document.getElementById('vp-modal-wa-btn');
     if (waBtn) {
@@ -2171,7 +2159,7 @@ let deepLinkProcessed = false;
 function handleMallDeepLink(productId, shopPhone) {
     if (deepLinkProcessed) return;
 
-    const combinedAll = [...serverMallProducts, ...mallProducts];
+    const combinedAll = serverMallProducts;
     if (combinedAll.length === 0) return;
 
     let targetItem = null;

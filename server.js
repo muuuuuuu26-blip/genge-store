@@ -4,15 +4,76 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const crypto = require('crypto');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
 const Package = require('./models/Package');
 const User = require('./models/User');
 const Banner = require('./models/Banner');
+const Settings = require('./models/Settings');
+const PaymentIntent = require('./models/PaymentIntent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ADMIN_SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
+const VENDOR_PACKAGES = {
+    Basic: { price: 5000, maxProducts: 25 },
+    Silver: { price: 10000, maxProducts: 45 },
+    Gold: { price: 15000, maxProducts: 60 }
+};
+
+function getVendorPackage(packageName) {
+    const selected = VENDOR_PACKAGES[packageName] ? packageName : 'Basic';
+    return { name: selected, ...VENDOR_PACKAGES[selected] };
+}
+
+function createSessionToken(claims) {
+    const payload = Buffer.from(JSON.stringify({
+        ...claims,
+        expiresAt: Date.now() + ADMIN_SESSION_DURATION_MS
+    })).toString('base64url');
+    const signature = crypto
+        .createHmac('sha256', process.env.SESSION_SECRET)
+        .update(payload)
+        .digest('base64url');
+
+    return `${payload}.${signature}`;
+}
+
+function secureStringEquals(candidate, expected) {
+    if (typeof candidate !== 'string' || typeof expected !== 'string') return false;
+    const candidateBuffer = Buffer.from(candidate);
+    const expectedBuffer = Buffer.from(expected);
+    return candidateBuffer.length === expectedBuffer.length &&
+        crypto.timingSafeEqual(candidateBuffer, expectedBuffer);
+}
+
+function getSession(req) {
+    const token = req.get('Authorization')?.replace(/^Bearer\s+/i, '');
+    const signingSecret = process.env.SESSION_SECRET;
+    if (!token || !signingSecret) return null;
+
+    const [payload, signature] = token.split('.');
+    if (!payload || !signature) return null;
+
+    const expectedSignature = crypto
+        .createHmac('sha256', signingSecret)
+        .update(payload)
+        .digest();
+    const receivedSignature = Buffer.from(signature, 'base64url');
+    if (receivedSignature.length !== expectedSignature.length ||
+        !crypto.timingSafeEqual(receivedSignature, expectedSignature)) {
+        return null;
+    }
+
+    try {
+        const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        return Number.isFinite(session.expiresAt) && session.expiresAt > Date.now() ? session : null;
+    } catch (err) {
+        return null;
+    }
+}
 
 // Middleware
 app.use(cors());
@@ -198,16 +259,10 @@ app.get('/api/products', async (req, res) => {
         let filter = { isVendorActive: { $ne: false } };
 
         const freshCategories = ['matunda', 'mbogamboga', 'nafaka', 'viungo', 'nyama', 'samaki', 'mafuta', 'vinywaji'];
-        const mallCategories = ['nyumba', 'magari', 'mitindo', 'urembo', 'viatu', 'manukato', 'simu_umeme', 'ujenzi', 'usafi_nyumbani'];
-
         if (scope === 'mall') {
             filter = {
                 isVendorActive: { $ne: false },
-                $or: [
-                    { vendorPhone: { $exists: true, $nin: ['', null] } },
-                    { dept: { $in: mallCategories } },
-                    { category: { $in: mallCategories } }
-                ],
+                vendorPhone: { $exists: true, $nin: ['', null] },
                 category: { $nin: freshCategories }
             };
         } else if (scope === 'fresh') {
@@ -223,6 +278,22 @@ app.get('/api/products', async (req, res) => {
         }
 
         let products = await Product.find(filter);
+        if (scope === 'mall' && products.length > 0) {
+            const vendorPhoneVariants = [...new Set(
+                products.flatMap(product => getPhoneVariants(product.vendorPhone))
+            )];
+            const vendors = await User.find({
+                role: 'vendor',
+                status: { $nin: ['suspended', 'blocked'] },
+                phone: { $in: vendorPhoneVariants }
+            }).select('phone shopName');
+            const activeVendorPhones = new Set(
+                vendors.flatMap(vendor => getPhoneVariants(vendor.phone))
+            );
+            products = products.filter(product =>
+                getPhoneVariants(product.vendorPhone).some(phone => activeVendorPhones.has(phone))
+            );
+        }
         if (!scope || scope === 'fresh') {
             // Check specifically if Fresh products exist (separate from Mall vendor products)
             const freshFilter = { isVendorActive: { $ne: false }, category: { $in: freshCategories } };
@@ -887,35 +958,34 @@ app.post('/api/orders/:id/stk-push', async (req, res) => {
 // 9b. Vendor Registration STK Push (Genge Mall Vendor Registration Payment)
 app.post('/api/vendor/register-stk', async (req, res) => {
     try {
-        const { name, phone, password, nidaOrTin, shopName, packageName, price, provider } = req.body;
+        const { phone, vendorPhone, shopName, packageName, provider } = req.body;
+        const selectedPackage = getVendorPackage(packageName);
+        const settings = await Settings.findOne({ key: 'payment_enabled' });
 
-        if (!phone || !price) {
-            return res.status(400).json({ success: false, message: 'Tafadhali weka namba ya simu na kiasi.' });
+        if (!settings || settings.value !== true) {
+            return res.status(409).json({ success: false, message: 'Malipo ya usajili yamezimwa kwa sasa.' });
+        }
+        if (!phone || !vendorPhone || !shopName) {
+            return res.status(400).json({ success: false, message: 'Tafadhali weka namba za simu na jina la duka.' });
+        }
+        if (!process.env.HARAKAPAY_API_KEY) {
+            return res.status(503).json({ success: false, message: 'Huduma ya malipo haijasanidiwa kwa sasa.' });
         }
 
         let targetPhone = phone.trim().replace(/[\s\-\+]/g, '');
         if (targetPhone.startsWith('0')) targetPhone = '255' + targetPhone.slice(1);
         else if (!targetPhone.startsWith('255') && targetPhone.length === 9) targetPhone = '255' + targetPhone;
 
+        const cleanVendorPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
         const apiKey = process.env.HARAKAPAY_API_KEY;
         const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
 
-        if (!apiKey) {
-            return res.json({
-                success: true,
-                message: `Ombi la PIN limetumwa kwa ${targetPhone} (simulation mode).`,
-                order_id: 'SIM_' + Date.now(),
-                amount: price,
-                mode: 'simulation'
-            });
-        }
-
-        console.log(`[VENDOR STK] Sending STK push to ${targetPhone} for ${shopName} package ${packageName} TZS ${price}`);
+        console.log(`[VENDOR STK] Sending STK push to ${targetPhone} for ${shopName} package ${selectedPackage.name} TZS ${selectedPackage.price}`);
 
         const params = new URLSearchParams();
         params.append('phone', targetPhone);
-        params.append('amount', price);
-        params.append('description', `Usajili wa Duka ${shopName} - ${packageName} Vendor - Genge Mall`);
+        params.append('amount', String(selectedPackage.price));
+        params.append('description', `Usajili wa Duka ${shopName} - ${selectedPackage.name} Vendor - Genge Mall`);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -952,11 +1022,22 @@ app.post('/api/vendor/register-stk', async (req, res) => {
         }
 
         if (harakaData.success || harakaData.order_id) {
+            if (!harakaData.order_id) {
+                return res.status(502).json({ success: false, message: 'HarakaPay haikurudisha namba ya oda ya malipo.' });
+            }
+            await PaymentIntent.create({
+                orderId: String(harakaData.order_id),
+                phone: cleanVendorPhone,
+                paymentPhone: targetPhone,
+                shopName: shopName.trim(),
+                packageName: selectedPackage.name,
+                amount: selectedPackage.price
+            });
             return res.json({
                 success: true,
                 message: `✅ Ombi la PIN limetumwa kwenye simu yako (${targetPhone}). Ingiza PIN kukamilisha malipo.`,
                 order_id: harakaData.order_id,
-                amount: harakaData.amount,
+                amount: selectedPackage.price,
                 net_amount: harakaData.net_amount,
                 phone: targetPhone
             });
@@ -978,6 +1059,11 @@ app.post('/api/vendor/register-stk', async (req, res) => {
 app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
+        const paymentIntent = await PaymentIntent.findOne({ orderId: String(orderId) });
+        if (!paymentIntent) {
+            return res.status(404).json({ success: false, message: 'Oda ya malipo haijapatikana.' });
+        }
+
         const apiKey = process.env.HARAKAPAY_API_KEY;
         const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
 
@@ -990,7 +1076,7 @@ app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
 
         let text = '';
         try {
-            const r = await fetch(`${baseUrl}/api/v1/status/${orderId}`, {
+            const r = await fetch(`${baseUrl}/api/v1/status/${encodeURIComponent(orderId)}`, {
                 headers: { 'X-API-Key': apiKey },
                 signal: controller.signal
             });
@@ -1007,64 +1093,6 @@ app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
         return res.json(data);
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-// 9d. Vendor Product Upload (Saves image directly to MongoDB)
-app.post('/api/vendor/products', async (req, res) => {
-    try {
-        const { name, category, dept, price, location, desc, vendorPhone, vendorName, vendorShopName, image, vendorAvatar, vendorNidaOrTin } = req.body;
-
-        if (!name || !price || !vendorPhone) {
-            return res.status(400).json({ message: 'Tafadhali jaza jina la bidhaa, bei na namba ya muuzaji.' });
-        }
-
-        const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
-        const phoneVariants = getPhoneVariants(cleanPhone);
-
-        // Verify vendor limit
-        const vendor = await User.findOne({ phone: { $in: phoneVariants } });
-        const maxLimit = vendor?.package?.maxProducts || 25;
-        const currentCount = await Product.countDocuments({ vendorPhone: { $in: phoneVariants } });
-
-        if (currentCount >= maxLimit) {
-            return res.status(403).json({ 
-                message: `Umefikia kikomo cha bidhaa (${maxLimit}) kwa kifurushi chako cha ${vendor?.package?.name || 'Basic'}. Boresha kifurushi kupakia zaidi.` 
-            });
-        }
-
-        let effectiveAvatar = vendorAvatar || vendor?.avatar;
-        if (!effectiveAvatar || effectiveAvatar.includes('12.png')) {
-            effectiveAvatar = 'mall/genge-mall-logo.jpg';
-        }
-
-        const id = 'vprod_' + Date.now();
-        const newProduct = new Product({
-            id: id,
-            name: name.trim(),
-            price: Number(price),
-            priceUnit: 'Tsh',
-            category: dept || category || 'all',
-            dept: dept || category || 'all',
-            icon: image || 'mall/genge-mall-logo.jpg',
-            isImage: true,
-            desc: desc ? desc.trim() : '',
-            location: location ? location.trim() : 'Dar es Salaam',
-            vendorPhone: cleanPhone,
-            vendorName: vendorName ? vendorName.trim() : (vendor?.name || 'Muuzaji'),
-            vendorShopName: vendorShopName ? vendorShopName.trim() : (vendor?.shopName || 'Duka Langu'),
-            vendorAvatar: effectiveAvatar,
-            vendorNidaOrTin: vendorNidaOrTin || vendor?.nidaOrTin || '',
-            isVendorActive: true,
-            createdAt: new Date()
-        });
-
-        await newProduct.save();
-        console.log(`[VENDOR PRODUCT] ✅ Product "${name}" saved to MongoDB for vendor ${cleanPhone}`);
-        res.status(201).json({ message: 'Bidhaa imechapishwa kikamilifu!', product: newProduct });
-    } catch (err) {
-        console.error('[VENDOR PRODUCT CREATE ERROR]:', err);
-        res.status(500).json({ message: 'Kosa wakati wa kuchapisha bidhaa.', error: err.message });
     }
 });
 
@@ -1201,8 +1229,64 @@ app.get('/api/stats/member-count', async (req, res) => {
     }
 });
 
+app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD || !process.env.SESSION_SECRET) {
+        return res.status(503).json({ message: 'Mipangilio ya kuingia admin haijawekwa kwenye server.' });
+    }
+
+    if (!secureStringEquals(username, process.env.ADMIN_USERNAME) ||
+        !secureStringEquals(password, process.env.ADMIN_PASSWORD)) {
+        return res.status(401).json({ message: 'Username au password si sahihi.' });
+    }
+
+    res.json({ token: createSessionToken({ role: 'admin' }) });
+});
+
+app.get('/api/admin/session', (req, res) => {
+    if (getSession(req)?.role !== 'admin') {
+        return res.status(401).json({ authenticated: false });
+    }
+    res.json({ authenticated: true });
+});
+
+// Genge Mall registration payment settings
+app.get('/api/settings', async (req, res) => {
+    try {
+        const setting = await Settings.findOne({ key: 'payment_enabled' });
+        res.json({ payment_enabled: setting ? setting.value === true : false });
+    } catch (err) {
+        console.error('[SETTINGS READ ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindwa kusoma mipangilio ya malipo.' });
+    }
+});
+
+app.put('/api/settings/payment_enabled', async (req, res) => {
+    try {
+        const { value } = req.body;
+        if (typeof value !== 'boolean') {
+            return res.status(400).json({ success: false, message: 'Hali ya malipo si sahihi.' });
+        }
+
+        if (getSession(req)?.role !== 'admin') {
+            return res.status(401).json({ success: false, message: 'Huna ruhusa ya kubadilisha mipangilio hii.' });
+        }
+
+        const setting = await Settings.findOneAndUpdate(
+            { key: 'payment_enabled' },
+            { $set: { value } },
+            { new: true, upsert: true }
+        );
+        res.json({ success: true, payment_enabled: setting.value });
+    } catch (err) {
+        console.error('[SETTINGS UPDATE ERROR]:', err);
+        res.status(500).json({ success: false, message: 'Imeshindwa kusasisha mipangilio ya malipo.' });
+    }
+});
+
 // B. User Registration Endpoint
 app.post('/api/auth/register', async (req, res) => {
+    let claimedPaymentIntentId = null;
     try {
         const { name, phone, password, role, nidaOrTin, shopName, packageName } = req.body;
 
@@ -1228,60 +1312,72 @@ app.post('/api/auth/register', async (req, res) => {
         // Setup vendor package rules (30-day default subscription)
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-        let userPackage = { 
-            name: 'Basic', 
-            price: 5000, 
-            maxProducts: 25, 
+        const selectedPackage = getVendorPackage(packageName);
+        let userPackage = {
+            name: selectedPackage.name,
+            price: selectedPackage.price,
+            maxProducts: selectedPackage.maxProducts,
             status: 'active',
             durationDays: 30,
             activatedAt: now,
             expiresAt: expiresAt
         };
-        if (packageName === 'Silver') {
-            userPackage = { 
-                name: 'Silver', 
-                price: 10000, 
-                maxProducts: 45, 
-                status: 'active',
-                durationDays: 30,
-                activatedAt: now,
-                expiresAt: expiresAt
-            };
-        } else if (packageName === 'Gold') {
-            userPackage = { 
-                name: 'Gold', 
-                price: 15000, 
-                maxProducts: 60, 
-                status: 'active',
-                durationDays: 30,
-                activatedAt: now,
-                expiresAt: expiresAt
-            };
-        }
+        let paymentIntent = null;
 
         if (role === 'vendor') {
             if (!nidaOrTin) {
                 return res.status(400).json({ message: 'Muuzaji anahitajika kujaza Namba ya NIDA au TIN Number.' });
             }
 
+            const paymentSetting = await Settings.findOne({ key: 'payment_enabled' });
+            const paymentEnabled = paymentSetting ? paymentSetting.value === true : false;
             const { harakaOrderId } = req.body;
-            const apiKey = process.env.HARAKAPAY_API_KEY;
-            const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
 
-            if (apiKey && harakaOrderId && !harakaOrderId.startsWith('SIM_')) {
+            if (paymentEnabled) {
+                if (!harakaOrderId || String(harakaOrderId).startsWith('SIM_')) {
+                    return res.status(402).json({ message: 'Kamilisha malipo ya kifurushi kabla ya kusajili duka.' });
+                }
+                if (!process.env.HARAKAPAY_API_KEY) {
+                    return res.status(503).json({ message: 'Huduma ya malipo haijasanidiwa kwa sasa. Tafadhali jaribu tena baadaye.' });
+                }
+
+                paymentIntent = await PaymentIntent.findOne({
+                    orderId: String(harakaOrderId),
+                    phone: cleanPhone,
+                    shopName: shopName.trim(),
+                    packageName: selectedPackage.name,
+                    amount: selectedPackage.price,
+                    consumedAt: null
+                });
+                if (!paymentIntent) {
+                    return res.status(402).json({ message: 'Oda hii ya malipo haiendani na usajili huu au imeshatumika.' });
+                }
+
+                const baseUrl = process.env.HARAKAPAY_BASE_URL || 'https://harakapay.net';
                 try {
-                    const statusRes = await fetch(`${baseUrl}/api/v1/status/${harakaOrderId}`, {
-                        headers: { 'X-API-Key': apiKey }
+                    const statusRes = await fetch(`${baseUrl}/api/v1/status/${encodeURIComponent(harakaOrderId)}`, {
+                        headers: { 'X-API-Key': process.env.HARAKAPAY_API_KEY }
                     });
+                    if (!statusRes.ok) {
+                        return res.status(502).json({ message: 'Imeshindwa kuthibitisha malipo kwa sasa. Tafadhali jaribu tena.' });
+                    }
                     const statusData = await statusRes.json();
-                    if (statusData.payment?.status !== 'completed') {
+                    const payment = statusData.payment || statusData;
+                    const reportedOrderId = payment.order_id || payment.orderId;
+                    const reportedAmount = payment.amount ?? payment.net_amount;
+                    if (payment.status !== 'completed' ||
+                        (reportedOrderId && String(reportedOrderId) !== paymentIntent.orderId) ||
+                        (reportedAmount !== undefined && Number(reportedAmount) !== paymentIntent.amount)) {
                         return res.status(402).json({ 
                             message: 'Malipo ya kifurushi cha duka bado hayajathibitishwa na mtandao wa simu. Tafadhali kamilisha malipo kwa kuweka PIN kwenye simu yako kwanza.' 
                         });
                     }
                 } catch (verifyErr) {
                     console.error('[AUTH VENDOR VERIFY ERROR]:', verifyErr);
+                    return res.status(502).json({ message: 'Imeshindwa kuthibitisha malipo kwa sasa. Tafadhali jaribu tena.' });
                 }
+            } else {
+                userPackage.price = 0;
             }
         }
 
@@ -1295,7 +1391,30 @@ app.post('/api/auth/register', async (req, res) => {
             package: userPackage
         });
 
-        await newUser.save();
+        if (paymentIntent) {
+            const claimedIntent = await PaymentIntent.findOneAndUpdate(
+                { _id: paymentIntent._id, consumedAt: null },
+                { $set: { consumedAt: new Date() } },
+                { new: true }
+            );
+            if (!claimedIntent) {
+                return res.status(402).json({ message: 'Oda hii ya malipo imeshatumika.' });
+            }
+            claimedPaymentIntentId = claimedIntent._id;
+        }
+
+        try {
+            await newUser.save();
+        } catch (saveErr) {
+            if (claimedPaymentIntentId) {
+                await PaymentIntent.updateOne(
+                    { _id: claimedPaymentIntentId, consumedAt: { $ne: null } },
+                    { $set: { consumedAt: null } }
+                );
+                claimedPaymentIntentId = null;
+            }
+            throw saveErr;
+        }
 
         res.status(201).json({
             message: 'Usajili umekamilika kikamilifu! Karibu Genge Mall.',
@@ -1310,6 +1429,16 @@ app.post('/api/auth/register', async (req, res) => {
             }
         });
     } catch (err) {
+        if (claimedPaymentIntentId) {
+            try {
+                await PaymentIntent.updateOne(
+                    { _id: claimedPaymentIntentId },
+                    { $set: { consumedAt: null } }
+                );
+            } catch (releaseErr) {
+                console.error('[PAYMENT INTENT RELEASE ERROR]:', releaseErr);
+            }
+        }
         console.error('[AUTH REGISTER ERROR]:', err);
         res.status(500).json({ message: 'Kosa wakati wa kusajili akaunti.', error: err.message });
     }

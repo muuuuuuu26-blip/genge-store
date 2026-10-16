@@ -288,6 +288,16 @@
             <!-- Super Admin Genge Mall Control Section -->
             <section class="orders-section" id="mall-control-section" style="display:none;padding:1.2rem;">
 
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;padding:1rem 1.2rem;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;">
+                    <div>
+                        <h2 style="color:var(--text-main);font-size:1.05rem;margin:0 0 5px;">💳 Malipo ya usajili wa Genge Mall</h2>
+                        <p id="payment-toggle-status" style="color:var(--text-muted);font-size:0.85rem;margin:0;">Inapakia hali ya malipo...</p>
+                    </div>
+                    <button id="payment-toggle-btn" type="button" onclick="adminTogglePayment()" disabled style="padding:0.65rem 1rem;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:rgba(239,68,68,0.15);color:#f87171;font-weight:700;cursor:pointer;">
+                        <span id="payment-toggle-label">💳 Malipo: ZIMWA 🔴</span>
+                    </button>
+                </div>
+
                 <!-- Stats Cards Row -->
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:1.4rem;">
                     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1rem;text-align:center;">
@@ -617,6 +627,6 @@
         </div>
     </div>
 
-    <script src="admin.js?v=6"></script>
+    <script src="admin.js?v=7"></script>
 </body>
 </html>

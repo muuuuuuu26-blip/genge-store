@@ -1,21 +1,60 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 
-// ── LOGIN PROTECTION ─────────────────────────────────────────────
-const ADMIN_USER = 'genge-letu';
-const ADMIN_PASS = 'gengetz2026';
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init = {}) => {
+    const requestUrl = typeof input === 'string' ? input : input.url;
+    const token = sessionStorage.getItem('genge_admin_token');
+    if (!token || !new URL(requestUrl, window.location.href).pathname.startsWith('/api/')) {
+        return nativeFetch(input, init);
+    }
 
-function attemptLogin() {
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    headers.set('Authorization', `Bearer ${token}`);
+    return nativeFetch(input, { ...init, headers });
+};
+
+// ── LOGIN PROTECTION ─────────────────────────────────────────────
+async function attemptLogin() {
     const user = document.getElementById('admin-username').value.trim();
-    const pass = document.getElementById('admin-password').value.trim();
+    const pass = document.getElementById('admin-password').value;
     const errEl = document.getElementById('login-error');
 
-    if (user === ADMIN_USER && pass === ADMIN_PASS) {
-        sessionStorage.setItem('genge_admin_auth', '1');
+    try {
+        const res = await fetch(API_URL + '/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.token) {
+            throw new Error(data.message || 'Username au password si sahihi.');
+        }
+
+        sessionStorage.setItem('genge_admin_token', data.token);
         document.getElementById('login-overlay').classList.add('hidden');
         errEl.innerText = '';
-    } else {
-        errEl.innerText = '❌ Username au Password si sahihi. Jaribu tena.';
         document.getElementById('admin-password').value = '';
+    } catch (err) {
+        console.error('Admin login imeshindikana:', err);
+        errEl.innerText = `❌ ${err.message || 'Imeshindwa kuingia. Hakikisha server inapatikana.'}`;
+        document.getElementById('admin-password').value = '';
+    }
+}
+
+async function restoreAdminSession() {
+    const token = sessionStorage.getItem('genge_admin_token');
+    if (!token) return;
+
+    try {
+        const res = await fetch(API_URL + '/api/admin/session', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Session validation failed (${res.status})`);
+        document.getElementById('login-overlay').classList.add('hidden');
+    } catch (err) {
+        console.error('Admin session haijathibitishwa:', err);
+        sessionStorage.removeItem('genge_admin_token');
     }
 }
 
@@ -26,10 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
     });
 
-    // Check if already authenticated in this session
-    if (sessionStorage.getItem('genge_admin_auth') === '1') {
-        document.getElementById('login-overlay').classList.add('hidden');
-    }
+    restoreAdminSession();
 });
 // ─────────────────────────────────────────────────────────────────
 
@@ -38,9 +74,101 @@ document.addEventListener('DOMContentLoaded', () => {
     loadOrders();
     // Optional: Refresh orders every 10 seconds automatically to simulate real-time
     setInterval(loadOrders, 10000);
+    // Load payment toggle state
+    loadPaymentToggleState();
 });
 
 let currentOrders = [];
+
+// ─── PAYMENT TOGGLE (Admin) ───────────────────────────────────────────────────
+let _currentPaymentEnabled = false;
+
+async function loadPaymentToggleState() {
+    try {
+        const res = await fetch(API_URL + '/api/settings');
+        if (!res.ok) {
+            throw new Error(`Settings request failed (${res.status})`);
+        }
+        const settings = await res.json();
+        _currentPaymentEnabled = settings.payment_enabled === true;
+        updatePaymentToggleUI(_currentPaymentEnabled);
+        const status = document.getElementById('payment-toggle-status');
+        if (status) status.textContent = _currentPaymentEnabled
+            ? 'Malipo yamewashwa; usajili mpya utahitaji malipo.'
+            : 'Malipo yamezimwa; wafanyabiashara wanaweza kujisajili bure.';
+    } catch (err) {
+        console.error('Imeshindwa kupakia hali ya malipo ya Genge Mall:', err);
+        const status = document.getElementById('payment-toggle-status');
+        if (status) status.textContent = 'Imeshindwa kusoma hali ya malipo. Hakikisha server inapatikana.';
+    }
+}
+
+function updatePaymentToggleUI(enabled) {
+    const btn = document.getElementById('payment-toggle-btn');
+    const label = document.getElementById('payment-toggle-label');
+    if (!btn || !label) return;
+
+    if (enabled) {
+        btn.style.background = 'rgba(16,185,129,0.15)';
+        btn.style.color = '#10b981';
+        btn.style.borderColor = 'rgba(16,185,129,0.3)';
+        label.textContent = '💳 Malipo: WASHA 🟢';
+        btn.title = 'Malipo yanafanya kazi — Bonyeza kuzima';
+        btn.disabled = false;
+    } else {
+        btn.style.background = 'rgba(239,68,68,0.15)';
+        btn.style.color = '#f87171';
+        btn.style.borderColor = 'rgba(239,68,68,0.3)';
+        label.textContent = '💳 Malipo: ZIMWA 🔴';
+        btn.title = 'Malipo yamezimwa — Usajili ni bure — Bonyeza kuwasha';
+        btn.disabled = false;
+    }
+}
+
+window.adminTogglePayment = async function() {
+    const newValue = !_currentPaymentEnabled;
+    const action = newValue ? 'WASHA' : 'ZIMA';
+    const msg = newValue
+        ? 'Una uhakika unataka KUWASHA malipo? Wasajili wapya watalazimika kulipa.'
+        : 'Una uhakika unataka KUZIMA malipo? Wasajili wapya hawatalazimika kulipa.';
+
+    if (!confirm(msg)) return;
+
+    const btn = document.getElementById('payment-toggle-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+        const token = sessionStorage.getItem('genge_admin_token');
+        if (!token) throw new Error('Ingia tena kwenye akaunti ya admin.');
+
+        const res = await fetch(API_URL + '/api/settings/payment_enabled', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ value: newValue })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            _currentPaymentEnabled = newValue;
+            updatePaymentToggleUI(newValue);
+            const status = document.getElementById('payment-toggle-status');
+            if (status) status.textContent = newValue
+                ? 'Malipo yamewashwa; usajili mpya utahitaji malipo.'
+                : 'Malipo yamezimwa; wafanyabiashara wanaweza kujisajili bure.';
+            alert(`✅ Malipo yamefanikiwa ${action}WA!\n\n${newValue ? 'Wasajili wapya sasa watalazimika kulipa.' : 'Wasajili wapya sasa wanaweza kusajili BILA kulipa.'}`);
+        } else {
+            alert('❌ Kosa: ' + (data.message || 'Imeshindwa kusasisha mipangilio.'));
+        }
+    } catch (err) {
+        console.error('Imeshindwa kubadilisha hali ya malipo ya Genge Mall:', err);
+        alert('❌ Imeshindwa kuunganika na server. Angalia muunganiko wako.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function loadOrders() {
     try {
@@ -1588,4 +1716,3 @@ window.deleteBanner = async function(id) {
         alert('Hitilafu: ' + err.message);
     }
 };
-
