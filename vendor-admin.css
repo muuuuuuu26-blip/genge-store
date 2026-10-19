@@ -886,4 +886,314 @@ body {
 .vps-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.25); cursor: pointer; transition: all 0.25s; border: none; padding: 0; }
 .vps-dot.active { background: var(--primary); transform: scale(1.3); }
 .vps-counter { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
-@media (max-width: 600px) { .profile-edit-body { flex-direction: column; align-items: center; } .profile-save-btn { width: 100%; justify-content: center; } }
+@media (max-width: 768px) {
+    .vendor-header {
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        padding: 0.85rem 1rem;
+    }
+
+    .vendor-header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .vendor-container {
+        padding-inline: 1rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .vendor-login-overlay {
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: max(0.75rem, env(safe-area-inset-top, 0px)) 0.75rem
+            max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .vendor-login-box {
+        margin: auto;
+        padding: 1.5rem 1rem;
+        border-radius: 18px;
+    }
+
+    .vendor-header {
+        position: static;
+        padding: 0.75rem;
+    }
+
+    .vendor-brand {
+        width: 100%;
+        min-width: 0;
+        gap: 0.65rem;
+    }
+
+    .vendor-brand img {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+    }
+
+    .vendor-brand > div {
+        min-width: 0;
+    }
+
+    .v-shop-title {
+        overflow-wrap: anywhere;
+        font-size: 1rem;
+    }
+
+    .vendor-header-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .vendor-header-actions > * {
+        justify-content: center;
+        min-width: 0;
+        width: 100%;
+        padding: 0.65rem 0.4rem;
+        font-size: 0.74rem;
+        line-height: 1.25;
+        text-align: center;
+        white-space: normal;
+    }
+
+    .vendor-container {
+        width: 100%;
+        margin: 1rem auto;
+        padding-inline: 0.75rem;
+    }
+
+    .vendor-package-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 16px;
+    }
+
+    .pkg-info-left {
+        min-width: 0;
+    }
+
+    .pkg-name-row {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .pkg-name-row h2 {
+        font-size: 1.3rem;
+        overflow-wrap: anywhere;
+    }
+
+    .pkg-price-badge {
+        max-width: 100%;
+        font-size: 0.75rem;
+    }
+
+    .pkg-sub {
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+    }
+
+    .pkg-timeline-row {
+        gap: 5px;
+    }
+
+    .timeline-label {
+        font-size: 0.64rem;
+    }
+
+    .pkg-stats-right {
+        display: grid;
+        grid-template-columns: minmax(76px, 0.5fr) minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .pkg-countdown-box {
+        min-width: 0;
+        padding: 0.6rem 0.35rem;
+    }
+
+    .pkg-usage-box {
+        min-width: 0;
+    }
+
+    .upgrade-pkg-btn {
+        grid-column: 1 / -1;
+        justify-content: center;
+        width: 100%;
+        min-height: 44px;
+        padding: 0.7rem 0.8rem;
+    }
+
+    .vendor-quick-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+    }
+
+    .vstat-card {
+        min-width: 0;
+        padding: 0.8rem;
+    }
+
+    .vstat-card strong {
+        font-size: 1.2rem;
+        overflow-wrap: anywhere;
+    }
+
+    .vstat-card span {
+        line-height: 1.35;
+    }
+
+    .vendor-profile-edit-card,
+    .vendor-card {
+        min-width: 0;
+        padding: 1rem;
+        border-radius: 16px;
+    }
+
+    .profile-edit-body {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .vp-avatar-section {
+        width: 100%;
+    }
+
+    .vp-avatar-wrap {
+        align-self: center;
+    }
+
+    .profile-edit-fields {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .profile-save-btn {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .vendor-grid-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+    }
+
+    .card-header h3 {
+        min-width: 0;
+        font-size: 1rem;
+        line-height: 1.35;
+    }
+
+    .badge-post-limit {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        font-size: 0.72rem;
+    }
+
+    .form-row-2 {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    .form-group {
+        margin-bottom: 0.9rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea,
+    .profile-field-group input,
+    .profile-field-group textarea {
+        min-width: 0;
+        font-size: 16px;
+    }
+
+    .form-group input[type="file"] {
+        padding: 0.65rem;
+        font-size: 0.82rem;
+    }
+
+    .vendor-submit-btn {
+        min-height: 48px;
+        padding: 0.8rem;
+        line-height: 1.35;
+    }
+
+    .vendor-products-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .inquiries-card .inq-btn-primary,
+    .inquiries-card .inq-btn-upgrade {
+        justify-content: center;
+        width: 100%;
+        min-height: 44px;
+        padding: 0.7rem;
+        text-align: center;
+    }
+
+    .upgrade-modal-overlay {
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: max(0.75rem, env(safe-area-inset-top, 0px)) 0.75rem
+            max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .upgrade-modal-content {
+        max-height: calc(100vh - 1.5rem);
+        max-height: calc(
+            100dvh - max(0.75rem, env(safe-area-inset-top, 0px)) -
+                max(0.75rem, env(safe-area-inset-bottom, 0px))
+        );
+        overflow-y: auto;
+        padding: 1.5rem 1rem;
+        border-radius: 18px;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-header {
+        padding-right: 1.5rem;
+    }
+
+    .packages-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .pkg-card {
+        min-width: 0;
+        padding: 1.35rem 1rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .vendor-header-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pkg-stats-right {
+        grid-template-columns: 76px minmax(0, 1fr);
+    }
+}
