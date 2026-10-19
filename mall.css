@@ -1832,6 +1832,29 @@ body {
     position: relative;
 }
 
+@media (max-width: 600px) {
+    .auth-modal-overlay {
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: max(0.75rem, env(safe-area-inset-top, 0px)) 0.75rem
+            max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .auth-modal-card {
+        max-height: calc(100vh - 1.5rem);
+        max-height: calc(
+            100dvh - max(0.75rem, env(safe-area-inset-top, 0px)) -
+                max(0.75rem, env(safe-area-inset-bottom, 0px))
+        );
+        padding: 1.5rem 1rem;
+        border-radius: 18px;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        scroll-padding-block: 1rem;
+    }
+}
+
 .auth-modal-close {
     position: absolute;
     top: 1rem;
