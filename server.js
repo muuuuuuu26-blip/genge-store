@@ -28,6 +28,36 @@ function getVendorPackage(packageName) {
     return { name: selected, ...VENDOR_PACKAGES[selected] };
 }
 
+let vendorShopIndexesReady;
+
+function ensureVendorShopIndexes() {
+    if (!vendorShopIndexesReady) {
+        vendorShopIndexesReady = (async () => {
+            const indexes = await User.collection.indexes();
+            const legacyPhoneIndexes = indexes.filter(index =>
+                index.unique === true &&
+                index.key.phone === 1 &&
+                Object.keys(index.key).length === 1
+            );
+
+            for (const index of legacyPhoneIndexes) {
+                await User.collection.dropIndex(index.name);
+                console.log(`[DB MIGRATION] Dropped obsolete unique vendor phone index: ${index.name}`);
+            }
+
+            await User.collection.createIndex(
+                { phone: 1, shopName: 1 },
+                { unique: true }
+            );
+        })().catch(err => {
+            vendorShopIndexesReady = null;
+            throw err;
+        });
+    }
+
+    return vendorShopIndexesReady;
+}
+
 function createSessionToken(claims) {
     const payload = Buffer.from(JSON.stringify({
         ...claims,
@@ -1313,6 +1343,10 @@ app.post('/api/auth/register', async (req, res) => {
         // Validate Tanzania phone format
         if (!/^0[67]\d{8}$/.test(cleanPhone)) {
             return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au +2557XXXXXXXX).' });
+        }
+
+        if (role === 'vendor') {
+            await ensureVendorShopIndexes();
         }
 
         // Check if this exact shop name already registered under this phone
