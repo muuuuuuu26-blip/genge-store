@@ -486,6 +486,10 @@ function formatWhatsAppPhone(phone) {
     return clean || MALL_WHATSAPP_PHONE;
 }
 
+function getVendorProfilePicStorageKey(phone, shopName) {
+    return `genge_vendor_profile_pic_${formatWhatsAppPhone(phone)}_${encodeURIComponent(String(shopName || '').trim().toLowerCase())}`;
+}
+
 function getVendorForProduct(item) {
     if (item.vendorPhone || item.vendorShopName) {
         const rawPhone = item.vendorPhone || item.phone || MALL_WHATSAPP_PHONE;
@@ -516,8 +520,7 @@ function getVendorForProduct(item) {
             } catch(_) {}
         }
         if (savedVendorMatchesShop) {
-            const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + rawPhone)
-                          || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+            const savedPic = localStorage.getItem(getVendorProfilePicStorageKey(rawPhone, shopName));
             if (savedPic && !savedPic.includes('12.png')) avatar = savedPic;
         }
 
@@ -1935,7 +1938,8 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
 
     // Find the specific item clicked
     const clickedItem = combinedAll.find(p => String(p.id) === String(productIdOrDept));
-    const clickedShopName = clickedItem && (clickedItem.vendorShopName || clickedItem.vendorName || '').trim().toLowerCase();
+    const clickedShopLabel = clickedItem && (clickedItem.vendorShopName || clickedItem.vendorName || '').trim();
+    const clickedShopName = clickedShopLabel && clickedShopLabel.toLowerCase();
 
     // Check if this vendor is a custom/registered vendor who uploaded products
     const customVendorProducts = combinedAll.filter(p => {
@@ -1947,7 +1951,8 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     // Check backend API to verify whether this phone belongs to a registered vendor
     let apiVendor = null;
     try {
-        const res = await fetch(`${BACKEND_URL}/api/vendor/profile/${cleanPhone}`);
+        const shopQuery = clickedShopLabel ? `?shopName=${encodeURIComponent(clickedShopLabel)}` : '';
+        const res = await fetch(`${BACKEND_URL}/api/vendor/profile/${cleanPhone}${shopQuery}`);
         if (res.ok) {
             const data = await res.json();
             if (data.vendor) apiVendor = data.vendor;
@@ -1988,8 +1993,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             } catch(_) {}
         }
         if (savedVendorMatchesShop) {
-            const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + phone)
-                          || localStorage.getItem('genge_vendor_profile_pic_' + cleanPhone);
+            const savedPic = localStorage.getItem(getVendorProfilePicStorageKey(phone, customShopName));
             if (savedPic && !savedPic.includes('12.png')) customAvatar = savedPic;
         }
 

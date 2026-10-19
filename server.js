@@ -1143,24 +1143,42 @@ app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
 // 9e. Vendor Profile & Avatar Update (Saves directly to MongoDB)
 app.patch('/api/vendor/profile/update', async (req, res) => {
     try {
-        const { phone, shopName, bio, location, avatar } = req.body;
+        const { phone, currentShopName, shopName, bio, location, avatar } = req.body;
         if (!phone) {
             return res.status(400).json({ message: 'Namba ya simu inahitajika.' });
         }
 
         const phoneVariants = getPhoneVariants(phone);
+        const vendors = await User.find({ phone: { $in: phoneVariants }, role: 'vendor' });
+        const selectedVendor = currentShopName
+            ? vendors.find(vendor => vendor.shopName === currentShopName)
+            : (vendors.length === 1 ? vendors[0] : null);
+
+        if (!selectedVendor) {
+            return res.status(400).json({ message: 'Chagua duka sahihi kabla ya kusasisha taarifa.' });
+        }
+
+        const originalShopName = selectedVendor.shopName || selectedVendor.name;
+        const updatedShopName = shopName ? shopName.trim() : originalShopName;
+        if (updatedShopName !== originalShopName) {
+            const duplicateShop = await User.findOne({
+                _id: { $ne: selectedVendor._id },
+                phone: { $in: phoneVariants },
+                role: 'vendor',
+                shopName: updatedShopName
+            });
+            if (duplicateShop) {
+                return res.status(409).json({ message: 'Jina hili la duka tayari linatumika kwenye namba hii.' });
+            }
+        }
 
         const updateData = {};
-        if (shopName) updateData.shopName = shopName.trim();
+        if (shopName) updateData.shopName = updatedShopName;
         if (bio !== undefined) updateData.bio = bio.trim();
         if (location !== undefined) updateData.location = location.trim();
         if (avatar && !avatar.includes('12.png')) updateData.avatar = avatar;
 
-        const updatedUser = await User.findOneAndUpdate(
-            { phone: { $in: phoneVariants } },
-            updateData,
-            { new: true }
-        );
+        const updatedUser = await User.findByIdAndUpdate(selectedVendor._id, updateData, { new: true });
 
         if (!updatedUser) {
             return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
@@ -1168,14 +1186,17 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
 
         // Also update existing products belonging to this vendor so the mall displays the updated avatar and shopName
         const prodUpdates = {};
-        if (shopName) prodUpdates.vendorShopName = shopName.trim();
+        if (shopName) prodUpdates.vendorShopName = updatedShopName;
         if (avatar && !avatar.includes('12.png')) prodUpdates.vendorAvatar = avatar;
-        if (location) prodUpdates.location = location.trim();
+        if (location !== undefined) prodUpdates.location = location.trim();
         if (Object.keys(prodUpdates).length > 0) {
-            await Product.updateMany({ vendorPhone: { $in: phoneVariants } }, prodUpdates);
+            await Product.updateMany({
+                vendorPhone: { $in: phoneVariants },
+                vendorShopName: originalShopName
+            }, prodUpdates);
         }
 
-        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${phone}: shopName="${shopName || updatedUser.shopName}" avatarChanged=${!!avatar}`);
+        console.log(`[VENDOR PROFILE] ✅ Profile updated for ${phone} / ${originalShopName}: shopName="${updatedUser.shopName}" avatarChanged=${!!avatar}`);
         res.json({ message: 'Taarifa za muuzaji zimesasishwa kikamilifu.', user: updatedUser });
     } catch (err) {
         console.error('[VENDOR PROFILE UPDATE ERROR]:', err);
@@ -1187,10 +1208,18 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
 app.get('/api/vendor/profile/:phone', async (req, res) => {
     try {
         const phoneVariants = getPhoneVariants(req.params.phone);
+        const query = { phone: { $in: phoneVariants }, role: 'vendor' };
+        if (typeof req.query.shopName === 'string' && req.query.shopName.trim()) {
+            query.shopName = req.query.shopName.trim();
+        }
 
-        const user = await User.findOne({ phone: { $in: phoneVariants } });
+        const user = await User.findOne(query);
         if (!user) return res.status(404).json({ message: 'Muuzaji hajapatikana.' });
-        const products = await Product.find({ vendorPhone: { $in: phoneVariants } }).sort({ createdAt: -1 });
+        const shopName = user.shopName || user.name;
+        const products = await Product.find({
+            vendorPhone: { $in: phoneVariants },
+            vendorShopName: shopName
+        }).sort({ createdAt: -1 });
 
         let avatar = user.avatar;
         if (!avatar || avatar.includes('12.png')) {
@@ -1201,7 +1230,7 @@ app.get('/api/vendor/profile/:phone', async (req, res) => {
             vendor: {
                 name: user.name,
                 phone: user.phone,
-                shopName: user.shopName || user.name,
+                shopName,
                 avatar: avatar,
                 bio: user.bio || '',
                 package: user.package,
@@ -1509,13 +1538,14 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
         }
 
-        // Verify password against the first matching account (all shops share same password)
-        if (allUsers[0].password !== password) {
+        const matchingUsers = allUsers.filter(user => user.password === password);
+        if (matchingUsers.length === 0) {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
         }
 
-        // If vendor has multiple shops and no shop selected yet → ask to pick
-        const vendorAccounts = allUsers.filter(u => u.role === 'vendor');
+        const matchingVendors = matchingUsers.filter(user => user.role === 'vendor');
+        const vendorAccounts = matchingVendors.length > 0 ? matchingVendors : matchingUsers;
+        // If this password matches multiple shops and none was selected, ask the vendor to choose.
         if (vendorAccounts.length > 1 && !selectedShop) {
             return res.status(200).json({
                 multiShop: true,
@@ -1528,12 +1558,12 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        // Find specific user: if shop selected use that, else use first
+        // Match the selected shop only among accounts whose password was verified.
         let user;
         if (selectedShop) {
-            user = allUsers.find(u => u.shopName === selectedShop);
+            user = vendorAccounts.find(u => u.shopName === selectedShop);
         } else {
-            user = allUsers[0];
+            user = vendorAccounts[0];
         }
 
         if (!user) {
@@ -1582,15 +1612,20 @@ app.get('/api/auth/me/:phone', async (req, res) => {
 // E. Vendor Product Upload with Package Limit Checks (25, 45, 60)
 app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async (req, res) => {
     try {
-        const { name, price, category, dept, subType, desc, location, specs, vendorPhone } = req.body;
+        const { name, price, category, dept, subType, desc, location, specs, vendorPhone, shopName } = req.body;
 
-        if (!vendorPhone) {
-            return res.status(400).json({ message: 'Namba ya simu ya muuzaji inahitajika.' });
+        if (!vendorPhone || !shopName || !shopName.trim()) {
+            return res.status(400).json({ message: 'Namba ya simu na jina la duka vinahitajika.' });
         }
 
         const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
         const phoneVariants = getPhoneVariants(cleanPhone);
-        const vendor = await User.findOne({ phone: { $in: phoneVariants }, role: 'vendor' });
+        const selectedShopName = shopName.trim();
+        const vendor = await User.findOne({
+            phone: { $in: phoneVariants },
+            role: 'vendor',
+            shopName: selectedShopName
+        });
 
         if (!vendor) {
             return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
@@ -1601,7 +1636,10 @@ app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async
         }
 
         // Check Product Limit for Vendor's Package
-        const currentProductsCount = await Product.countDocuments({ vendorPhone: { $in: phoneVariants } });
+        const currentProductsCount = await Product.countDocuments({
+            vendorPhone: { $in: phoneVariants },
+            vendorShopName: vendor.shopName || vendor.name
+        });
         const maxAllowed = vendor.package ? (vendor.package.maxProducts || 25) : 25;
 
         if (currentProductsCount >= maxAllowed) {
@@ -1741,7 +1779,10 @@ app.get('/api/admin/vendors', async (req, res) => {
 
         const now = new Date();
         const vendorList = await Promise.all(vendors.map(async (v) => {
-            const productCount = await Product.countDocuments({ vendorPhone: v.phone });
+            const productCount = await Product.countDocuments({
+                vendorPhone: { $in: getPhoneVariants(v.phone) },
+                vendorShopName: v.shopName || v.name
+            });
             
             // Timeline calculation
             const activatedAt = v.package?.activatedAt || v.createdAt || now;

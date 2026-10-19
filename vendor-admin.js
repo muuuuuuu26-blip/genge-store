@@ -5,6 +5,28 @@
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 let currentVendor = null;
 
+function normalizeVendorPhone(phone) {
+    let clean = String(phone || '').replace(/\D/g, '');
+    if (clean.startsWith('0')) clean = '255' + clean.substring(1);
+    else if (!clean.startsWith('255') && clean.length === 9) clean = '255' + clean;
+    return clean;
+}
+
+function getCurrentVendorShopName() {
+    return String(currentVendor && (currentVendor.shopName || currentVendor.name) || '').trim();
+}
+
+function matchesCurrentVendorProduct(product) {
+    return normalizeVendorPhone(product.vendorPhone) === normalizeVendorPhone(currentVendor && currentVendor.phone) &&
+        String(product.vendorShopName || '').trim().toLowerCase() === getCurrentVendorShopName().toLowerCase();
+}
+
+function getVendorProfilePicStorageKey(vendor) {
+    const phone = normalizeVendorPhone(vendor && vendor.phone);
+    const shopName = String(vendor && (vendor.shopName || vendor.name) || '').trim();
+    return `genge_vendor_profile_pic_${phone}_${encodeURIComponent(shopName.toLowerCase())}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkSavedVendorSession();
 });
@@ -50,6 +72,11 @@ async function handleVendorLogin(e) {
     const password = document.getElementById('vlogin-password').value;
     const errDiv = document.getElementById('vlogin-error');
     errDiv.textContent = '';
+    const shopList = document.getElementById('vlogin-shop-list');
+    if (shopList) {
+        shopList.replaceChildren();
+        shopList.hidden = true;
+    }
 
     try {
         const res = await fetch(API_URL + '/api/auth/login', {
@@ -65,6 +92,26 @@ async function handleVendorLogin(e) {
             return;
         }
 
+        if (data.multiShop) {
+            if (!shopList) {
+                errDiv.textContent = 'Kuna maduka mengi yanayotumia taarifa hizi. Tafadhali ingia kupitia Genge Mall ili uchague duka.';
+                return;
+            }
+            const heading = document.createElement('p');
+            heading.textContent = 'Chagua duka unalotaka kuingia:';
+            shopList.appendChild(heading);
+            (data.shops || []).forEach(shop => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'vendor-btn-primary';
+                button.textContent = `${shop.shopName} (${shop.package})`;
+                button.addEventListener('click', () => loginVendorToShop(phone, password, shop.shopName, button));
+                shopList.appendChild(button);
+            });
+            shopList.hidden = false;
+            return;
+        }
+
         if (data.user.role !== 'vendor') {
             errDiv.textContent = 'Akaunti hii ni ya Mnunuzi. Ingia na akaunti ya Muuzaji.';
             return;
@@ -76,6 +123,37 @@ async function handleVendorLogin(e) {
         fetchVendorProfile();
     } catch (err) {
         errDiv.textContent = 'Imefeli kuunganisha na server. Jaribu tena.';
+    }
+}
+
+async function loginVendorToShop(phone, password, shopName, button) {
+    const errDiv = document.getElementById('vlogin-error');
+    button.disabled = true;
+    try {
+        const res = await fetch(API_URL + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password, shopName })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errDiv.textContent = data.message || 'Kosa wakati wa kuingia.';
+            button.disabled = false;
+            return;
+        }
+        if (!data.user || data.user.role !== 'vendor') {
+            errDiv.textContent = 'Akaunti hii si ya muuzaji.';
+            button.disabled = false;
+            return;
+        }
+        currentVendor = data.user;
+        localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+        showDashboard();
+        fetchVendorProfile();
+    } catch (err) {
+        console.error('Error logging into selected vendor shop:', err);
+        errDiv.textContent = 'Imefeli kuunganisha na server. Jaribu tena.';
+        button.disabled = false;
     }
 }
 
@@ -102,7 +180,8 @@ async function fetchVendorProfile() {
     if (!currentVendor) return;
     let prods = [];
     try {
-        const res = await fetch(API_URL + `/api/vendor/profile/${currentVendor.phone}`);
+        const shopName = encodeURIComponent(getCurrentVendorShopName());
+        const res = await fetch(API_URL + `/api/vendor/profile/${currentVendor.phone}?shopName=${shopName}`);
         if (res.ok) {
             const data = await res.json();
             currentVendor = { ...currentVendor, ...data.vendor };
@@ -118,7 +197,7 @@ async function fetchVendorProfile() {
     // Merge locally saved custom products for this vendor (guarantees persistence)
     try {
         const allLocal = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
-        const myLocal = allLocal.filter(p => p.vendorPhone === currentVendor.phone);
+        const myLocal = allLocal.filter(matchesCurrentVendorProduct);
         const existingIds = new Set(prods.map(p => p.id || p._id));
         myLocal.forEach(p => {
             if (!existingIds.has(p.id)) {
@@ -150,7 +229,7 @@ function updateVendorUI() {
     if (editPhone)editPhone.value = currentVendor.phone || '';
 
     // Load saved profile picture
-    const savedPic = localStorage.getItem('genge_vendor_profile_pic_' + (currentVendor.phone || ''));
+    const savedPic = localStorage.getItem(getVendorProfilePicStorageKey(currentVendor));
     const avatarEl = document.getElementById('vp-profile-avatar');
     if (avatarEl) {
         let curAvatar = savedPic || currentVendor.avatar;
@@ -375,24 +454,31 @@ async function handleProfilePicChange(input) {
         const avatarEl = document.getElementById('vp-profile-avatar');
         if (avatarEl) avatarEl.src = compressedBase64;
 
-        currentVendor.avatar = compressedBase64;
-        localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
-        localStorage.setItem('genge_vendor_profile_pic_' + currentVendor.phone, compressedBase64);
-
         // Save directly to MongoDB database!
         const res = await fetch(API_URL + '/api/vendor/profile/update', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: currentVendor.phone, avatar: compressedBase64 })
+            body: JSON.stringify({
+                phone: currentVendor.phone,
+                currentShopName: getCurrentVendorShopName(),
+                avatar: compressedBase64
+            })
         });
-
-        if (res.ok) {
-            showProfileMsg('✅ Picha ya profile imehifadhiwa kwenye database!', '#10B981');
-        } else {
-            showProfileMsg('✅ Picha ya profile imebadilishwa!', '#10B981');
+        const data = await res.json();
+        if (!res.ok) {
+            if (avatarEl) avatarEl.src = currentVendor.avatar || 'mall/genge-mall-logo.jpg';
+            showProfileMsg('❌ ' + (data.message || 'Kosa wakati wa kuhifadhi picha.'), '#ef4444');
+            return;
         }
+
+        currentVendor = { ...currentVendor, ...data.user };
+        localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+        localStorage.setItem(getVendorProfilePicStorageKey(currentVendor), compressedBase64);
+        showProfileMsg('✅ Picha ya profile imehifadhiwa kwenye database!', '#10B981');
     } catch (err) {
         console.error('Error uploading profile pic:', err);
+        const avatarEl = document.getElementById('vp-profile-avatar');
+        if (avatarEl) avatarEl.src = currentVendor.avatar || 'mall/genge-mall-logo.jpg';
         showProfileMsg('❌ Kosa wakati wa kupakia picha.', '#ef4444');
     }
 }
@@ -410,15 +496,6 @@ async function saveVendorProfile() {
         return;
     }
 
-    currentVendor.shopName = shopName;
-    currentVendor.bio      = bio;
-    currentVendor.location = location;
-    localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
-
-    // Update header shop name
-    const dispShop = document.getElementById('display-shop-name');
-    if (dispShop) dispShop.textContent = shopName;
-
     showProfileMsg('⏳ Inahifadhi kwenye database...', '#38bdf8');
 
     // Save directly to MongoDB database!
@@ -426,16 +503,27 @@ async function saveVendorProfile() {
         const res = await fetch(API_URL + '/api/vendor/profile/update', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: currentVendor.phone, shopName, bio, location })
+            body: JSON.stringify({
+                phone: currentVendor.phone,
+                currentShopName: getCurrentVendorShopName(),
+                shopName,
+                bio,
+                location
+            })
         });
-
-        if (res.ok) {
-            showProfileMsg('✅ Taarifa zimehifadhiwa kwenye database!', '#10B981');
-        } else {
-            showProfileMsg('✅ Mabadiliko yamehifadhiwa kikamilifu!', '#10B981');
+        const data = await res.json();
+        if (!res.ok) {
+            showProfileMsg('❌ ' + (data.message || 'Kosa wakati wa kuhifadhi taarifa.'), '#ef4444');
+            return;
         }
-    } catch(_) {
-        showProfileMsg('✅ Mabadiliko yamehifadhiwa!', '#10B981');
+
+        currentVendor = { ...currentVendor, ...data.user, shopName, bio, location };
+        localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
+        updateVendorUI();
+        showProfileMsg('✅ Taarifa zimehifadhiwa kwenye database!', '#10B981');
+    } catch (err) {
+        console.error('Error updating vendor profile:', err);
+        showProfileMsg('❌ Kosa la mtandao wakati wa kuhifadhi taarifa.', '#ef4444');
     }
 }
 
@@ -506,7 +594,7 @@ async function handleProductUpload(e) {
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
             vendorAvatar: (currentVendor.avatar && !currentVendor.avatar.includes('12.png')) 
                           ? currentVendor.avatar 
-                          : (localStorage.getItem('genge_vendor_profile_pic_' + currentVendor.phone) || 'mall/genge-mall-logo.jpg'),
+                          : (localStorage.getItem(getVendorProfilePicStorageKey(currentVendor)) || 'mall/genge-mall-logo.jpg'),
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
         };
 
@@ -517,6 +605,7 @@ async function handleProductUpload(e) {
         const imageExtension = imageBlob.type.split("/")[1];
         const formData = new FormData();
         ["name", "category", "dept", "price", "location", "desc", "vendorPhone"].forEach(key => formData.append(key, payload[key]));
+        formData.append("shopName", payload.vendorShopName);
         formData.append("image", imageBlob, `product.${imageExtension}`);
 
         // Post multipart form data to MongoDB!
@@ -601,7 +690,7 @@ async function deleteVendorProduct(id) {
     // Also remove from localStorage
     try {
         const existing = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
-        const filtered = existing.filter(p => p.id !== id && p._id !== id);
+        const filtered = existing.filter(p => !((p.id === id || p._id === id) && matchesCurrentVendorProduct(p)));
         localStorage.setItem('genge_custom_vendor_products', JSON.stringify(filtered));
     } catch (_) {}
 
