@@ -4,6 +4,8 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     phone: { type: String, required: true },
     password: { type: String, required: true },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpiresAt: { type: Date, select: false },
     role: { type: String, enum: ['customer', 'vendor'], default: 'customer' },
     
     // Vendor Specific Fields
@@ -32,6 +34,16 @@ const userSchema = new mongoose.Schema({
     blockReason: { type: String, default: '' },
     
     createdAt: { type: Date, default: Date.now }
+}, {
+    toJSON: {
+        transform: (doc, ret) => {
+            delete ret.password;
+            delete ret.passwordResetTokenHash;
+            delete ret.passwordResetExpiresAt;
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 // Allow same phone to have multiple shops — uniqueness is per phone+shopName pair

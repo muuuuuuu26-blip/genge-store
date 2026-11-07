@@ -5,6 +5,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
+const { promisify } = require('util');
 const Product = require('./models/Product');
 const Feedback = require('./models/Feedback');
 const Order = require('./models/Order');
@@ -17,6 +18,7 @@ const PaymentIntent = require('./models/PaymentIntent');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
+const scrypt = promisify(crypto.scrypt);
 const VENDOR_PACKAGES = {
     Basic: { price: 5000, maxProducts: 25 },
     Silver: { price: 10000, maxProducts: 45 },
@@ -79,6 +81,23 @@ function secureStringEquals(candidate, expected) {
         crypto.timingSafeEqual(candidateBuffer, expectedBuffer);
 }
 
+async function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = await scrypt(password, salt, 64);
+    return `scrypt$${salt}$${hash.toString('hex')}`;
+}
+
+async function verifyPassword(password, storedPassword) {
+    if (typeof password !== 'string' || typeof storedPassword !== 'string') return false;
+    if (!storedPassword.startsWith('scrypt$')) return secureStringEquals(password, storedPassword);
+
+    const [, salt, storedHash] = storedPassword.split('$');
+    if (!salt || !storedHash) return false;
+    const expected = Buffer.from(storedHash, 'hex');
+    const actual = await scrypt(password, salt, expected.length);
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
 function getSession(req) {
     const token = req.get('Authorization')?.replace(/^Bearer\s+/i, '');
     const signingSecret = process.env.SESSION_SECRET;
@@ -103,6 +122,11 @@ function getSession(req) {
     } catch (err) {
         return null;
     }
+}
+
+function requireAdminSession(req, res, next) {
+    if (getSession(req)?.role === 'admin') return next();
+    return res.status(401).json({ message: 'Ingia kama admin ili kuendelea.' });
 }
 
 // Middleware
@@ -1323,6 +1347,8 @@ app.get('/api/admin/session', (req, res) => {
     res.json({ authenticated: true });
 });
 
+app.use('/api/admin', requireAdminSession);
+
 // Genge Mall registration payment settings
 app.get('/api/settings', async (req, res) => {
     try {
@@ -1462,7 +1488,7 @@ app.post('/api/auth/register', async (req, res) => {
         const newUser = new User({
             name: name.trim(),
             phone: cleanPhone,
-            password: password,
+            password: await hashPassword(password),
             role: role || 'customer',
             nidaOrTin: nidaOrTin ? nidaOrTin.trim() : '',
             shopName: shopName ? shopName.trim() : (name + ' Shop'),
@@ -1538,7 +1564,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
         }
 
-        const matchingUsers = allUsers.filter(user => user.password === password);
+        const matchingUsers = [];
+        for (const candidate of allUsers) {
+            if (await verifyPassword(password, candidate.password)) {
+                matchingUsers.push(candidate);
+            }
+        }
         if (matchingUsers.length === 0) {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
         }
@@ -1577,6 +1608,11 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
+        if (!user.password.startsWith('scrypt$')) {
+            user.password = await hashPassword(password);
+            await user.save();
+        }
+
         res.json({
             message: 'Kuingia kumefanikiwa!',
             user: {
@@ -1593,6 +1629,39 @@ app.post('/api/auth/login', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/auth/vendor/password-reset', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+            return res.status(400).json({ message: 'Kiungo hiki si sahihi au muda wake umeisha. Omba msaada tena.' });
+        }
+        if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+            return res.status(400).json({ message: 'Neno jipya la siri liwe na herufi 8 hadi 128.' });
+        }
+
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const updated = await User.findOneAndUpdate(
+            {
+                role: 'vendor',
+                passwordResetTokenHash: tokenHash,
+                passwordResetExpiresAt: { $gt: new Date() }
+            },
+            {
+                $set: { password: await hashPassword(password) },
+                $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 }
+            }
+        );
+        if (!updated) {
+            return res.status(400).json({ message: 'Kiungo hiki si sahihi, kimeshatumika au muda wake umeisha. Omba msaada tena.' });
+        }
+
+        res.json({ message: 'Neno jipya la siri limehifadhiwa. Sasa unaweza kuingia kwenye akaunti yako.' });
+    } catch (err) {
+        console.error('[VENDOR PASSWORD RESET ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindikana kuweka neno jipya la siri. Jaribu tena.' });
     }
 });
 
@@ -1773,6 +1842,43 @@ app.post('/api/social/follow', async (req, res) => {
 });
 
 // I. SUPER ADMIN: Get All Vendors with Products Count, Package Timeline & NIDA Info
+app.post('/api/admin/vendors/:id/password-reset', async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('phone');
+        if (!vendor) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        const token = crypto.randomBytes(32).toString('base64url');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        const updated = await User.findOneAndUpdate(
+            { _id: vendor._id, role: 'vendor' },
+            {
+                $set: {
+                    passwordResetTokenHash: crypto.createHash('sha256').update(token).digest('hex'),
+                    passwordResetExpiresAt: expiresAt
+                }
+            }
+        );
+        if (!updated) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        res.json({
+            resetPath: `/vendor-admin.html#reset=${token}`,
+            phone: vendor.phone,
+            expiresAt
+        });
+    } catch (err) {
+        console.error('[ADMIN VENDOR PASSWORD RESET LINK ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindikana kutengeneza kiungo cha kuweka nenosiri jipya.' });
+    }
+});
+
 app.get('/api/admin/vendors', async (req, res) => {
     try {
         const vendors = await User.find({ role: 'vendor' }).sort({ createdAt: -1 });
@@ -1851,7 +1957,7 @@ app.post('/api/admin/vendors', async (req, res) => {
         const newVendor = new User({
             name,
             phone: cleanPhone,
-            password: password || '123456',
+            password: await hashPassword(password || '123456'),
             role: 'vendor',
             nidaOrTin,
             shopName,

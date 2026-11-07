@@ -543,6 +543,9 @@ function renderMallVendorsTable(vendors) {
                         <button onclick="openRenewVendorModal('${v.phone}','${(v.shopName||v.name).replace(/'/g,"\\'")}','${pkgName}')" style="background:#F59E0B;color:#000;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
                             🔄 Renew
                         </button>
+                        <button onclick="openVendorRecoveryModal('${v._id}')" style="background:#1d4ed8;color:#fff;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
+                            🔑 Reset nenosiri
+                        </button>
                         <button onclick="deleteVendor('${v.phone}','${(v.shopName||v.name).replace(/'/g,"\\'")}') " style="background:#7f1d1d;color:#fca5a5;border:none;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;">
                             🗑️
                         </button>
@@ -552,6 +555,74 @@ function renderMallVendorsTable(vendors) {
         `;
     }).join('');
 }
+
+let vendorRecoveryId = null;
+
+window.openVendorRecoveryModal = function(vendorId) {
+    const vendor = _allMallVendors.find(item => item._id === vendorId);
+    if (!vendor) {
+        alert('Akaunti ya muuzaji haipatikani. Onyesha upya orodha ya wauzaji.');
+        return;
+    }
+
+    vendorRecoveryId = vendor._id;
+    document.getElementById('vendor-recovery-account').textContent =
+        `${vendor.shopName || vendor.name} · ${vendor.name} · ${vendor.phone}`;
+    document.getElementById('vendor-recovery-verified').checked = false;
+    document.getElementById('vendor-recovery-create').disabled = true;
+    document.getElementById('vendor-recovery-create').textContent = 'Tengeneza kiungo cha reset';
+    document.getElementById('vendor-recovery-create').style.display = '';
+    document.getElementById('vendor-recovery-message').textContent = '';
+    document.getElementById('vendor-recovery-link-section').style.display = 'none';
+    document.getElementById('vendor-recovery-link').value = '';
+    document.getElementById('vendor-recovery-whatsapp').removeAttribute('href');
+    document.getElementById('vendor-recovery-modal').style.display = 'flex';
+};
+
+window.closeVendorRecoveryModal = function() {
+    document.getElementById('vendor-recovery-modal').style.display = 'none';
+    vendorRecoveryId = null;
+};
+
+window.issueVendorRecoveryLink = async function() {
+    if (!vendorRecoveryId || !document.getElementById('vendor-recovery-verified').checked) return;
+
+    const createButton = document.getElementById('vendor-recovery-create');
+    const message = document.getElementById('vendor-recovery-message');
+    const vendor = _allMallVendors.find(item => item._id === vendorRecoveryId);
+    createButton.disabled = true;
+    createButton.textContent = 'Inatengeneza kiungo...';
+    message.textContent = '';
+
+    try {
+        const response = await fetch(`/api/admin/vendors/${encodeURIComponent(vendorRecoveryId)}/password-reset`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Imeshindikana kutengeneza kiungo.');
+
+        const resetLink = new URL(data.resetPath, window.location.origin).href;
+        const phoneDigits = (data.phone || vendor.phone).replace(/\D/g, '');
+        const whatsappPhone = phoneDigits.startsWith('0')
+            ? `255${phoneDigits.slice(1)}`
+            : phoneDigits.startsWith('255') ? phoneDigits : `255${phoneDigits}`;
+        const whatsappMessage = `Habari. Hiki ndicho kiungo cha kuweka nenosiri jipya la akaunti yako ya Genge Mall: ${resetLink} Kiungo kitaisha baada ya dakika 30 na hutumika mara moja. Usimpe mtu mwingine kiungo hiki.`;
+
+        document.getElementById('vendor-recovery-link').value = resetLink;
+        document.getElementById('vendor-recovery-whatsapp').href =
+            `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+        document.getElementById('vendor-recovery-link-section').style.display = 'block';
+        createButton.style.display = 'none';
+        message.style.color = '#10b981';
+        message.textContent = 'Kiungo kimetengenezwa. Tuma kupitia WhatsApp kwa namba iliyothibitishwa.';
+    } catch (err) {
+        console.error('Vendor recovery link creation failed:', err);
+        createButton.disabled = false;
+        createButton.textContent = 'Jaribu tena kutengeneza kiungo';
+        message.style.color = '#ef4444';
+        message.textContent = err.message || 'Imeshindikana kutengeneza kiungo.';
+    }
+};
 
 window.openAdminAddVendorModal = function() {
     const modal = document.getElementById('admin-add-vendor-modal');

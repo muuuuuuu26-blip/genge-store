@@ -28,8 +28,81 @@ function getVendorProfilePicStorageKey(vendor) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const resetMatch = window.location.hash.match(/^#reset=([A-Za-z0-9_-]{43})$/);
+    if (resetMatch) {
+        showVendorPasswordReset(resetMatch[1]);
+        return;
+    }
     checkSavedVendorSession();
 });
+
+let vendorPasswordResetToken = null;
+
+function showVendorPasswordReset(token) {
+    vendorPasswordResetToken = token;
+    document.getElementById('vendor-login-overlay').classList.add('hidden');
+    document.getElementById('vendor-dashboard-content').classList.add('hidden');
+    document.getElementById('vendor-password-reset-overlay').style.display = 'flex';
+}
+
+function showVendorRecoveryHelp() {
+    const message = 'Habari, naomba msaada wa kurejesha nenosiri la akaunti yangu ya muuzaji wa Genge Mall. Namba ya akaunti ni: ';
+    window.open(`https://wa.me/255799689961?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+}
+
+async function submitVendorPasswordReset(event) {
+    event.preventDefault();
+    const message = document.getElementById('vendor-password-reset-message');
+    const submitButton = document.getElementById('vendor-password-reset-submit');
+    const password = document.getElementById('vendor-new-password').value;
+    const confirmPassword = document.getElementById('vendor-confirm-password').value;
+
+    message.textContent = '';
+    if (!vendorPasswordResetToken) {
+        message.textContent = 'Kiungo hakipo. Omba kiungo kipya kupitia WhatsApp.';
+        return;
+    }
+    if (password !== confirmPassword) {
+        message.textContent = 'Manenosiri hayalingani.';
+        return;
+    }
+    if (password.length < 8 || password.length > 128) {
+        message.textContent = 'Nenosiri liwe na herufi 8 hadi 128.';
+        return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Inahifadhi...';
+    try {
+        const response = await fetch(API_URL + '/api/auth/vendor/password-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: vendorPasswordResetToken, password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Imeshindikana kuhifadhi nenosiri jipya.');
+
+        message.style.color = '#10b981';
+        message.textContent = data.message;
+        vendorPasswordResetToken = null;
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        document.getElementById('vendor-password-reset-form').reset();
+    } catch (error) {
+        console.error('Vendor password reset failed:', error);
+        message.style.color = '#ef4444';
+        message.textContent = error.message || 'Imeshindikana kuweka nenosiri jipya. Jaribu tena.';
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Hifadhi nenosiri jipya';
+    }
+}
+
+function returnToVendorLogin() {
+    vendorPasswordResetToken = null;
+    document.getElementById('vendor-password-reset-overlay').style.display = 'none';
+    document.getElementById('vendor-password-reset-message').textContent = '';
+    showLoginOverlay();
+}
 
 function checkSavedVendorSession() {
     let saved = localStorage.getItem('genge_vendor');

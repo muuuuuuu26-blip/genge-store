@@ -37,6 +37,9 @@
                     </div>
                 </div>
                 <button type="submit" class="vendor-btn-primary">Ingia Kwenye Dashboard ya Duka &rsaquo;</button>
+                <button type="button" onclick="showVendorRecoveryHelp()" style="display:block;margin:12px auto 0;background:none;border:0;color:#38bdf8;text-decoration:underline;cursor:pointer;font:inherit;font-size:0.88rem;">
+                    Umesahau nenosiri?
+                </button>
                 <div id="vlogin-error" class="vendor-error-msg"></div>
                 <div id="vlogin-shop-list" class="vendor-error-msg" hidden></div>
             </form>
@@ -44,6 +47,27 @@
             <div class="vendor-login-footer">
                 <p>Bado huna duka lililosajiliwa? <a href="mall.html?register=1">Jisajili kwenye Genge Mall</a></p>
             </div>
+        </div>
+    </div>
+
+    <div id="vendor-password-reset-overlay" class="vendor-login-overlay" style="display:none;position:fixed;inset:0;z-index:100001;">
+        <div class="vendor-login-box">
+            <img src="mall/genge-mall-logo.jpg" alt="Genge Mall Logo" class="vendor-logo" style="border-radius:12px;object-fit:contain;">
+            <h2>Weka Nenosiri Jipya</h2>
+            <p class="sub-text">Tengeneza nenosiri jipya la akaunti yako ya muuzaji.</p>
+            <form id="vendor-password-reset-form" onsubmit="submitVendorPasswordReset(event)">
+                <div class="form-group">
+                    <label for="vendor-new-password">Nenosiri jipya</label>
+                    <input type="password" id="vendor-new-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="vendor-confirm-password">Rudia nenosiri jipya</label>
+                    <input type="password" id="vendor-confirm-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                </div>
+                <button type="submit" id="vendor-password-reset-submit" class="vendor-btn-primary">Hifadhi nenosiri jipya</button>
+                <div id="vendor-password-reset-message" class="vendor-error-msg" role="status"></div>
+            </form>
+            <button type="button" onclick="returnToVendorLogin()" style="margin-top:14px;background:none;border:0;color:#38bdf8;text-decoration:underline;cursor:pointer;font:inherit;">Rudi kwenye ukurasa wa kuingia</button>
         </div>
     </div>
 
@@ -404,6 +428,6 @@
         </div>
     </div>
 
-    <script src="vendor-admin.js?v=12"></script>
+    <script src="vendor-admin.js?v=13"></script>
 </body>
 </html>
