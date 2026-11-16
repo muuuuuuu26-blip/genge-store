@@ -24,6 +24,10 @@
             
             <form id="vendor-login-form" onsubmit="handleVendorLogin(event)">
                 <div class="form-group">
+                    <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka (ikiwa una maduka mengi)</label>
+                    <input type="text" id="vlogin-shop-name" placeholder="Andika jina la duka au acha wazi uchague baadaye" autocomplete="organization">
+                </div>
+                <div class="form-group">
                     <label><ion-icon name="call-outline"></ion-icon> Namba ya Simu ya Duka</label>
                     <input type="tel" id="vlogin-phone" placeholder="07XXXXXXXX au +2557XXXXXXXX" inputmode="tel" required autocomplete="tel">
                 </div>
@@ -45,6 +49,7 @@
             </form>
             
             <div class="vendor-login-footer">
+                <p><a href="https://wa.me/255692970687" target="_blank" rel="noopener noreferrer" onclick="handleVendorPasswordRecovery(event)">Umesahau nenosiri? Omba kiungo kupitia WhatsApp (+255 692 970 687 / +255 799 689 961)</a></p>
                 <p>Bado huna duka lililosajiliwa? <a href="mall.html?register=1">Jisajili kwenye Genge Mall</a></p>
             </div>
         </div>
@@ -242,9 +247,38 @@
                                     <option value="usafi_nyumbani">🛋️ Nyumba &amp; Usafi</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>Bei (Tsh) *</label>
-                                <input type="number" id="vp-price" placeholder="Mfano: 45000" required min="0">
+                            <div class="form-group" id="vp-price-group">
+                                <div id="vp-fixed-price-controls">
+                                    <label>Bei (Tsh) *</label>
+                                    <input type="number" id="vp-price" placeholder="Mfano: 45000" required min="0">
+                                </div>
+                                <small id="vp-price-negotiable-note" style="display:none;color:#94a3b8;font-size:0.75rem;">Bei ya gari la kukodi itaombwa kupitia WhatsApp.</small>
+                            </div>
+                        </div>
+
+                        <div id="vp-vehicle-fields" style="display:none;">
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="vp-vehicle-listing-type">Tangazo la gari *</label>
+                                    <select id="vp-vehicle-listing-type">
+                                        <option value="sale">Gari linauzwa</option>
+                                        <option value="rental">Gari linakodishwa</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="vp-vehicle-sale-condition-group">
+                                    <label for="vp-vehicle-sale-condition">Hali ya gari *</label>
+                                    <select id="vp-vehicle-sale-condition">
+                                        <option value="used">Used (limetumika)</option>
+                                        <option value="mpya">Mpya (0km)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" id="vp-vehicle-rental-class-group" style="display:none;">
+                                <label for="vp-vehicle-rental-class">Aina ya gari la kukodi *</label>
+                                <select id="vp-vehicle-rental-class">
+                                    <option value="mizigo">Gari la mizigo</option>
+                                    <option value="abiria_binafsi">Gari la abiria binafsi (Special Hire)</option>
+                                </select>
                             </div>
                         </div>
 
@@ -428,6 +462,6 @@
         </div>
     </div>
 
-    <script src="vendor-admin.js?v=13"></script>
+    <script src="vendor-admin.js?v=14"></script>
 </body>
 </html>

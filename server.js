@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { promisify } = require('util');
@@ -129,19 +130,69 @@ function requireAdminSession(req, res, next) {
     return res.status(401).json({ message: 'Ingia kama admin ili kuendelea.' });
 }
 
+async function requireVendorSession(req, res, next) {
+    const session = getSession(req);
+    if (session?.role !== 'vendor') {
+        return res.status(401).json({ message: 'Ingia kama muuzaji ili kuendelea.' });
+    }
+
+    const requestedPhone = req.body?.vendorPhone || req.body?.phone || req.params?.phone;
+    if (requestedPhone && !getPhoneVariants(requestedPhone).includes(session.phone)) {
+        return res.status(403).json({ message: 'Huna ruhusa ya kutumia akaunti hii ya muuzaji.' });
+    }
+
+    const vendor = await User.findOne({
+        phone: session.phone,
+        shopName: session.shopName,
+        role: 'vendor'
+    }).select('sessionVersion');
+    if (!vendor || (session.sessionVersion || 0) !== (vendor.sessionVersion || 0)) {
+        return res.status(401).json({ message: 'Session ya muuzaji imeisha. Ingia tena.' });
+    }
+
+    req.vendorSession = session;
+    return next();
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '')));
+app.use((req, res, next) => {
+    const blockedPath = /^\/(?:server\.js|package(?:-lock)?\.json|seed\.js|inspect_orders\.js|test_order\.js|\.env\.example)(?:\/|$)/i.test(req.path) ||
+        /(?:^|\/)[^/]+\.(?:bat|env)(?:\/|$)/i.test(req.path) ||
+        /^\/(?:models|node_modules|\.git)(?:\/|$)/i.test(req.path);
+    if (blockedPath) return res.sendStatus(404);
+    next();
+});
+app.use(express.static(path.join(__dirname, ''), { dotfiles: 'ignore' }));
 
 // Phone normalization helper across all formats (07..., 255..., +255...)
+function normalizePhoneNumber(phone) {
+    if (typeof phone !== 'string') return '';
+    const digits = phone.trim().replace(/[^\d+]/g, '').replace(/^00/, '');
+    if (!digits) return '';
+
+    if (digits.startsWith('+')) {
+        const international = digits.slice(1);
+        if (international.startsWith('255')) return '0' + international.slice(3);
+        if (international.length === 9) return '0' + international;
+        return international;
+    }
+
+    if (digits.startsWith('255')) return '0' + digits.slice(3);
+    if (digits.length === 9 && /^[67]/.test(digits)) return '0' + digits;
+    return digits;
+}
+
 function getPhoneVariants(phone) {
     if (!phone) return [];
-    const digits = String(phone).replace(/\D/g, '');
+    const normalized = normalizePhoneNumber(phone);
+    const digits = normalized.replace(/\D/g, '');
     if (!digits) return [String(phone).trim()];
-    
+
     const set = new Set();
+    set.add(normalized);
     set.add(digits);
     set.add('+' + digits);
 
@@ -161,13 +212,11 @@ function getPhoneVariants(phone) {
 }
 
 function normalizeTanzaniaPhone(phone) {
-    let digits = String(phone || '').replace(/\D/g, '');
-    if (digits.startsWith('255') && digits.length === 12) {
-        digits = '0' + digits.slice(3);
-    } else if (digits.length === 9) {
-        digits = '0' + digits;
-    }
-    return digits;
+    return normalizePhoneNumber(phone);
+}
+
+function isValidTanzaniaPhone(phone) {
+    return /^0[67]\d{8}$/.test(normalizePhoneNumber(phone));
 }
 
 // Startup Database Migrations & Cleanup
@@ -220,20 +269,61 @@ mongoose.connect(process.env.MONGODB_URI).then(() => {
 });
 
 // Multer Setup for Image Uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'pics/'); // Save images to pics folder
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+const allowedImageTypes = new Map([
+    ['image/jpeg', '.jpg'],
+    ['image/png', '.png'],
+    ['image/webp', '.webp'],
+    ['image/gif', '.gif']
+]);
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    fileFilter: (req, file, cb) => {
+        if (!allowedImageTypes.has(file.mimetype)) {
+            const err = new Error('Aina ya picha haikubaliki. Tumia JPEG, PNG, WebP au GIF.');
+            err.code = 'INVALID_IMAGE_TYPE';
+            return cb(err);
+        }
+        cb(null, true);
     }
 });
-const upload = multer({ storage: storage });
-const vendorProductImageUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }
-});
+const vendorProductImageUpload = upload;
+
+function isUploadedImageValid(file) {
+    const bytes = file.buffer;
+    const signatures = {
+        'image/jpeg': bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+        'image/png': bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')),
+        'image/webp': bytes.length >= 12 &&
+            bytes.toString('ascii', 0, 4) === 'RIFF' &&
+            bytes.toString('ascii', 8, 12) === 'WEBP',
+        'image/gif': ['GIF87a', 'GIF89a'].includes(bytes.toString('ascii', 0, 6))
+    };
+    return signatures[file.mimetype] === true;
+}
+
+function validateUploadedImage(req, res, next) {
+    if (!req.file || isUploadedImageValid(req.file)) return next();
+    return res.status(400).json({ message: 'Maudhui ya faili si picha halali inayokubalika.' });
+}
+
+async function persistUploadedImage(req, res, next) {
+    if (!req.file) return next();
+
+    const bytes = req.file.buffer;
+    if (!isUploadedImageValid(req.file)) {
+        return res.status(400).json({ message: 'Maudhui ya faili si picha halali inayokubalika.' });
+    }
+
+    const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${allowedImageTypes.get(req.file.mimetype)}`;
+    try {
+        await fs.promises.writeFile(path.join(__dirname, 'pics', filename), bytes, { flag: 'wx' });
+        req.file.filename = filename;
+        return next();
+    } catch (err) {
+        return next(err);
+    }
+}
 
 const initialProducts = [
     // --- MATUNDA ---
@@ -320,6 +410,109 @@ const initialProducts = [
 ];
 
 // API Routes
+app.get('/share/p/:id/image', async (req, res) => {
+    try {
+        const product = await Product.findOne({ id: req.params.id, isVendorActive: { $ne: false } }).select('icon');
+        const match = product && typeof product.icon === 'string'
+            ? product.icon.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/)
+            : null;
+        if (!match) return res.sendStatus(404);
+
+        const image = Buffer.from(match[2], 'base64');
+        if (image.length === 0) return res.sendStatus(404);
+        return res.type(match[1]).set('Cache-Control', 'public, max-age=86400').send(image);
+    } catch (err) {
+        console.error('Share product image error:', err);
+        return res.sendStatus(500);
+    }
+});
+
+app.get('/share/p/:id', async (req, res) => {
+    try {
+        const product = await Product.findOne({
+            id: req.params.id,
+            isVendorActive: { $ne: false }
+        });
+        if (!product) {
+            return res.status(404).send('Bidhaa hii haipatikani tena kwenye Genge Mall.');
+        }
+
+        const forwardedProtocol = req.get('x-forwarded-proto')?.split(',')[0].trim();
+        const protocol = ['http', 'https'].includes(forwardedProtocol) ? forwardedProtocol : req.protocol;
+        const origin = new URL(`${protocol}://${req.get('host')}`).origin;
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character]);
+        const productName = product.name || 'Bidhaa ya Genge Mall';
+        const shopName = product.vendorShopName || product.vendorName || 'Genge Mall';
+        const isPriceByAgreement = product.priceUnit === 'Bei kwa makubaliano' ||
+            (product.dept === 'magari' && product.subType === 'kupangisha');
+        const priceText = isPriceByAgreement
+            ? 'Bei kwa makubaliano'
+            : `${product.priceUnit || 'Tsh'} ${Number(product.price).toLocaleString('en-TZ')}`;
+        const description = [
+            String(product.desc || '').trim().slice(0, 160),
+            `Duka: ${shopName}`,
+            `Bei: ${priceText}`
+        ].filter(Boolean).join(' | ');
+
+        const imageCandidate = product.icon || '/mall/genge-mall-logo.jpg';
+        const dataImage = typeof imageCandidate === 'string' &&
+            /^data:image\/(?:jpeg|png|webp|gif);base64,/.test(imageCandidate);
+        let imageUrl = new URL(imageCandidate, origin);
+        if (dataImage) {
+            imageUrl = new URL(`/share/p/${encodeURIComponent(product.id)}/image`, origin);
+        }
+        if (!['http:', 'https:'].includes(imageUrl.protocol)) {
+            imageUrl = new URL('/mall/genge-mall-logo.jpg', origin);
+        }
+
+        const shareUrl = new URL(`/share/p/${encodeURIComponent(product.id)}`, origin).href;
+        const productUrl = new URL('/mall.html', origin);
+        productUrl.searchParams.set('p', product.id);
+        if (product.vendorPhone) productUrl.searchParams.set('shop', product.vendorPhone);
+
+        const safeProductUrl = escapeHtml(productUrl.href);
+        const redirectScriptUrl = JSON.stringify(productUrl.href)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026');
+
+        return res.type('html').send(`<!doctype html>
+<html lang="sw">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(productName)} | Genge Mall</title>
+    <meta name="description" content="${escapeHtml(description)}">
+    <link rel="canonical" href="${escapeHtml(shareUrl)}">
+    <meta property="og:type" content="product">
+    <meta property="og:site_name" content="Genge Mall">
+    <meta property="og:title" content="${escapeHtml(productName)}">
+    <meta property="og:description" content="${escapeHtml(description)}">
+    <meta property="og:image" content="${escapeHtml(imageUrl.href)}">
+    <meta property="og:image:alt" content="${escapeHtml(productName)}">
+    <meta property="og:url" content="${escapeHtml(shareUrl)}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${escapeHtml(productName)}">
+    <meta name="twitter:description" content="${escapeHtml(description)}">
+    <meta name="twitter:image" content="${escapeHtml(imageUrl.href)}">
+</head>
+<body>
+    <p>Unaelekezwa kwenye bidhaa. <a href="${safeProductUrl}">Fungua ${escapeHtml(productName)} kwenye Genge Mall</a>.</p>
+    <script>window.location.replace(${redirectScriptUrl});</script>
+</body>
+</html>`);
+    } catch (err) {
+        console.error('Share product page error:', err);
+        return res.status(500).send('Imeshindikana kufungua ukurasa wa bidhaa.');
+    }
+});
+
 // 1. Get all products (with auto-seed if database is empty)
 app.get('/api/products', async (req, res) => {
     try {
@@ -488,7 +681,7 @@ app.get('/api/packages', async (req, res) => {
 });
 
 // 1c. Update a package
-app.patch('/api/packages/:id', async (req, res) => {
+app.patch('/api/packages/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -501,7 +694,7 @@ app.patch('/api/packages/:id', async (req, res) => {
 });
 
 // 1c-2. Create a package
-app.post('/api/packages', async (req, res) => {
+app.post('/api/packages', requireAdminSession, async (req, res) => {
     try {
         const { title, price, features, icon } = req.body;
         if (!title || !price) {
@@ -524,7 +717,7 @@ app.post('/api/packages', async (req, res) => {
 });
 
 // 1c-3. Delete a package
-app.delete('/api/packages/:id', async (req, res) => {
+app.delete('/api/packages/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const pkg = await Package.findOneAndDelete({ id: id });
@@ -605,7 +798,7 @@ app.get('/api/banners', async (req, res) => {
 });
 
 // GET all banners for Admin (including inactive)
-app.get('/api/admin/banners', async (req, res) => {
+app.get('/api/admin/banners', requireAdminSession, async (req, res) => {
     try {
         let banners = await Banner.find().sort({ order: 1, createdAt: -1 });
         if (banners.length === 0) {
@@ -618,7 +811,7 @@ app.get('/api/admin/banners', async (req, res) => {
 });
 
 // POST new banner (Admin)
-app.post('/api/banners', async (req, res) => {
+app.post('/api/banners', requireAdminSession, async (req, res) => {
     try {
         const { title, subtitle, tag, badgeColor, image, btnText, link, discountText, order } = req.body;
         if (!title || !image) {
@@ -646,7 +839,7 @@ app.post('/api/banners', async (req, res) => {
 });
 
 // PATCH update banner
-app.patch('/api/banners/:id', async (req, res) => {
+app.patch('/api/banners/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -659,7 +852,7 @@ app.patch('/api/banners/:id', async (req, res) => {
 });
 
 // DELETE banner
-app.delete('/api/banners/:id', async (req, res) => {
+app.delete('/api/banners/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const banner = await Banner.findOneAndDelete({ id });
@@ -671,7 +864,7 @@ app.delete('/api/banners/:id', async (req, res) => {
 });
 
 // 1d. Update product full details (Name, Category, Price)
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, category, price } = req.body;
@@ -688,7 +881,7 @@ app.put('/api/products/:id', async (req, res) => {
 });
 
 // 1d-2. Update product price
-app.patch('/api/products/:id/price', async (req, res) => {
+app.patch('/api/products/:id/price', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const { price } = req.body;
@@ -701,7 +894,7 @@ app.patch('/api/products/:id/price', async (req, res) => {
 });
 
 // 1d-3. Update product image
-app.post('/api/products/:id/image', upload.single('image'), async (req, res) => {
+app.post('/api/products/:id/image', requireAdminSession, upload.single('image'), persistUploadedImage, async (req, res) => {
     try {
         const { id } = req.params;
         if (!req.file) {
@@ -721,7 +914,7 @@ app.post('/api/products/:id/image', upload.single('image'), async (req, res) => 
 });
 
 // 1e. Delete a product
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const result = await Product.findOneAndDelete({ id: id });
@@ -733,7 +926,7 @@ app.delete('/api/products/:id', async (req, res) => {
 });
 
 // 2. Add a new product
-app.post('/api/products', upload.single('image'), async (req, res) => {
+app.post('/api/products', requireAdminSession, upload.single('image'), persistUploadedImage, async (req, res) => {
     try {
         const { name, price, category } = req.body;
         
@@ -764,7 +957,7 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
 });
 
 // Seed Initial Data Endpoint (One-time use)
-app.post('/api/seed', async (req, res) => {
+app.post('/api/seed', requireAdminSession, async (req, res) => {
     try {
         const products = req.body.products;
         await Product.insertMany(products);
@@ -813,7 +1006,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // 6. Get all paid orders (For Admin Panel)
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAdminSession, async (req, res) => {
     try {
         // Return only orders where paymentStatus is 'paid'
         const orders = await Order.find({ paymentStatus: 'paid' }).sort({ _id: -1 });
@@ -845,7 +1038,7 @@ app.get('/api/orders/customer/:phone', async (req, res) => {
 });
 
 // 7. Update order status
-app.patch('/api/orders/:id/status', async (req, res) => {
+app.patch('/api/orders/:id/status', requireAdminSession, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
@@ -881,7 +1074,7 @@ app.patch('/api/orders/:id/status', async (req, res) => {
 });
 
 // 8. Delete order
-app.delete('/api/orders/:id', async (req, res) => {
+app.delete('/api/orders/:id', requireAdminSession, async (req, res) => {
     try {
         const orderId = req.params.id;
         const result = await Order.findOneAndDelete({ id: orderId });
@@ -1165,7 +1358,7 @@ app.get('/api/vendor/stk-status/:orderId', async (req, res) => {
 });
 
 // 9e. Vendor Profile & Avatar Update (Saves directly to MongoDB)
-app.patch('/api/vendor/profile/update', async (req, res) => {
+app.patch('/api/vendor/profile/update', requireVendorSession, async (req, res) => {
     try {
         const { phone, currentShopName, shopName, bio, location, avatar } = req.body;
         if (!phone) {
@@ -1180,6 +1373,11 @@ app.patch('/api/vendor/profile/update', async (req, res) => {
 
         if (!selectedVendor) {
             return res.status(400).json({ message: 'Chagua duka sahihi kabla ya kusasisha taarifa.' });
+        }
+
+        if (!phoneVariants.includes(req.vendorSession.phone) ||
+            selectedVendor.shopName !== req.vendorSession.shopName) {
+            return res.status(403).json({ message: 'Huna ruhusa ya kusasisha taarifa za duka hili.' });
         }
 
         const originalShopName = selectedVendor.shopName || selectedVendor.name;
@@ -1347,6 +1545,10 @@ app.get('/api/admin/session', (req, res) => {
     res.json({ authenticated: true });
 });
 
+app.get('/api/vendor/session', requireVendorSession, (req, res) => {
+    res.json({ authenticated: true, phone: req.vendorSession.phone, shopName: req.vendorSession.shopName });
+});
+
 app.use('/api/admin', requireAdminSession);
 
 // Genge Mall registration payment settings
@@ -1393,11 +1595,9 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ message: 'Tafadhali jaza majina yako, namba ya simu na neno la siri.' });
         }
 
-        const cleanPhone = normalizeTanzaniaPhone(phone);
-
-        // Validate Tanzania phone format
-        if (!/^0[67]\d{8}$/.test(cleanPhone)) {
-            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au +2557XXXXXXXX).' });
+        const cleanPhone = normalizePhoneNumber(phone);
+        if (!isValidTanzaniaPhone(cleanPhone)) {
+            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania (07XXXXXXXX au 06XXXXXXXX).' });
         }
 
         if (role === 'vendor') {
@@ -1485,10 +1685,11 @@ app.post('/api/auth/register', async (req, res) => {
             }
         }
 
+        const hashedPassword = await hashPassword(password);
         const newUser = new User({
             name: name.trim(),
             phone: cleanPhone,
-            password: await hashPassword(password),
+            password: hashedPassword,
             role: role || 'customer',
             nidaOrTin: nidaOrTin ? nidaOrTin.trim() : '',
             shopName: shopName ? shopName.trim() : (name + ' Shop'),
@@ -1530,7 +1731,13 @@ app.post('/api/auth/register', async (req, res) => {
                 nidaOrTin: newUser.nidaOrTin,
                 package: newUser.package,
                 status: newUser.status
-            }
+            },
+            sessionToken: createSessionToken({
+                role: newUser.role,
+                phone: newUser.phone,
+                shopName: newUser.shopName,
+                sessionVersion: newUser.sessionVersion
+            })
         });
     } catch (err) {
         if (claimedPaymentIntentId) {
@@ -1556,9 +1763,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ message: 'Tafadhali weka namba ya simu na neno la siri.' });
         }
 
-        const cleanPhone = normalizeTanzaniaPhone(phone);
+        const cleanPhone = normalizePhoneNumber(phone);
+        if (!isValidTanzaniaPhone(cleanPhone)) {
+            return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
+        }
 
-        // Find all accounts under this phone
+        // Find all accounts under this phone using all common number formats
         const allUsers = await User.find({ phone: { $in: getPhoneVariants(cleanPhone) } });
         if (!allUsers || allUsers.length === 0) {
             return res.status(401).json({ message: 'Namba ya simu au neno la siri si sahihi.' });
@@ -1625,7 +1835,13 @@ app.post('/api/auth/login', async (req, res) => {
                 avatar: user.avatar,
                 bio: user.bio,
                 status: user.status
-            }
+            },
+            sessionToken: createSessionToken({
+                role: user.role,
+                phone: user.phone,
+                shopName: user.shopName,
+                sessionVersion: user.sessionVersion || 0
+            })
         });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -1643,14 +1859,27 @@ app.post('/api/auth/vendor/password-reset', async (req, res) => {
         }
 
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const now = new Date();
+        const vendor = await User.findOne({
+            role: 'vendor',
+            passwordResetTokenHash: tokenHash,
+            passwordResetExpiresAt: { $gt: now }
+        }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+        if (!vendor) {
+            return res.status(400).json({ message: 'Kiungo hiki si sahihi, kimeshatumika au muda wake umeisha. Omba msaada tena.' });
+        }
+
+        const hashedPassword = await hashPassword(password);
         const updated = await User.findOneAndUpdate(
             {
+                _id: vendor._id,
                 role: 'vendor',
                 passwordResetTokenHash: tokenHash,
                 passwordResetExpiresAt: { $gt: new Date() }
             },
             {
-                $set: { password: await hashPassword(password) },
+                $set: { password: hashedPassword },
+                $inc: { sessionVersion: 1 },
                 $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 }
             }
         );
@@ -1668,8 +1897,10 @@ app.post('/api/auth/vendor/password-reset', async (req, res) => {
 // D. Get Current User Info
 app.get('/api/auth/me/:phone', async (req, res) => {
     try {
-        const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
-        const user = await User.findOne({ phone: cleanPhone });
+        const cleanPhone = normalizePhoneNumber(req.params.phone);
+        const user = await User.findOne({ phone: { $in: getPhoneVariants(cleanPhone) } }).select(
+            'name phone role nidaOrTin shopName package avatar bio status blockReason createdAt'
+        );
         if (!user) return res.status(404).json({ message: 'Mtumiaji hajapatikana.' });
 
         res.json(user);
@@ -1679,7 +1910,7 @@ app.get('/api/auth/me/:phone', async (req, res) => {
 });
 
 // E. Vendor Product Upload with Package Limit Checks (25, 45, 60)
-app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async (req, res) => {
+app.post('/api/vendor/products', requireVendorSession, vendorProductImageUpload.single('image'), validateUploadedImage, async (req, res) => {
     try {
         const { name, price, category, dept, subType, desc, location, specs, vendorPhone, shopName } = req.body;
 
@@ -1689,11 +1920,16 @@ app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async
 
         const cleanPhone = vendorPhone.trim().replace(/[\s\-]/g, '');
         const phoneVariants = getPhoneVariants(cleanPhone);
-        const selectedShopName = shopName.trim();
+        if (!phoneVariants.includes(req.vendorSession.phone)) {
+            return res.status(403).json({ message: 'Huna ruhusa ya kupakia bidhaa kwa akaunti hii ya muuzaji.' });
+        }
+        if (shopName.trim() !== req.vendorSession.shopName) {
+            return res.status(403).json({ message: 'Huna ruhusa ya kupakia bidhaa kwenye duka hili.' });
+        }
         const vendor = await User.findOne({
             phone: { $in: phoneVariants },
-            role: 'vendor',
-            shopName: selectedShopName
+            shopName: req.vendorSession.shopName,
+            role: 'vendor'
         });
 
         if (!vendor) {
@@ -1723,6 +1959,12 @@ app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async
 
         const iconPath = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const id = 'vprod_' + Date.now();
+        const isVehicleRental = dept === 'magari' && subType === 'kupangisha';
+        const numericPrice = Number(price);
+        if (!isVehicleRental &&
+            (price === undefined || String(price).trim() === '' || !Number.isFinite(numericPrice) || numericPrice < 0)) {
+            return res.status(400).json({ message: 'Tafadhali weka bei sahihi ya bidhaa.' });
+        }
 
         const specsArray = specs ? (Array.isArray(specs) ? specs : specs.split(',').map(s => s.trim())) : [];
 
@@ -1734,8 +1976,8 @@ app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async
         const newProduct = new Product({
             id: id,
             name: name,
-            price: Number(price),
-            priceUnit: 'Tsh',
+            price: isVehicleRental ? 0 : numericPrice,
+            priceUnit: isVehicleRental ? 'Bei kwa makubaliano' : 'Tsh',
             category: category || 'General',
             dept: dept || 'all',
             subType: subType || '',
@@ -1763,6 +2005,22 @@ app.post('/api/vendor/products', vendorProductImageUpload.single('image'), async
     } catch (err) {
         console.error('[VENDOR PRODUCT UPLOAD ERROR]:', err);
         res.status(500).json({ message: 'Kosa wakati wa kupakia bidhaa.', error: err.message });
+    }
+});
+
+app.delete('/api/vendor/products/:id', requireVendorSession, async (req, res) => {
+    try {
+        const phoneVariants = getPhoneVariants(req.vendorSession.phone);
+        const result = await Product.findOneAndDelete({
+            id: req.params.id,
+            vendorPhone: { $in: phoneVariants },
+            vendorShopName: req.vendorSession.shopName
+        });
+        if (!result) return res.status(404).json({ message: 'Bidhaa ya duka hili haijapatikana.' });
+        res.json({ message: 'Bidhaa imefutwa.' });
+    } catch (err) {
+        console.error('[VENDOR PRODUCT DELETE ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindwa kufuta bidhaa.' });
     }
 });
 
@@ -1879,7 +2137,7 @@ app.post('/api/admin/vendors/:id/password-reset', async (req, res) => {
     }
 });
 
-app.get('/api/admin/vendors', async (req, res) => {
+app.get('/api/admin/vendors', requireAdminSession, async (req, res) => {
     try {
         const vendors = await User.find({ role: 'vendor' }).sort({ createdAt: -1 });
 
@@ -1930,8 +2188,45 @@ app.get('/api/admin/vendors', async (req, res) => {
     }
 });
 
+app.post('/api/admin/vendors/:id/password-reset', requireAdminSession, async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('phone');
+        if (!vendor) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        const token = crypto.randomBytes(32).toString('base64url');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        const updated = await User.findOneAndUpdate(
+            { _id: vendor._id, role: 'vendor' },
+            {
+                $set: {
+                    passwordResetTokenHash: crypto.createHash('sha256').update(token).digest('hex'),
+                    passwordResetExpiresAt: expiresAt
+                }
+            }
+        );
+        if (!updated) {
+            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
+        }
+
+        res.json({
+            resetPath: `/vendor-admin.html#reset=${token}`,
+            phone: vendor.phone,
+            expiresAt
+        });
+    } catch (err) {
+        console.error('[ADMIN VENDOR PASSWORD RESET LINK ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindikana kutengeneza kiungo cha kuweka nenosiri jipya.' });
+    }
+});
+
 // I-2. SUPER ADMIN: Register a Vendor directly from Admin
-app.post('/api/admin/vendors', async (req, res) => {
+app.post('/api/admin/vendors', requireAdminSession, async (req, res) => {
     try {
         const { name, phone, password, nidaOrTin, shopName, packageName, durationDays } = req.body;
         const cleanPhone = (phone || '').trim().replace(/[\s\-]/g, '');
@@ -1954,6 +2249,9 @@ app.post('/api/admin/vendors', async (req, res) => {
         if (packageName === 'Silver') { price = 10000; maxProducts = 45; }
         else if (packageName === 'Gold') { price = 15000; maxProducts = 60; }
 
+        if (!password) {
+            return res.status(400).json({ message: 'Weka neno la siri la muuzaji.' });
+        }
         const newVendor = new User({
             name,
             phone: cleanPhone,
@@ -1981,7 +2279,7 @@ app.post('/api/admin/vendors', async (req, res) => {
 });
 
 // I-3. SUPER ADMIN: Renew / Extend Vendor Subscription Package
-app.post('/api/admin/vendors/:phone/renew', async (req, res) => {
+app.post('/api/admin/vendors/:phone/renew', requireAdminSession, async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
         const { addDays, packageName } = req.body;
@@ -2027,7 +2325,7 @@ app.post('/api/admin/vendors/:phone/renew', async (req, res) => {
 });
 
 // J. SUPER ADMIN: Block / Suspend / Unblock Vendor
-app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
+app.patch('/api/admin/vendors/:phone/status', requireAdminSession, async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
         const { status, reason } = req.body;
@@ -2054,7 +2352,7 @@ app.patch('/api/admin/vendors/:phone/status', async (req, res) => {
 });
 
 // K. SUPER ADMIN: Delete Vendor
-app.delete('/api/admin/vendors/:phone', async (req, res) => {
+app.delete('/api/admin/vendors/:phone', requireAdminSession, async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
         await User.findOneAndDelete({ phone: cleanPhone, role: 'vendor' });
@@ -2066,7 +2364,7 @@ app.delete('/api/admin/vendors/:phone', async (req, res) => {
 });
 
 // L. SUPER ADMIN: Upgrade / Change Vendor Subscription Package
-app.patch('/api/admin/vendors/:phone/package', async (req, res) => {
+app.patch('/api/admin/vendors/:phone/package', requireAdminSession, async (req, res) => {
     try {
         const cleanPhone = req.params.phone.trim().replace(/[\s\-]/g, '');
         const { packageName, durationDays } = req.body;
@@ -2105,6 +2403,16 @@ app.patch('/api/admin/vendors/:phone/package', async (req, res) => {
 });
 
 // Start server
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({ message: 'Picha imezidi ukubwa unaoruhusiwa au ombi lina faili nyingi.' });
+    }
+    if (err.code === 'INVALID_IMAGE_TYPE') {
+        return res.status(400).json({ message: err.message });
+    }
+    return next(err);
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

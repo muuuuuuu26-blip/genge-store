@@ -2,10 +2,33 @@
 // GENGE MALL — JAVASCRIPT LOGIC & PRODUCT CATALOG
 // ==========================================================================
 
-const MALL_WHATSAPP_PHONE = '255799689961';
+const MALL_WHATSAPP_PHONE = '255692970687';
+const MALL_WHATSAPP_ALT_PHONE = '255799689961';
 const MALL_CALL_PHONE = '+255692970687';
 // Backend URL: local dev = localhost:3000, live Render = same origin (relative path)
 const BACKEND_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+
+const mallNativeFetch = window.fetch.bind(window);
+window.fetch = (input, init = {}) => {
+    const requestUrl = typeof input === 'string' ? input : input.url;
+    const pathname = new URL(requestUrl, window.location.href).pathname;
+    if (!pathname.startsWith('/api/')) return mallNativeFetch(input, init);
+
+    let token = '';
+    try {
+        const vendor = JSON.parse(localStorage.getItem('genge_vendor') || 'null');
+        const user = JSON.parse(localStorage.getItem('genge_user') || 'null');
+        token = vendor?.sessionToken || user?.sessionToken || '';
+    } catch (err) {
+        console.error('Imeshindwa kusoma session ya akaunti:', err);
+    }
+    if (!token) return mallNativeFetch(input, init);
+
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    headers.set('Authorization', `Bearer ${token}`);
+    return mallNativeFetch(input, { ...init, headers });
+};
 
 // Departments Data
 const mallDepartments = [
@@ -473,6 +496,99 @@ let serverMallProducts = [];
 let serverProductsLoadingPromise = null;
 let modalVendorPhone = null;
 
+// Realistic Tanzanian Vendor Profiles by Category
+const defaultVendorProfiles = {
+    nyumba: {
+        shopName: 'Kilimanjaro Prime Real Estate',
+        ownerName: 'Mhandisi Juma Rashid',
+        phone: MALL_WHATSAPP_PHONE,
+        nida: '19880512-11105-00001-23',
+        avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80',
+        bio: 'Wataalamu walioidhinishwa wa viwanja, nyumba na apartments za kisasa Dar es Salaam na Dodoma.',
+        followersCount: '4.8k',
+        location: 'Mikocheni B, Dar es Salaam'
+    },
+    magari: {
+        shopName: 'Boma Motors Tanzania',
+        ownerName: 'Salim Bakari',
+        phone: '255712345678',
+        nida: '19910408-22104-00002-14',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        bio: 'Magari used safi na zero mileage yaliyoagizwa kutoka Japan na Ulaya. Showroom Mwenge.',
+        followersCount: '8.2k',
+        location: 'Mwenge ITV, Dar es Salaam'
+    },
+    mitindo: {
+        shopName: 'Zanzibar Chic Boutique',
+        ownerName: 'Amina Hassan',
+        phone: '255755123456',
+        nida: '19940215-33102-00003-91',
+        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+        bio: 'Mitindo ya kijanja, magauni ya kisasa, suti na nguo za kipekee kutoka Uturuki na Dubai.',
+        followersCount: '12.4k',
+        location: 'Kariakoo & Sinza Mori'
+    },
+    urembo: {
+        shopName: 'Neema Glamour Cosmetics',
+        ownerName: 'Neema Mwangi',
+        phone: '255767890123',
+        nida: '19960719-44101-00004-77',
+        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
+        bio: 'Vipodozi asilia vilivyothibitishwa na TBS na daktari wa ngozi. Glow safi bila kemikali.',
+        followersCount: '6.5k',
+        location: 'Mlimani City Mall, Dar'
+    },
+    viatu: {
+        shopName: 'Kariakoo Sole Master',
+        ownerName: 'Peter Shirima',
+        phone: '255784567890',
+        nida: '19891124-55106-00005-42',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+        bio: 'Sneakers, viatu rasmi vya ofisi na sandals za ngozi asilia (pure leather) Kariakoo.',
+        followersCount: '9.1k',
+        location: 'Kariakoo Msimbazi, Dar'
+    },
+    manukato: {
+        shopName: 'Oud & Arabian Scents Tz',
+        ownerName: 'Khadija Nassor',
+        phone: '255718901234',
+        nida: '19930803-66103-00006-88',
+        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
+        bio: 'Mafuta asilia ya Oud, Perfumes original na designer scents zinazokaa masaa 48+.',
+        followersCount: '5.7k',
+        location: 'Posta Mpya, Dar es Salaam'
+    },
+    simu_umeme: {
+        shopName: 'Mlimani Tech Hub',
+        ownerName: 'Baraka Msuya',
+        phone: '255752112233',
+        nida: '19900318-77109-00007-15',
+        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+        bio: 'Smartphones (iPhone & Samsung), Laptops, Smart TVs na vifaa vyote vyenye warranty ya miezi 12-24.',
+        followersCount: '15.3k',
+        location: 'Survey Mlimani, Dar es Salaam'
+    },
+    ujenzi: {
+        shopName: 'Barafu Building & Hardware',
+        ownerName: 'Geoffrey Mushi',
+        phone: '255763998877',
+        nida: '19850910-88108-00008-63',
+        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
+        bio: 'Vifaa bora vya ujenzi: Nondo, Saruji, Gypsum, Rangi na mabomba. Usafiri bure Dar es Salaam.',
+        followersCount: '3.9k',
+        location: 'Buguruni Chama, Dar es Salaam'
+    },
+    usafi_nyumbani: {
+        shopName: 'Safisha Living Solutions',
+        ownerName: 'Dorice Mlay',
+        phone: '255787445566',
+        nida: '19921201-99107-00009-54',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        bio: 'Dawa safi za usafi, cleaners, roboti za usafi na vifaa vya kisasa vya kupendezesha sebule na jiko.',
+        followersCount: '4.2k',
+        location: 'Kinondoni Morocco, Dar'
+    }
+};
 
 // Format WhatsApp Phone for international routing (+255)
 function formatWhatsAppPhone(phone) {
@@ -557,6 +673,14 @@ function getVendorForProduct(item) {
 // Format Currency TZS
 function formatTZS(amount) {
     return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+}
+
+function isRentalCar(product) {
+    return (product?.dept || product?.category) === 'magari' && product?.subType === 'kupangisha';
+}
+
+function getMallPriceLabel(product) {
+    return isRentalCar(product) ? 'Gari la kukodi - bei kwa makubaliano' : formatTZS(product.price);
 }
 
 function escapeMallHtml(value) {
@@ -1174,7 +1298,7 @@ window.triggerVendorStkPayment = async function() {
                 Unaweza kulipa moja kwa moja:<br>
                 📱 <strong>Lipa M-Pesa/Tigo Pesa:</strong> <strong>0799 689 961</strong><br>
                 Kumbuka kuweka namba yako ya simu kama rejea la malipo.<br>
-                Baada ya kulipa, wasiliana nasi kwa WhatsApp: <strong>+255799689961</strong>
+                Baada ya kulipa, wasiliana nasi kwa WhatsApp: <strong>+255 692 970 687</strong> (Backup: +255 799 689 961)
             `;
             if (triggerBtn) { triggerBtn.style.display = 'flex'; triggerBtn.disabled = false; }
         }
@@ -1184,7 +1308,7 @@ window.triggerVendorStkPayment = async function() {
             Haiwezekani kufikia backend sasa hivi.<br><br>
             Lipa moja kwa moja kwenye:<br>
             📱 <strong>M-Pesa/Tigo Pesa: 0799 689 961</strong><br>
-            Kisha tuma screenshot ya malipo WhatsApp: <strong>+255799689961</strong>
+            Kisha tuma screenshot ya malipo WhatsApp: <strong>+255 692 970 687</strong> (Backup: +255 799 689 961)
         `;
         if (triggerBtn) { triggerBtn.style.display = 'flex'; triggerBtn.disabled = false; }
     }
@@ -1319,6 +1443,8 @@ function refreshSponsoredSlider(products) {
             shopName: product.vendorShopName || product.vendorName,
             vendorPhone: product.vendorPhone,
             title: product.name || product.title || 'Bidhaa ya duka',
+            dept: product.dept || product.category,
+            subType: product.subType || '',
             price: Number(product.price) || 0,
             priceUnit: product.priceUnit || 'Tsh',
             image: product.icon || product.image || 'mall/genge-mall-logo.jpg',
@@ -1345,8 +1471,13 @@ function renderSponsoredSlides() {
 
     track.innerHTML = sponsoredSliderItems.map((item, idx) => {
         const cleanPhone = formatWhatsAppPhone(item.vendorPhone);
-        const waMsg = encodeURIComponent(`Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall. Naomba kujua zaidi.`);
+        const rentalCar = isRentalCar(item);
+        const waMessage = rentalCar
+            ? `Habari ${item.shopName}! Nimeona gari lako la kukodi "${item.title}" kwenye Genge Mall. Naomba kujua bei na upatikanaji.`
+            : `Habari ${item.shopName}! Nimeona tangazo lako la "${item.title}" (Tsh ${item.price.toLocaleString()}) kwenye Genge Mall. Naomba kujua zaidi.`;
+        const waMsg = encodeURIComponent(waMessage);
         const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
+        const telLink = `tel:+${cleanPhone}`;
         const safeShopName = escapeMallHtml(item.shopName);
         const safeTitle = escapeMallHtml(item.title);
         const safeLocation = escapeMallHtml(item.location);
@@ -1359,7 +1490,7 @@ function renderSponsoredSlides() {
                 <div class="slide-img-box">
                     <img src="${safeImage}" alt="${safeTitle}" loading="lazy" onerror="this.src='mall/genge-mall-logo.jpg'">
                     <div class="slide-gold-ribbon">
-                        <ion-icon name="megaphone-outline"></ion-icon> TANGAZO LA MUUZAJI
+                        <ion-icon name="megaphone-outline"></ion-icon> ${rentalCar ? 'GARI LINAKODISHWA' : 'TANGAZO LA MUUZAJI'}
                     </div>
                 </div>
                 <div class="slide-info-box">
@@ -1379,12 +1510,12 @@ function renderSponsoredSlides() {
                     </div>
                     <div>
                         <div class="slide-price-row">
-                            <span class="slide-current-price">Tsh ${item.price.toLocaleString()}</span>
-                            <span style="font-size:0.8rem; color:#94a3b8;">${safePriceUnit}</span>
+                            <span class="slide-current-price">${rentalCar ? getMallPriceLabel(item) : `Tsh ${item.price.toLocaleString()}`}</span>
+                            ${rentalCar ? '' : `<span style="font-size:0.8rem; color:#94a3b8;">${safePriceUnit}</span>`}
                         </div>
                         <div class="slide-actions-row">
                             <a href="${waLink}" target="_blank" class="slide-btn-whatsapp">
-                                <ion-icon name="logo-whatsapp"></ion-icon> Agiza WhatsApp
+                                <ion-icon name="logo-whatsapp"></ion-icon> ${rentalCar ? 'Uliza bei' : 'Agiza WhatsApp'}
                             </a>
                             <button type="button" class="slide-btn-call" onclick="openVendorProfileModal('${cleanPhone}', '${item.id}')">
                                 <ion-icon name="storefront-outline"></ion-icon> Ingia Dukani
@@ -1676,6 +1807,7 @@ function renderSubfilters() {
         container.style.display = 'flex';
         container.innerHTML = `
             <button class="subfilter-chip ${currentSubfilter === 'all' ? 'active' : ''}" onclick="setSubfilter('all')">Zote</button>
+            <button class="subfilter-chip ${currentSubfilter === 'kupangisha' ? 'active' : ''}" onclick="setSubfilter('kupangisha')">🚘 Za Kukodi</button>
             <button class="subfilter-chip ${currentSubfilter === 'used' ? 'active' : ''}" onclick="setSubfilter('used')">🚗 Used Safi</button>
             <button class="subfilter-chip ${currentSubfilter === 'mpya' ? 'active' : ''}" onclick="setSubfilter('mpya')">✨ Mpya 0km</button>
         `;
@@ -2039,8 +2171,15 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     if (clickedItem && targetBox) {
         const tTitle = clickedItem.title || clickedItem.name;
         const tImg = clickedItem.image || clickedItem.icon;
-        const tPrice = formatTZS(clickedItem.price);
-        const tWaMsg = encodeURIComponent(`Habari ${v.shopName}, nimevutiwa na bidhaa hii Genge Mall: ${tTitle} (${tPrice}). Tafadhali naomba utaratibu wa kuipata.`);
+        const rentalCar = isRentalCar(clickedItem);
+        const tPrice = getMallPriceLabel(clickedItem);
+        const tSpecs = Array.isArray(clickedItem.specs)
+            ? clickedItem.specs.map(spec => escapeMallHtml(spec)).join(' · ')
+            : '';
+        const tWaMessage = rentalCar
+            ? `Habari ${v.shopName}, nimevutiwa na gari lako la kukodi "${tTitle}" Genge Mall. Naomba kujua bei na upatikanaji.`
+            : `Habari ${v.shopName}, nimevutiwa na bidhaa hii Genge Mall: ${tTitle} (${tPrice}). Tafadhali naomba utaratibu wa kuipata.`;
+        const tWaMsg = encodeURIComponent(tWaMessage);
 
         targetBox.style.display = 'block';
         targetBox.innerHTML = `
@@ -2048,7 +2187,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                 <div style="display:flex;align-items:center;gap:6px;color:#34d399;font-size:0.82rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;">
                     <ion-icon name="sparkles" style="font-size:1.1rem;color:#10b981;"></ion-icon> Bidhaa Uliyoichagua:
                 </div>
-                <button type="button" onclick="shareMallProduct('${clickedItem.id}', '${tTitle.replace(/'/g, "\\'")}', '${v.shopName.replace(/'/g, "\\'")}', ${clickedItem.price}, '${cleanVPhone}')" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#38bdf8;padding:4px 9px;border-radius:6px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
+                <button type="button" onclick="shareMallProduct('${clickedItem.id}', '${tTitle.replace(/'/g, "\\'")}', '${v.shopName.replace(/'/g, "\\'")}', ${clickedItem.price}, '${cleanVPhone}', ${rentalCar})" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#38bdf8;padding:4px 9px;border-radius:6px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
                     <ion-icon name="share-social-outline"></ion-icon> Shiriki
                 </button>
             </div>
@@ -2056,14 +2195,13 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
                 <img src="${tImg}" alt="${tTitle}" style="width:78px;height:78px;object-fit:cover;border-radius:10px;flex-shrink:0;" onerror="this.src='mall/genge-mall-logo.jpg'">
                 <div style="flex:1;min-width:0;">
                     <h4 style="margin:0 0 3px;font-size:0.95rem;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tTitle}</h4>
+                    ${tSpecs ? `<div style="font-size:0.78rem;color:#cbd5e1;margin-bottom:6px;">${tSpecs}</div>` : ''}
                     <div style="color:#10b981;font-weight:900;font-size:1.05rem;margin-bottom:7px;">${tPrice}</div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <a href="https://wa.me/${cleanVPhone}?text=${tWaMsg}" target="_blank" class="btn-card-wa" style="padding:0.4rem 0.85rem;font-size:0.78rem;">
-                            <ion-icon name="logo-whatsapp"></ion-icon> Agiza Moja kwa Moja
+                            <ion-icon name="logo-whatsapp"></ion-icon> ${rentalCar ? 'Uliza bei na upatikanaji' : 'Agiza Moja kwa Moja'}
                         </a>
-                        <button type="button" class="btn-card-cart" style="padding:0.4rem 0.85rem;font-size:0.78rem;" onclick="addToMallCart('${clickedItem.id}')">
-                            <ion-icon name="cart-outline"></ion-icon> Weka Kapuni
-                        </button>
+                        ${rentalCar ? '' : `<button type="button" class="btn-card-cart" style="padding:0.4rem 0.85rem;font-size:0.78rem;" onclick="addToMallCart('${clickedItem.id}')"><ion-icon name="cart-outline"></ion-icon> Weka Kapuni</button>`}
                     </div>
                 </div>
             </div>
@@ -2075,7 +2213,7 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
     }
 
     // STRICT ISOLATION OF PRODUCTS:
-    // If it's a custom vendor: ONLY show products uploaded by this exact vendor phone!
+    // If it's a custom vendor: ONLY show products uploaded by this exact shop!
     // If it's a demo department vendor: ONLY show demo products in this dept (excluding custom vendors)
     let vendorProds = [];
     if (isCustomVendor) {
@@ -2116,21 +2254,24 @@ window.openVendorProfileModal = async function(phone, productIdOrDept) {
             grid.innerHTML = otherProds.map(p => {
                 const pTitle = (p.title || p.name || '').replace(/'/g, "&#39;");
                 const pImg = p.image || p.icon;
-                const pPrice = formatTZS(p.price);
-                const waText = encodeURIComponent(`Habari ${v.shopName}, nahitaji kuagiza "${pTitle}" ya ${pPrice} niliyoona kwenye Genge Mall.`);
+                const rentalCar = isRentalCar(p);
+                const pPrice = getMallPriceLabel(p);
+                const pSpecs = rentalCar && Array.isArray(p.specs)
+                    ? p.specs.map(spec => escapeMallHtml(spec)).join(' · ')
+                    : '';
+                const waMessage = rentalCar
+                    ? `Habari ${v.shopName}, naomba kujua bei na upatikanaji wa gari la kukodi "${pTitle}" niliyoona Genge Mall.`
+                    : `Habari ${v.shopName}, nahitaji kuagiza "${pTitle}" ya ${pPrice} niliyoona kwenye Genge Mall.`;
+                const waText = encodeURIComponent(waMessage);
                 return `
-                    <div class="vpm-prod-card" onclick="addToMallCart('${p.id}')" style="cursor:pointer;" title="Bonyeza kuongeza kwenye kapu">
+                    <div class="vpm-prod-card" ${rentalCar ? '' : `onclick="addToMallCart('${p.id}')" style="cursor:pointer;" title="Bonyeza kuongeza kwenye kapu"`}>
                         <img src="${pImg}" alt="${pTitle}" class="vpm-prod-img" onerror="this.src='mall/genge-mall-logo.jpg'">
                         <div class="vpm-prod-body">
                             <div class="vpm-prod-name">${pTitle}</div>
+                            ${pSpecs ? `<div style="font-size:0.75rem;color:#94a3b8;margin:4px 0;">${pSpecs}</div>` : ''}
                             <div class="vpm-prod-price">${pPrice}</div>
                             <div class="vpm-prod-actions" onclick="event.stopPropagation()">
-                                <button type="button" class="vpm-btn-cart" onclick="addToMallCart('${p.id}')">
-                                    <ion-icon name="cart-outline"></ion-icon> Kapu
-                                </button>
-                                <a href="https://wa.me/${cleanVPhone}?text=${waText}" target="_blank" class="vpm-btn-wa" title="Agiza WhatsApp">
-                                    <ion-icon name="logo-whatsapp"></ion-icon>
-                                </a>
+                                ${rentalCar ? `<a href="https://wa.me/${cleanVPhone}?text=${waText}" target="_blank" class="vpm-btn-wa"><ion-icon name="logo-whatsapp"></ion-icon> Uliza bei</a>` : `<button type="button" class="vpm-btn-cart" onclick="addToMallCart('${p.id}')"><ion-icon name="cart-outline"></ion-icon> Kapu</button><a href="https://wa.me/${cleanVPhone}?text=${waText}" target="_blank" class="vpm-btn-wa" title="Agiza WhatsApp"><ion-icon name="logo-whatsapp"></ion-icon></a>`}
                             </div>
                         </div>
                     </div>
@@ -2215,29 +2356,26 @@ function handleMallDeepLink(productId, shopPhone) {
     }
 }
 
-window.shareMallProduct = function(productId, title, shopName, price, vendorPhone) {
+window.shareMallProduct = function(productId, title, shopName, price, vendorPhone, priceByAgreement = false) {
     const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
         ? window.location.origin
         : 'http://localhost:3000';
-    let path = window.location.pathname;
-    const lastSlash = path.lastIndexOf('/');
-    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
-    const shareUrl = `${origin}${basePath}mall.html?p=${encodeURIComponent(productId)}&shop=${encodeURIComponent(vendorPhone || '')}`;
-    const priceFormatted = formatTZS(price);
-    const shareText = `Habari! Tazama "${title}" kwa ${priceFormatted} kwenye duka la ${shopName} ndani ya Genge Mall!\nBofya link hii kuagiza au kuona bidhaa zote:\n${shareUrl}`;
+    // Use /share/p/:id — this page has proper OG meta tags for WhatsApp/Facebook/Telegram
+    const shareUrl = `${origin}/share/p/${encodeURIComponent(productId)}`;
+    const priceFormatted = priceByAgreement ? 'Bei kwa makubaliano' : formatTZS(price);
+    const action = priceByAgreement ? 'Uliza bei na upatikanaji kwenye Genge Mall:' : 'Tazama na agiza kwenye Genge Mall:';
+    const shareText = `🛍️ *${title}*\n💰 ${priceFormatted}\n🏪 Duka: ${shopName}\n\n${action}\n${shareUrl}`;
 
+    // Try native share sheet (mobile)
     if (navigator.share) {
         navigator.share({
-            title: `${title} - ${shopName}`,
+            title: `${title} — ${shopName} | Genge Mall`,
             text: shareText,
             url: shareUrl
         }).catch(() => {});
     } else {
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            showMallToast('✅ Link ya bidhaa imenakiliwa! Unaweza kuishare mitandaoni.');
-        }).catch(() => {
-            prompt('Nakili kiungo cha bidhaa hii:', shareUrl);
-        });
+        // Show mini share panel on desktop
+        showMallSharePanel({ title, shopName, price: priceFormatted, shareUrl, shareText });
     }
 };
 
@@ -2246,26 +2384,89 @@ window.shareCurrentModalShop = function() {
     const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
         ? window.location.origin
         : 'http://localhost:3000';
-    let path = window.location.pathname;
-    const lastSlash = path.lastIndexOf('/');
-    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
-    const shopUrl = `${origin}${basePath}mall.html?shop=${encodeURIComponent(currentModalVendor.phone || '')}`;
-    const shopText = `Tembelea duka la "${currentModalVendor.shopName}" ndani ya Genge Mall kuona bidhaa zetu zote!\nBofya link hii:\n${shopUrl}`;
+    const phone = currentModalVendor.phone || '';
+    // Use /share/shop/:phone — proper OG tags with shop logo
+    const shopUrl = `${origin}/share/shop/${encodeURIComponent(phone)}`;
+    const shopText = `🏪 *${currentModalVendor.shopName}*\nTembelea duka hili kwenye Genge Mall kuona bidhaa zote!\n${shopUrl}`;
 
     if (navigator.share) {
         navigator.share({
-            title: currentModalVendor.shopName,
+            title: `${currentModalVendor.shopName} | Genge Mall`,
             text: shopText,
             url: shopUrl
         }).catch(() => {});
     } else {
-        navigator.clipboard.writeText(shopUrl).then(() => {
-            showMallToast('✅ Kiungo cha duka hili kimenakiliwa!');
-        }).catch(() => {
-            prompt('Nakili link ya duka hili:', shopUrl);
+        showMallSharePanel({
+            title: currentModalVendor.shopName,
+            shopName: currentModalVendor.shopName,
+            shareUrl: shopUrl,
+            shareText: shopText
         });
     }
 };
+
+/** Mini share panel for desktop (shown instead of native share API) */
+function showMallSharePanel({ title, shopName, price, shareUrl, shareText }) {
+    // Remove old panel if any
+    const old = document.getElementById('mall-share-panel');
+    if (old) old.remove();
+
+    const encodedText = encodeURIComponent(shareText);
+    const encodedUrl  = encodeURIComponent(shareUrl);
+
+    const panel = document.createElement('div');
+    panel.id = 'mall-share-panel';
+    panel.style.cssText = `
+        position:fixed;bottom:90px;right:20px;z-index:99999;
+        background:#0f172a;border:1px solid rgba(255,255,255,0.15);
+        border-radius:20px;padding:1.2rem;width:300px;
+        box-shadow:0 20px 60px rgba(0,0,0,0.7);
+        animation:slideUpIn 0.25s ease;
+    `;
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem;">
+            <strong style="color:#fff;font-size:0.95rem;">📤 Shiriki</strong>
+            <button onclick="document.getElementById('mall-share-panel').remove()"
+                style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <p style="font-size:0.8rem;color:#94a3b8;margin:0 0 1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${title}${price ? ' — ' + price : ''}
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem;">
+            <a href="https://wa.me/?text=${encodedText}" target="_blank" rel="noopener"
+               style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border-radius:10px;background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.3);color:#25D366;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <ion-icon name="logo-whatsapp"></ion-icon> WhatsApp
+            </a>
+            <a href="https://t.me/share/url?url=${encodedUrl}&text=${encodedText}" target="_blank" rel="noopener"
+               style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border-radius:10px;background:rgba(0,136,204,0.15);border:1px solid rgba(0,136,204,0.3);color:#0088cc;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <ion-icon name="paper-plane-outline"></ion-icon> Telegram
+            </a>
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener"
+               style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border-radius:10px;background:rgba(24,119,242,0.15);border:1px solid rgba(24,119,242,0.3);color:#1877f2;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <ion-icon name="logo-facebook"></ion-icon> Facebook
+            </a>
+            <a href="https://twitter.com/intent/tweet?text=${encodedText}" target="_blank" rel="noopener"
+               style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border-radius:10px;background:rgba(29,161,242,0.15);border:1px solid rgba(29,161,242,0.3);color:#1da1f2;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <ion-icon name="logo-twitter"></ion-icon> X / Twitter
+            </a>
+        </div>
+        <!-- Copy link row -->
+        <div style="display:flex;gap:6px;">
+            <input id="mall-share-link-input" type="text" value="${shareUrl}"
+                readonly style="flex:1;padding:0.45rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#e2e8f0;font-size:0.75rem;min-width:0;">
+            <button onclick="
+                const inp=document.getElementById('mall-share-link-input');
+                inp.select(); navigator.clipboard.writeText(inp.value).then(()=>{
+                    this.textContent='✅'; setTimeout(()=>this.textContent='Nakili',2000);
+                }).catch(()=>document.execCommand('copy'));
+            " style="padding:0.45rem 0.75rem;border-radius:8px;background:var(--primary);border:none;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap;">Nakili</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+
+    // Auto-close after 15 seconds
+    setTimeout(() => { if (panel.parentNode) panel.remove(); }, 15000);
+}
 
 window.addMallCartItem = function(id) {
     if (typeof window.addToMallCart === 'function') {
@@ -2290,14 +2491,20 @@ function saveMallCartToStorage() {
 }
 
 window.addToMallCart = function(productId) {
-    const item = mallProducts.find(p => p.id === productId);
+    const item = serverMallProducts.find(p => p.id === productId);
     if (!item) return;
+    if (isRentalCar(item)) {
+        showMallToast('Gari la kukodi huuliziwa bei na upatikanaji kupitia WhatsApp.');
+        return;
+    }
 
+    const title = item.title || item.name;
+    const image = item.image || item.icon;
     mallCart.push({
         id: item.id,
-        title: item.title,
+        title,
         price: item.price,
-        image: item.image,
+        image,
         cartId: 'mc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)
     });
 
@@ -2305,7 +2512,7 @@ window.addToMallCart = function(productId) {
     updateMallCartUI();
 
     // Show temporary feedback toast / notification
-    showMallToast(`✅ ${item.title} imewekwa kwenye Kapu!`);
+    showMallToast(`✅ ${title} imewekwa kwenye Kapu!`);
 };
 
 window.removeFromMallCart = function(cartId) {
@@ -2457,6 +2664,15 @@ window.mallNavTo = function(target) {
 };
 
 // ── VENDOR LOGIN WITH MULTI-SHOP SUPPORT ────────────────────────────────
+window.handleMallPasswordRecovery = function(event) {
+    const phone = document.getElementById('login-phone')?.value.trim();
+    const accountDetails = phone
+        ? `Namba ya simu iliyosajiliwa: ${phone}.`
+        : 'Nitaeleza namba ya simu iliyosajiliwa.';
+    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti ya duka langu. ${accountDetails} Tafadhali nisaidieni kuthibitisha umiliki na kunitumia kiungo cha kuweka nenosiri jipya. Situmi nenosiri au PIN hapa.`;
+    event.currentTarget.href = `https://wa.me/${MALL_WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+};
+
 window.handleMallLogin = async function(e) {
     e.preventDefault();
     const phoneEl = document.getElementById('login-phone');
@@ -2511,7 +2727,7 @@ window.handleMallLogin = async function(e) {
         }
 
         // ── Single shop: log in directly ─────────────────────────────────
-        finishLogin(data.user);
+        finishLogin(data.user, data.sessionToken);
 
     } catch (err) {
         if (msgDiv) { msgDiv.textContent = '❌ Tatizo la mtandao. Jaribu tena.'; msgDiv.style.color = '#EF4444'; }
@@ -2536,18 +2752,18 @@ window.loginToShop = async function(phone, password, shopName, btn) {
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
             return;
         }
-        finishLogin(data.user);
+        finishLogin(data.user, data.sessionToken);
     } catch (err) {
         if (msgDiv) { msgDiv.textContent = '❌ Tatizo la mtandao.'; msgDiv.style.color = '#EF4444'; }
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 };
 
-function finishLogin(user) {
-    currentUser = user;
-    localStorage.setItem('genge_user', JSON.stringify(user));
-    if (user.role === 'vendor') {
-        localStorage.setItem('genge_vendor', JSON.stringify(user));
+function finishLogin(user, sessionToken) {
+    currentUser = { ...user, sessionToken };
+    localStorage.setItem('genge_user', JSON.stringify(currentUser));
+    if (currentUser.role === 'vendor') {
+        localStorage.setItem('genge_vendor', JSON.stringify(currentUser));
     }
     updateHeaderAuthUI();
     closeAuthModal();

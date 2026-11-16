@@ -4,6 +4,22 @@
 
 const API_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
 let currentVendor = null;
+const vendorNativeFetch = window.fetch.bind(window);
+
+window.fetch = (input, init = {}) => {
+    const requestUrl = typeof input === 'string' ? input : input.url;
+    if (!new URL(requestUrl, window.location.href).pathname.startsWith('/api/')) {
+        return vendorNativeFetch(input, init);
+    }
+
+    const token = currentVendor?.sessionToken || '';
+    if (!token) return vendorNativeFetch(input, init);
+
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    headers.set('Authorization', `Bearer ${token}`);
+    return vendorNativeFetch(input, { ...init, headers });
+};
 
 function normalizeVendorPhone(phone) {
     let clean = String(phone || '').replace(/\D/g, '');
@@ -28,6 +44,12 @@ function getVendorProfilePicStorageKey(vendor) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const departmentSelect = document.getElementById('vp-dept');
+    const vehicleListingSelect = document.getElementById('vp-vehicle-listing-type');
+    if (departmentSelect) departmentSelect.addEventListener('change', updateVendorVehicleFields);
+    if (vehicleListingSelect) vehicleListingSelect.addEventListener('change', updateVendorVehicleFields);
+    updateVendorVehicleFields();
+
     const resetMatch = window.location.hash.match(/^#reset=([A-Za-z0-9_-]{43})$/);
     if (resetMatch) {
         showVendorPasswordReset(resetMatch[1]);
@@ -35,6 +57,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     checkSavedVendorSession();
 });
+
+function updateVendorVehicleFields() {
+    const department = document.getElementById('vp-dept');
+    const listingType = document.getElementById('vp-vehicle-listing-type');
+    const vehicleFields = document.getElementById('vp-vehicle-fields');
+    const saleConditionGroup = document.getElementById('vp-vehicle-sale-condition-group');
+    const rentalClassGroup = document.getElementById('vp-vehicle-rental-class-group');
+    const saleCondition = document.getElementById('vp-vehicle-sale-condition');
+    const rentalClass = document.getElementById('vp-vehicle-rental-class');
+    const fixedPriceControls = document.getElementById('vp-fixed-price-controls');
+    const priceInput = document.getElementById('vp-price');
+    const priceNote = document.getElementById('vp-price-negotiable-note');
+    if (!department || !listingType || !vehicleFields || !fixedPriceControls || !priceInput) return;
+
+    const isVehicle = department.value === 'magari';
+    const isRental = isVehicle && listingType.value === 'rental';
+    vehicleFields.style.display = isVehicle ? 'block' : 'none';
+    saleConditionGroup.style.display = isVehicle && !isRental ? '' : 'none';
+    rentalClassGroup.style.display = isRental ? 'block' : 'none';
+    saleCondition.required = isVehicle && !isRental;
+    rentalClass.required = isRental;
+    fixedPriceControls.style.display = isRental ? 'none' : '';
+    priceInput.required = !isRental;
+    priceNote.style.display = isRental ? 'block' : 'none';
+    if (isRental) priceInput.value = '';
+}
 
 let vendorPasswordResetToken = null;
 
@@ -46,8 +94,14 @@ function showVendorPasswordReset(token) {
 }
 
 function showVendorRecoveryHelp() {
-    const message = 'Habari, naomba msaada wa kurejesha nenosiri la akaunti yangu ya muuzaji wa Genge Mall. Namba ya akaunti ni: ';
-    window.open(`https://wa.me/255799689961?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    const phone = document.getElementById('vlogin-phone').value.trim();
+    const shopName = document.getElementById('vlogin-shop-name').value.trim();
+    const accountDetails = [
+        phone ? `Namba ya simu iliyosajiliwa: ${phone}.` : 'Nitaeleza namba ya simu iliyosajiliwa.',
+        shopName ? `Jina la duka: ${shopName}.` : ''
+    ].filter(Boolean).join(' ');
+    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti yangu ya mfanyabiashara. ${accountDetails} Ninatuma ujumbe huu kutoka kwenye namba yangu ya WhatsApp iliyosajiliwa. Tafadhali nisaidieni kuthibitisha umiliki na kunitumia kiungo cha kuweka nenosiri jipya. Situmi nenosiri au PIN hapa. Namba za usaidizi: +255 692 970 687 / +255 799 689 961.`;
+    window.open(`https://wa.me/255692970687?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
 }
 
 async function submitVendorPasswordReset(event) {
@@ -104,7 +158,7 @@ function returnToVendorLogin() {
     showLoginOverlay();
 }
 
-function checkSavedVendorSession() {
+async function checkSavedVendorSession() {
     let saved = localStorage.getItem('genge_vendor');
     if (!saved) {
         // Fallback to genge_user in case login occurred from mall.html
@@ -116,6 +170,15 @@ function checkSavedVendorSession() {
             if (parsed && (parsed.role === 'vendor' || parsed.shopName)) {
                 currentVendor = parsed;
                 currentVendor.role = 'vendor';
+                if (!currentVendor.sessionToken) {
+                    throw new Error('Tafadhali ingia tena ili kuthibitisha akaunti ya muuzaji.');
+                }
+                const sessionResponse = await fetch(API_URL + '/api/vendor/session', {
+                    headers: { Authorization: `Bearer ${currentVendor.sessionToken}` }
+                });
+                if (!sessionResponse.ok) {
+                    throw new Error('Session ya muuzaji imeisha. Ingia tena.');
+                }
                 localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
                 showDashboard();
                 fetchVendorProfile();
@@ -123,6 +186,7 @@ function checkSavedVendorSession() {
             }
         } catch (e) {
             localStorage.removeItem('genge_vendor');
+            localStorage.removeItem('genge_user');
         }
     }
     showLoginOverlay();
@@ -143,6 +207,22 @@ async function handleVendorLogin(e) {
     e.preventDefault();
     const phone = document.getElementById('vlogin-phone').value;
     const password = document.getElementById('vlogin-password').value;
+    const shopName = document.getElementById('vlogin-shop-name').value.trim();
+    const errDiv = document.getElementById('vlogin-error');
+    const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+    errDiv.textContent = '';
+    submitButton.disabled = true;
+    submitButton.textContent = 'Inathibitisha...';
+
+    try {
+        await authenticateVendorLogin(phone, password, shopName);
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Ingia Kwenye Dashboard ya Duka ›';
+    }
+}
+
+async function authenticateVendorLogin(phone, password, shopName = '') {
     const errDiv = document.getElementById('vlogin-error');
     errDiv.textContent = '';
     const shopList = document.getElementById('vlogin-shop-list');
@@ -155,7 +235,7 @@ async function handleVendorLogin(e) {
         const res = await fetch(API_URL + '/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, password })
+            body: JSON.stringify({ phone, password, shopName })
         });
 
         const data = await res.json();
@@ -190,12 +270,12 @@ async function handleVendorLogin(e) {
             return;
         }
 
-        currentVendor = data.user;
+        currentVendor = { ...data.user, sessionToken: data.sessionToken };
         localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
         showDashboard();
         fetchVendorProfile();
     } catch (err) {
-        errDiv.textContent = 'Imefeli kuunganisha na server. Jaribu tena.';
+        errDiv.textContent = err.message || 'Imefeli kuunganisha na server. Jaribu tena.';
     }
 }
 
@@ -219,7 +299,7 @@ async function loginVendorToShop(phone, password, shopName, button) {
             button.disabled = false;
             return;
         }
-        currentVendor = data.user;
+        currentVendor = { ...data.user, sessionToken: data.sessionToken };
         localStorage.setItem('genge_vendor', JSON.stringify(currentVendor));
         showDashboard();
         fetchVendorProfile();
@@ -439,7 +519,9 @@ function renderVendorProducts(products) {
 function buildVpsCard(p) {
     const img   = p.image || p.icon || 'mall/genge-mall-logo.jpg';
     const title = p.name || p.title || 'Bidhaa';
-    const price = `Tsh ${(p.price || 0).toLocaleString()}`;
+    const price = p.priceUnit === 'Bei kwa makubaliano'
+        ? 'Bei kwa makubaliano'
+        : `Tsh ${(p.price || 0).toLocaleString()}`;
     const loc   = p.location || '';
     const id    = p.id || p._id || '';
     return `
@@ -451,7 +533,7 @@ function buildVpsCard(p) {
                     <div class="vps-card-meta"><ion-icon name="location-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> ${loc}</div>
                     <div class="vps-card-price">${price}</div>
                     <div class="vps-card-actions">
-                        <button class="vps-share-btn" onclick="shareVendorProduct('${id}', '${title.replace(/'/g, "\\'")}', ${p.price || 0})">
+                        <button class="vps-share-btn" onclick="shareVendorProduct('${id}', '${title.replace(/'/g, "\\'")}', ${p.price || 0}, ${p.priceUnit === 'Bei kwa makubaliano'})">
                             <ion-icon name="share-social-outline"></ion-icon> Shiriki
                         </button>
                         <button class="vps-delete-btn" onclick="deleteVendorProduct('${id}')">
@@ -624,7 +706,12 @@ async function handleProductUpload(e) {
 
     const name = document.getElementById('vp-name').value;
     const dept = document.getElementById('vp-dept').value;
-    const price = document.getElementById('vp-price').value;
+    const priceInput = document.getElementById('vp-price');
+    const vehicleListingType = document.getElementById('vp-vehicle-listing-type').value;
+    const isVehicleRental = dept === 'magari' && vehicleListingType === 'rental';
+    const saleCondition = document.getElementById('vp-vehicle-sale-condition').value;
+    const rentalClass = document.getElementById('vp-vehicle-rental-class').value;
+    const price = isVehicleRental ? 0 : Number(priceInput.value);
     const location = document.getElementById('vp-location').value;
     const desc = document.getElementById('vp-desc').value;
     const fileInput = document.getElementById('vp-image');
@@ -638,11 +725,12 @@ async function handleProductUpload(e) {
     const file = fileInput.files[0];
     const submitBtn = document.getElementById('upload-submit-btn');
     submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Inabana picha na kuipakia kwenye database...';
+    submitBtn.textContent = '⏳ Inabana na kupakia picha...';
 
     try {
         // Compress image to max 600px width and 0.75 quality (~40-80KB)
         let compressedBase64 = '';
+        let compressedImage;
         try {
             compressedBase64 = await compressImageFile(file, 600, 0.75);
         } catch (imgErr) {
@@ -654,14 +742,34 @@ async function handleProductUpload(e) {
                 fr.readAsDataURL(file);
             });
         }
+        compressedImage = await (await fetch(compressedBase64)).blob();
+
+        const imageExtensions = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/gif': 'gif'
+        };
+        const imageExtension = imageExtensions[compressedImage.type];
+        if (!imageExtension) {
+            throw new Error('Aina ya picha haikubaliki. Tumia JPEG, PNG au WebP.');
+        }
+        if (compressedImage.size > 5 * 1024 * 1024) {
+            throw new Error('Picha ni kubwa kuliko 5 MB. Chagua picha ndogo zaidi.');
+        }
 
         const payload = {
             name: name.trim(),
             category: dept,
             dept: dept,
-            price: Number(price),
+            subType: dept === 'magari' ? (isVehicleRental ? 'kupangisha' : saleCondition) : '',
+            price,
+            priceUnit: isVehicleRental ? 'Bei kwa makubaliano' : 'Tsh',
             location: location || 'Dar es Salaam',
             desc: desc || '',
+            specs: isVehicleRental
+                ? [`Aina ya huduma: ${rentalClass === 'mizigo' ? 'Gari la mizigo' : 'Gari la abiria binafsi (Special Hire)'}`]
+                : [],
             vendorPhone: currentVendor.phone,
             vendorName: currentVendor.name || '',
             vendorShopName: currentVendor.shopName || currentVendor.name || 'Duka Langu',
@@ -671,15 +779,13 @@ async function handleProductUpload(e) {
             vendorNidaOrTin: currentVendor.nidaOrTin || '',
         };
 
-        const imageBlob = await (await fetch(compressedBase64)).blob();
-        const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-        if (!allowedImageTypes.includes(imageBlob.type)) throw new Error("Tafadhali tumia picha ya JPEG, PNG, WebP au GIF.");
-        if (imageBlob.size > 5 * 1024 * 1024) throw new Error("Ukubwa wa picha haupaswi kuzidi 5MB.");
-        const imageExtension = imageBlob.type.split("/")[1];
         const formData = new FormData();
-        ["name", "category", "dept", "price", "location", "desc", "vendorPhone"].forEach(key => formData.append(key, payload[key]));
+        ["name", "category", "dept", "subType", "price", "location", "desc", "vendorPhone"].forEach(key => {
+            formData.append(key, String(payload[key] ?? ''));
+        });
+        if (payload.specs.length > 0) formData.append("specs", payload.specs.join(","));
         formData.append("shopName", payload.vendorShopName);
-        formData.append("image", imageBlob, `product.${imageExtension}`);
+        formData.append("image", compressedImage, `product.${imageExtension}`);
 
         // Post multipart form data to MongoDB!
         let serverProduct = null;
@@ -701,7 +807,7 @@ async function handleProductUpload(e) {
 
             serverProduct = data.product;
         } catch (netErr) {
-            console.warn('Server offline, saving locally:', netErr);
+            console.error('Vendor product upload request failed:', netErr);
         }
 
         // Cache locally to guarantee instant display on slider and mall
@@ -714,15 +820,31 @@ async function handleProductUpload(e) {
             createdAt: new Date().toISOString()
         };
 
+        let cachedLocally = false;
         try {
             const allLocal = JSON.parse(localStorage.getItem('genge_custom_vendor_products') || '[]');
             allLocal.unshift(finalProd);
             localStorage.setItem('genge_custom_vendor_products', JSON.stringify(allLocal));
-        } catch (_) {}
+            cachedLocally = true;
+        } catch (cacheErr) {
+            console.error('Unable to cache vendor product locally:', cacheErr);
+        }
+
+        if (!serverProduct) {
+            msgDiv.textContent = cachedLocally
+                ? 'Bidhaa imehifadhiwa kwenye kifaa hiki pekee; haijachapishwa kwenye Genge Mall. Hakikisha intaneti na seva vinafanya kazi, kisha jaribu tena.'
+                : 'Seva haikupatikana, na bidhaa haikuweza kuhifadhiwa kwenye kifaa hiki. Hakikisha intaneti inafanya kazi, kisha jaribu tena.';
+            msgDiv.style.color = '#F59E0B';
+            if (cachedLocally) await fetchVendorProfile();
+            return;
+        }
 
         const shareUrl = getProductShareUrl(finalProd.id, currentVendor.phone);
         const shopDisplayName = currentVendor.shopName || currentVendor.name || 'Duka Langu';
-        const shareText = `Habari! Nimechapisha bidhaa mpya "${finalProd.name}" kwa Tsh ${Number(finalProd.price).toLocaleString()} kwenye duka langu la ${shopDisplayName} ndani ya Genge Mall.\nBofya link hii kuagiza sasa:\n${shareUrl}`;
+        const priceLabel = finalProd.priceUnit === 'Bei kwa makubaliano'
+            ? 'Bei kwa makubaliano'
+            : `Tsh ${Number(finalProd.price).toLocaleString()}`;
+        const shareText = `Habari! Nimechapisha bidhaa mpya "${finalProd.name}" kwa ${priceLabel} kwenye duka langu la ${shopDisplayName} ndani ya Genge Mall.\nBofya link hii kujua zaidi:\n${shareUrl}`;
 
         msgDiv.innerHTML = `
             <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);border-radius:14px;padding:1.1rem;margin-top:0.8rem;text-align:left;">
@@ -732,7 +854,7 @@ async function handleProductUpload(e) {
                     <a href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;">
                         <ion-icon name="logo-whatsapp" style="font-size:1.1rem;"></ion-icon> Shiriki WhatsApp
                     </a>
-                    <button type="button" onclick="shareVendorProduct('${finalProd.id}', '${finalProd.name.replace(/'/g, "\\'")}', ${finalProd.price})" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.25);font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer;">
+                    <button type="button" onclick="shareVendorProduct('${finalProd.id}', '${finalProd.name.replace(/'/g, "\\'")}', ${finalProd.price}, ${finalProd.priceUnit === 'Bei kwa makubaliano'})" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.25);font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer;">
                         <ion-icon name="share-social-outline" style="font-size:1.1rem;"></ion-icon> Mitandao Zaidi...
                     </button>
                     <button type="button" onclick="copyDirectLink('${shareUrl}', this)" style="display:inline-flex;align-items:center;gap:6px;background:#10b981;color:#fff;border:none;font-weight:700;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer;">
@@ -742,6 +864,7 @@ async function handleProductUpload(e) {
             </div>
         `;
         document.getElementById('vendor-product-form').reset();
+        updateVendorVehicleFields();
         await fetchVendorProfile();
 
     } catch (err) {
@@ -757,8 +880,11 @@ async function handleProductUpload(e) {
 async function deleteVendorProduct(id) {
     if (!confirm('Je, una uhakika unataka kufuta bidhaa hii sokoni?')) return;
     try {
-        await fetch(API_URL + `/api/products/${id}`, { method: 'DELETE' });
-    } catch (e) {}
+        const response = await fetch(API_URL + `/api/vendor/products/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Server imeshindwa kufuta bidhaa.');
+    } catch (e) {
+        console.error('Vendor product deletion failed:', e);
+    }
 
     // Also remove from localStorage
     try {
@@ -790,18 +916,18 @@ function getProductShareUrl(productId, vendorPhone) {
     const origin = (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'file://')
         ? window.location.origin
         : 'http://localhost:3000';
-    let path = window.location.pathname;
-    const lastSlash = path.lastIndexOf('/');
-    const basePath = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '/';
-    return `${origin}${basePath}mall.html?p=${encodeURIComponent(productId)}&shop=${encodeURIComponent(vendorPhone || '')}`;
+    // /share/p/:id returns HTML with proper OG meta tags so WhatsApp/Facebook
+    // show the real product image, title and price when shared.
+    return `${origin}/share/p/${encodeURIComponent(productId)}`;
 }
 
-window.shareVendorProduct = function(id, title, price) {
+window.shareVendorProduct = function(id, title, price, priceByAgreement = false) {
     const phone = currentVendor ? currentVendor.phone : '';
     const shop = currentVendor ? (currentVendor.shopName || currentVendor.name || 'Duka Langu') : 'Duka Langu';
     const shareUrl = getProductShareUrl(id, phone);
-    const priceFormatted = `Tsh ${Number(price).toLocaleString()}`;
-    const shareText = `Habari! Tazama bidhaa hii mpya "${title}" kwa ${priceFormatted} kwenye duka langu la ${shop} ndani ya Genge Mall.\nBofya link hii kuagiza moja kwa moja au kuona bidhaa zangu zote:\n${shareUrl}`;
+    const priceFormatted = priceByAgreement ? 'Bei kwa makubaliano' : `Tsh ${Number(price).toLocaleString()}`;
+    const action = priceByAgreement ? 'Bofya link hii kuuliza bei na upatikanaji:' : 'Bofya link hii kuagiza moja kwa moja:';
+    const shareText = `Habari! Tazama bidhaa hii mpya "${title}" kwa ${priceFormatted} kwenye duka langu la ${shop} ndani ya Genge Mall.\n${action}\n${shareUrl}`;
 
     activeShareData = {
         title,

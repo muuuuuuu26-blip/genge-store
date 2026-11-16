@@ -4,6 +4,7 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     phone: { type: String, required: true },
     password: { type: String, required: true },
+    sessionVersion: { type: Number, default: 0 },
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },
     role: { type: String, enum: ['customer', 'vendor'], default: 'customer' },
@@ -38,6 +39,7 @@ const userSchema = new mongoose.Schema({
     toJSON: {
         transform: (doc, ret) => {
             delete ret.password;
+            delete ret.sessionVersion;
             delete ret.passwordResetTokenHash;
             delete ret.passwordResetExpiresAt;
             delete ret.__v;
