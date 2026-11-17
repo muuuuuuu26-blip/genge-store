@@ -44,12 +44,15 @@
                 <button type="button" onclick="showVendorRecoveryHelp()" style="display:block;margin:12px auto 0;background:none;border:0;color:#38bdf8;text-decoration:underline;cursor:pointer;font:inherit;font-size:0.88rem;">
                     Umesahau nenosiri?
                 </button>
+                <button type="button" onclick="showVendorPasswordReset()" style="display:block;margin:10px auto 0;background:none;border:0;color:#34d399;text-decoration:underline;cursor:pointer;font:inherit;font-size:0.88rem;">
+                    Nina msimbo wa reset — weka hapa
+                </button>
                 <div id="vlogin-error" class="vendor-error-msg"></div>
                 <div id="vlogin-shop-list" class="vendor-error-msg" hidden></div>
             </form>
             
             <div class="vendor-login-footer">
-                <p><a href="https://wa.me/255692970687" target="_blank" rel="noopener noreferrer" onclick="handleVendorPasswordRecovery(event)">Umesahau nenosiri? Omba kiungo kupitia WhatsApp (+255 692 970 687 / +255 799 689 961)</a></p>
+                <p><a href="https://wa.me/255692970687" target="_blank" rel="noopener noreferrer" onclick="handleVendorPasswordRecovery(event)">Omba msimbo wa kurejesha kupitia WhatsApp (+255 692 970 687). Bonyeza Tuma baada ya WhatsApp kufunguka.</a></p>
                 <p>Bado huna duka lililosajiliwa? <a href="mall.html?register=1">Jisajili kwenye Genge Mall</a></p>
             </div>
         </div>
@@ -59,17 +62,30 @@
         <div class="vendor-login-box">
             <img src="mall/genge-mall-logo.jpg" alt="Genge Mall Logo" class="vendor-logo" style="border-radius:12px;object-fit:contain;">
             <h2>Weka Nenosiri Jipya</h2>
-            <p class="sub-text">Tengeneza nenosiri jipya la akaunti yako ya muuzaji.</p>
+            <p class="sub-text">Weka msimbo uliotumwa na utengeneze nenosiri jipya la akaunti yako.</p>
             <form id="vendor-password-reset-form" onsubmit="submitVendorPasswordReset(event)">
-                <div class="form-group">
-                    <label for="vendor-new-password">Nenosiri jipya</label>
-                    <input type="password" id="vendor-new-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                <div id="vendor-password-reset-code-fields">
+                    <div class="form-group">
+                        <label for="vendor-reset-phone">Namba ya simu iliyosajiliwa</label>
+                        <input type="tel" id="vendor-reset-phone" inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXX au +2557XXXXXXXX" required disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="vendor-reset-code">Msimbo wa tarakimu 8</label>
+                        <input type="text" id="vendor-reset-code" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" placeholder="Weka msimbo uliotumwa" required disabled>
+                    </div>
+                    <button type="button" id="vendor-password-reset-verify" onclick="verifyVendorPasswordResetCode()" class="vendor-btn-primary">Thibitisha msimbo</button>
                 </div>
-                <div class="form-group">
-                    <label for="vendor-confirm-password">Rudia nenosiri jipya</label>
-                    <input type="password" id="vendor-confirm-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                <div id="vendor-password-reset-password-fields" style="display:none;">
+                    <div class="form-group">
+                        <label for="vendor-new-password">Nenosiri jipya (herufi 8 hadi 128)</label>
+                        <input type="password" id="vendor-new-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="vendor-confirm-password">Rudia nenosiri jipya</label>
+                        <input type="password" id="vendor-confirm-password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" id="vendor-password-reset-submit" class="vendor-btn-primary">Hifadhi nenosiri jipya</button>
                 </div>
-                <button type="submit" id="vendor-password-reset-submit" class="vendor-btn-primary">Hifadhi nenosiri jipya</button>
                 <div id="vendor-password-reset-message" class="vendor-error-msg" role="status"></div>
             </form>
             <button type="button" onclick="returnToVendorLogin()" style="margin-top:14px;background:none;border:0;color:#38bdf8;text-decoration:underline;cursor:pointer;font:inherit;">Rudi kwenye ukurasa wa kuingia</button>
@@ -462,6 +478,6 @@
         </div>
     </div>
 
-    <script src="vendor-admin.js?v=14"></script>
+    <script src="vendor-admin.js?v=15"></script>
 </body>
 </html>

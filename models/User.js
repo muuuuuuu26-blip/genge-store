@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     sessionVersion: { type: Number, default: 0 },
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },
+    passwordResetFailedAttempts: { type: Number, default: 0, select: false },
     role: { type: String, enum: ['customer', 'vendor'], default: 'customer' },
     
     // Vendor Specific Fields
@@ -42,6 +43,7 @@ const userSchema = new mongoose.Schema({
             delete ret.sessionVersion;
             delete ret.passwordResetTokenHash;
             delete ret.passwordResetExpiresAt;
+            delete ret.passwordResetFailedAttempts;
             delete ret.__v;
             return ret;
         }

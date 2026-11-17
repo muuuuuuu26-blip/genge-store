@@ -85,23 +85,94 @@ function updateVendorVehicleFields() {
 }
 
 let vendorPasswordResetToken = null;
+let vendorPasswordResetCodeVerified = false;
 
 function showVendorPasswordReset(token) {
-    vendorPasswordResetToken = token;
+    vendorPasswordResetToken = token || null;
+    vendorPasswordResetCodeVerified = false;
+    const codeFields = document.getElementById('vendor-password-reset-code-fields');
+    const passwordFields = document.getElementById('vendor-password-reset-password-fields');
+    const phoneInput = document.getElementById('vendor-reset-phone');
+    const codeInput = document.getElementById('vendor-reset-code');
+    const verifyButton = document.getElementById('vendor-password-reset-verify');
+    const submitButton = document.getElementById('vendor-password-reset-submit');
+    const passwordInputs = [
+        document.getElementById('vendor-new-password'),
+        document.getElementById('vendor-confirm-password')
+    ];
+
+    document.getElementById('vendor-password-reset-form').reset();
+    document.getElementById('vendor-password-reset-message').textContent = '';
+    codeFields.style.display = vendorPasswordResetToken ? 'none' : 'block';
+    passwordFields.style.display = vendorPasswordResetToken ? 'block' : 'none';
+    phoneInput.disabled = Boolean(vendorPasswordResetToken);
+    codeInput.disabled = Boolean(vendorPasswordResetToken);
+    passwordInputs.forEach(input => { input.disabled = !vendorPasswordResetToken; });
+    verifyButton.style.display = vendorPasswordResetToken ? 'none' : '';
+    submitButton.style.display = '';
+    submitButton.disabled = false;
+    submitButton.textContent = 'Hifadhi nenosiri jipya';
     document.getElementById('vendor-login-overlay').classList.add('hidden');
     document.getElementById('vendor-dashboard-content').classList.add('hidden');
     document.getElementById('vendor-password-reset-overlay').style.display = 'flex';
 }
 
-function showVendorRecoveryHelp() {
+function showVendorRecoveryHelp(event) {
+    if (event) event.preventDefault();
     const phone = document.getElementById('vlogin-phone').value.trim();
     const shopName = document.getElementById('vlogin-shop-name').value.trim();
     const accountDetails = [
         phone ? `Namba ya simu iliyosajiliwa: ${phone}.` : 'Nitaeleza namba ya simu iliyosajiliwa.',
         shopName ? `Jina la duka: ${shopName}.` : ''
     ].filter(Boolean).join(' ');
-    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti yangu ya mfanyabiashara. ${accountDetails} Ninatuma ujumbe huu kutoka kwenye namba yangu ya WhatsApp iliyosajiliwa. Tafadhali nisaidieni kuthibitisha umiliki na kunitumia kiungo cha kuweka nenosiri jipya. Situmi nenosiri au PIN hapa. Namba za usaidizi: +255 692 970 687 / +255 799 689 961.`;
-    window.open(`https://wa.me/255692970687?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti yangu ya mfanyabiashara. ${accountDetails} Ninatuma ombi hili kutoka kwenye namba yangu ya WhatsApp iliyosajiliwa. Tafadhali nisaidieni kuthibitisha umiliki na kunitumia msimbo wa kuweka nenosiri jipya. Situmi nenosiri au PIN hapa. Baada ya WhatsApp kufunguka, nitabonyeza Tuma ili ombi lifike.`;
+    const whatsappUrl = `https://wa.me/255692970687?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+}
+
+function handleVendorPasswordRecovery(event) {
+    showVendorRecoveryHelp(event);
+}
+
+async function verifyVendorPasswordResetCode() {
+    const phone = document.getElementById('vendor-reset-phone').value.trim();
+    const code = document.getElementById('vendor-reset-code').value.trim();
+    const message = document.getElementById('vendor-password-reset-message');
+    const verifyButton = document.getElementById('vendor-password-reset-verify');
+
+    message.textContent = '';
+    if (!phone || !/^\d{8}$/.test(code)) {
+        message.style.color = '#ef4444';
+        message.textContent = 'Weka namba ya simu iliyosajiliwa na msimbo wa tarakimu 8.';
+        return;
+    }
+
+    verifyButton.disabled = true;
+    verifyButton.textContent = 'Inathibitisha...';
+    try {
+        const response = await fetch(API_URL + '/api/auth/vendor/password-reset/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, code })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Msimbo haujathibitishwa.');
+
+        vendorPasswordResetCodeVerified = true;
+        document.getElementById('vendor-password-reset-code-fields').style.display = 'none';
+        document.getElementById('vendor-password-reset-password-fields').style.display = 'block';
+        document.getElementById('vendor-new-password').disabled = false;
+        document.getElementById('vendor-confirm-password').disabled = false;
+        message.style.color = '#10b981';
+        message.textContent = 'Msimbo umethibitishwa. Sasa weka nenosiri jipya.';
+    } catch (error) {
+        console.error('Vendor password reset code verification failed:', error);
+        message.style.color = '#ef4444';
+        message.textContent = error.message || 'Imeshindikana kuthibitisha msimbo.';
+    } finally {
+        verifyButton.disabled = false;
+        verifyButton.textContent = 'Thibitisha msimbo';
+    }
 }
 
 async function submitVendorPasswordReset(event) {
@@ -112,8 +183,9 @@ async function submitVendorPasswordReset(event) {
     const confirmPassword = document.getElementById('vendor-confirm-password').value;
 
     message.textContent = '';
-    if (!vendorPasswordResetToken) {
-        message.textContent = 'Kiungo hakipo. Omba kiungo kipya kupitia WhatsApp.';
+    if (!vendorPasswordResetToken && !vendorPasswordResetCodeVerified) {
+        message.style.color = '#ef4444';
+        message.textContent = 'Thibitisha kwanza msimbo uliotumwa kupitia WhatsApp.';
         return;
     }
     if (password !== confirmPassword) {
@@ -131,7 +203,13 @@ async function submitVendorPasswordReset(event) {
         const response = await fetch(API_URL + '/api/auth/vendor/password-reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: vendorPasswordResetToken, password })
+            body: JSON.stringify(vendorPasswordResetToken
+                ? { token: vendorPasswordResetToken, password }
+                : {
+                    phone: document.getElementById('vendor-reset-phone').value.trim(),
+                    code: document.getElementById('vendor-reset-code').value.trim(),
+                    password
+                })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Imeshindikana kuhifadhi nenosiri jipya.');
@@ -139,8 +217,16 @@ async function submitVendorPasswordReset(event) {
         message.style.color = '#10b981';
         message.textContent = data.message;
         vendorPasswordResetToken = null;
+        vendorPasswordResetCodeVerified = false;
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
         document.getElementById('vendor-password-reset-form').reset();
+        document.getElementById('vendor-password-reset-code-fields').style.display = 'none';
+        document.getElementById('vendor-password-reset-password-fields').style.display = 'none';
+        document.getElementById('vendor-reset-phone').disabled = true;
+        document.getElementById('vendor-reset-code').disabled = true;
+        document.getElementById('vendor-new-password').disabled = true;
+        document.getElementById('vendor-confirm-password').disabled = true;
+        submitButton.style.display = 'none';
     } catch (error) {
         console.error('Vendor password reset failed:', error);
         message.style.color = '#ef4444';
@@ -153,6 +239,9 @@ async function submitVendorPasswordReset(event) {
 
 function returnToVendorLogin() {
     vendorPasswordResetToken = null;
+    vendorPasswordResetCodeVerified = false;
+    document.getElementById('vendor-password-reset-form').reset();
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
     document.getElementById('vendor-password-reset-overlay').style.display = 'none';
     document.getElementById('vendor-password-reset-message').textContent = '';
     showLoginOverlay();

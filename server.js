@@ -1848,43 +1848,120 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+const PASSWORD_RESET_CODE_ATTEMPTS = 5;
+
+async function findVendorWithValidResetCode(phone, code) {
+    if (!isValidTanzaniaPhone(phone) || typeof code !== 'string' || !/^\d{8}$/.test(code)) {
+        return null;
+    }
+
+    const phoneVariants = getPhoneVariants(phone);
+    const now = new Date();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const vendor = await User.findOne({
+        role: 'vendor',
+        phone: { $in: phoneVariants },
+        passwordResetTokenHash: codeHash,
+        passwordResetExpiresAt: { $gt: now },
+        passwordResetFailedAttempts: { $lt: PASSWORD_RESET_CODE_ATTEMPTS }
+    }).select('+passwordResetTokenHash +passwordResetExpiresAt +passwordResetFailedAttempts');
+
+    if (vendor) return vendor;
+
+    const activeResetFilter = {
+        role: 'vendor',
+        phone: { $in: phoneVariants },
+        passwordResetTokenHash: { $exists: true },
+        passwordResetExpiresAt: { $gt: now },
+        passwordResetFailedAttempts: { $lt: PASSWORD_RESET_CODE_ATTEMPTS }
+    };
+    await User.updateMany(activeResetFilter, {
+        $inc: { passwordResetFailedAttempts: 1 }
+    });
+    await User.updateMany({
+        role: 'vendor',
+        phone: { $in: phoneVariants },
+        passwordResetFailedAttempts: { $gte: PASSWORD_RESET_CODE_ATTEMPTS }
+    }, {
+        $unset: {
+            passwordResetTokenHash: 1,
+            passwordResetExpiresAt: 1,
+            passwordResetFailedAttempts: 1
+        }
+    });
+
+    return null;
+}
+
+app.post('/api/auth/vendor/password-reset/verify', async (req, res) => {
+    try {
+        const vendor = await findVendorWithValidResetCode(req.body.phone, req.body.code);
+        if (!vendor) {
+            return res.status(400).json({
+                message: 'Msimbo si sahihi, umeisha muda wake au umetumika. Omba msimbo mpya.'
+            });
+        }
+        return res.json({ valid: true });
+    } catch (err) {
+        console.error('[VENDOR PASSWORD RESET CODE VERIFY ERROR]:', err);
+        return res.status(500).json({ message: 'Imeshindikana kuthibitisha msimbo. Jaribu tena.' });
+    }
+});
+
 app.post('/api/auth/vendor/password-reset', async (req, res) => {
     try {
-        const { token, password } = req.body;
-        if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
-            return res.status(400).json({ message: 'Kiungo hiki si sahihi au muda wake umeisha. Omba msaada tena.' });
+        const { token, phone, code, password } = req.body;
+        const isLinkToken = typeof token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(token);
+        const isResetCode = !isLinkToken && typeof code === 'string' && /^\d{8}$/.test(code);
+        const invalidCredentialMessage = isLinkToken
+            ? 'Kiungo si sahihi, kimeisha muda wake au kimetumika. Omba msaada tena.'
+            : 'Msimbo si sahihi, umeisha muda wake au umetumika. Omba msimbo mpya.';
+        if (!isLinkToken && (!isResetCode || !isValidTanzaniaPhone(phone))) {
+            return res.status(400).json({ message: 'Msimbo au kiungo si sahihi. Omba msimbo mpya kupitia WhatsApp.' });
         }
         if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
             return res.status(400).json({ message: 'Neno jipya la siri liwe na herufi 8 hadi 128.' });
         }
 
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const now = new Date();
-        const vendor = await User.findOne({
-            role: 'vendor',
-            passwordResetTokenHash: tokenHash,
-            passwordResetExpiresAt: { $gt: now }
-        }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+        const tokenHash = crypto.createHash('sha256').update(isLinkToken ? token : code).digest('hex');
+        const phoneVariants = isResetCode ? getPhoneVariants(phone) : [];
+        const vendor = isLinkToken
+            ? await User.findOne({
+                role: 'vendor',
+                passwordResetTokenHash: tokenHash,
+                passwordResetExpiresAt: { $gt: now }
+            }).select('+passwordResetTokenHash +passwordResetExpiresAt')
+            : await findVendorWithValidResetCode(phone, code);
         if (!vendor) {
-            return res.status(400).json({ message: 'Kiungo hiki si sahihi, kimeshatumika au muda wake umeisha. Omba msaada tena.' });
+            return res.status(400).json({ message: invalidCredentialMessage });
         }
 
         const hashedPassword = await hashPassword(password);
+        const resetFilter = {
+            _id: vendor._id,
+            role: 'vendor',
+            passwordResetTokenHash: tokenHash,
+            passwordResetExpiresAt: { $gt: new Date() }
+        };
+        if (isResetCode) {
+            resetFilter.phone = { $in: phoneVariants };
+            resetFilter.passwordResetFailedAttempts = { $lt: PASSWORD_RESET_CODE_ATTEMPTS };
+        }
         const updated = await User.findOneAndUpdate(
-            {
-                _id: vendor._id,
-                role: 'vendor',
-                passwordResetTokenHash: tokenHash,
-                passwordResetExpiresAt: { $gt: new Date() }
-            },
+            resetFilter,
             {
                 $set: { password: hashedPassword },
                 $inc: { sessionVersion: 1 },
-                $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 }
+                $unset: {
+                    passwordResetTokenHash: 1,
+                    passwordResetExpiresAt: 1,
+                    passwordResetFailedAttempts: 1
+                }
             }
         );
         if (!updated) {
-            return res.status(400).json({ message: 'Kiungo hiki si sahihi, kimeshatumika au muda wake umeisha. Omba msaada tena.' });
+            return res.status(400).json({ message: invalidCredentialMessage });
         }
 
         res.json({ message: 'Neno jipya la siri limehifadhiwa. Sasa unaweza kuingia kwenye akaunti yako.' });
@@ -2100,43 +2177,6 @@ app.post('/api/social/follow', async (req, res) => {
 });
 
 // I. SUPER ADMIN: Get All Vendors with Products Count, Package Timeline & NIDA Info
-app.post('/api/admin/vendors/:id/password-reset', async (req, res) => {
-    try {
-        if (!mongoose.isValidObjectId(req.params.id)) {
-            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
-        }
-
-        const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('phone');
-        if (!vendor) {
-            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
-        }
-
-        const token = crypto.randomBytes(32).toString('base64url');
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-        const updated = await User.findOneAndUpdate(
-            { _id: vendor._id, role: 'vendor' },
-            {
-                $set: {
-                    passwordResetTokenHash: crypto.createHash('sha256').update(token).digest('hex'),
-                    passwordResetExpiresAt: expiresAt
-                }
-            }
-        );
-        if (!updated) {
-            return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
-        }
-
-        res.json({
-            resetPath: `/vendor-admin.html#reset=${token}`,
-            phone: vendor.phone,
-            expiresAt
-        });
-    } catch (err) {
-        console.error('[ADMIN VENDOR PASSWORD RESET LINK ERROR]:', err);
-        res.status(500).json({ message: 'Imeshindikana kutengeneza kiungo cha kuweka nenosiri jipya.' });
-    }
-});
-
 app.get('/api/admin/vendors', requireAdminSession, async (req, res) => {
     try {
         const vendors = await User.find({ role: 'vendor' }).sort({ createdAt: -1 });
@@ -2194,19 +2234,20 @@ app.post('/api/admin/vendors/:id/password-reset', requireAdminSession, async (re
             return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
         }
 
-        const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('phone');
+        const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('phone shopName name');
         if (!vendor) {
             return res.status(404).json({ message: 'Akaunti ya muuzaji haijapatikana.' });
         }
 
-        const token = crypto.randomBytes(32).toString('base64url');
+        const resetCode = String(crypto.randomInt(10000000, 100000000));
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
         const updated = await User.findOneAndUpdate(
             { _id: vendor._id, role: 'vendor' },
             {
                 $set: {
-                    passwordResetTokenHash: crypto.createHash('sha256').update(token).digest('hex'),
-                    passwordResetExpiresAt: expiresAt
+                    passwordResetTokenHash: crypto.createHash('sha256').update(resetCode).digest('hex'),
+                    passwordResetExpiresAt: expiresAt,
+                    passwordResetFailedAttempts: 0
                 }
             }
         );
@@ -2215,13 +2256,14 @@ app.post('/api/admin/vendors/:id/password-reset', requireAdminSession, async (re
         }
 
         res.json({
-            resetPath: `/vendor-admin.html#reset=${token}`,
+            resetCode,
             phone: vendor.phone,
+            shopName: vendor.shopName || vendor.name,
             expiresAt
         });
     } catch (err) {
-        console.error('[ADMIN VENDOR PASSWORD RESET LINK ERROR]:', err);
-        res.status(500).json({ message: 'Imeshindikana kutengeneza kiungo cha kuweka nenosiri jipya.' });
+        console.error('[ADMIN VENDOR PASSWORD RESET CODE ERROR]:', err);
+        res.status(500).json({ message: 'Imeshindikana kutengeneza msimbo wa kuweka nenosiri jipya.' });
     }
 });
 

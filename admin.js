@@ -35,6 +35,7 @@ async function attemptLogin() {
         document.getElementById('login-overlay').classList.add('hidden');
         errEl.innerText = '';
         document.getElementById('admin-password').value = '';
+        initializeAdminDashboard();
     } catch (err) {
         console.error('Admin login imeshindikana:', err);
         errEl.innerText = `❌ ${err.message || 'Imeshindwa kuingia. Hakikisha server inapatikana.'}`;
@@ -52,6 +53,7 @@ async function restoreAdminSession() {
         });
         if (!res.ok) throw new Error(`Session validation failed (${res.status})`);
         document.getElementById('login-overlay').classList.add('hidden');
+        initializeAdminDashboard();
     } catch (err) {
         console.error('Admin session haijathibitishwa:', err);
         sessionStorage.removeItem('genge_admin_token');
@@ -69,16 +71,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // ─────────────────────────────────────────────────────────────────
 
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadOrders();
-    // Optional: Refresh orders every 10 seconds automatically to simulate real-time
-    setInterval(loadOrders, 10000);
-    // Load payment toggle state
-    loadPaymentToggleState();
-});
-
 let currentOrders = [];
+let adminRefreshTimer = null;
+
+function initializeAdminDashboard() {
+    loadOrders();
+    loadPaymentToggleState();
+    if (!adminRefreshTimer) {
+        adminRefreshTimer = setInterval(loadOrders, 10000);
+    }
+}
 
 // ─── PAYMENT TOGGLE (Admin) ───────────────────────────────────────────────────
 let _currentPaymentEnabled = false;
@@ -173,7 +175,23 @@ window.adminTogglePayment = async function() {
 async function loadOrders() {
     try {
         const response = await fetch(API_URL + '/api/orders');
+        if (!response.ok) {
+            if (response.status === 401) {
+                sessionStorage.removeItem('genge_admin_token');
+                document.getElementById('login-overlay').classList.remove('hidden');
+                document.getElementById('login-error').innerText = 'Session imeisha. Tafadhali ingia tena.';
+                if (adminRefreshTimer) {
+                    clearInterval(adminRefreshTimer);
+                    adminRefreshTimer = null;
+                }
+            }
+            throw new Error(`Ombi la oda limeshindwa (${response.status}).`);
+        }
+
         const orders = await response.json();
+        if (!Array.isArray(orders)) {
+            throw new Error('Majibu ya oda hayako katika muundo unaotarajiwa.');
+        }
         
         console.log('Fetched orders from server:', orders);
         
@@ -570,11 +588,11 @@ window.openVendorRecoveryModal = function(vendorId) {
         `${vendor.shopName || vendor.name} · ${vendor.name} · ${vendor.phone}`;
     document.getElementById('vendor-recovery-verified').checked = false;
     document.getElementById('vendor-recovery-create').disabled = true;
-    document.getElementById('vendor-recovery-create').textContent = 'Tengeneza kiungo cha reset';
+    document.getElementById('vendor-recovery-create').textContent = 'Tengeneza msimbo wa reset';
     document.getElementById('vendor-recovery-create').style.display = '';
     document.getElementById('vendor-recovery-message').textContent = '';
-    document.getElementById('vendor-recovery-link-section').style.display = 'none';
-    document.getElementById('vendor-recovery-link').value = '';
+    document.getElementById('vendor-recovery-code-section').style.display = 'none';
+    document.getElementById('vendor-recovery-code').value = '';
     document.getElementById('vendor-recovery-whatsapp').removeAttribute('href');
     document.getElementById('vendor-recovery-modal').style.display = 'flex';
 };
@@ -584,14 +602,14 @@ window.closeVendorRecoveryModal = function() {
     vendorRecoveryId = null;
 };
 
-window.issueVendorRecoveryLink = async function() {
+window.issueVendorRecoveryCode = async function() {
     if (!vendorRecoveryId || !document.getElementById('vendor-recovery-verified').checked) return;
 
     const createButton = document.getElementById('vendor-recovery-create');
     const message = document.getElementById('vendor-recovery-message');
     const vendor = _allMallVendors.find(item => item._id === vendorRecoveryId);
     createButton.disabled = true;
-    createButton.textContent = 'Inatengeneza kiungo...';
+    createButton.textContent = 'Inatengeneza msimbo...';
     message.textContent = '';
 
     try {
@@ -599,28 +617,29 @@ window.issueVendorRecoveryLink = async function() {
             method: 'POST'
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Imeshindikana kutengeneza kiungo.');
+        if (!response.ok) throw new Error(data.message || 'Imeshindikana kutengeneza msimbo.');
 
-        const resetLink = new URL(data.resetPath, window.location.origin).href;
         const phoneDigits = (data.phone || vendor.phone).replace(/\D/g, '');
         const whatsappPhone = phoneDigits.startsWith('0')
             ? `255${phoneDigits.slice(1)}`
             : phoneDigits.startsWith('255') ? phoneDigits : `255${phoneDigits}`;
-        const whatsappMessage = `Habari. Hiki ndicho kiungo cha kuweka nenosiri jipya la akaunti yako ya Genge Mall: ${resetLink} Kiungo kitaisha baada ya dakika 30 na hutumika mara moja. Usimpe mtu mwingine kiungo hiki.`;
+        const portalUrl = new URL('/vendor-admin.html', window.location.origin).href;
+        const shopName = data.shopName || vendor.shopName || vendor.name || 'duka lako';
+        const whatsappMessage = `Habari. Msimbo wako wa kuweka nenosiri jipya la ${shopName} ni ${data.resetCode}. Ingia ${portalUrl}, chagua "Nina msimbo wa reset", weka namba yako ya simu iliyosajiliwa na msimbo huu, kisha weka nenosiri jipya. Msimbo unaisha baada ya dakika 30, unatumika mara moja na hufungwa baada ya majaribio 5 yasiyofanikiwa. Usimpe mtu mwingine msimbo huu.`;
 
-        document.getElementById('vendor-recovery-link').value = resetLink;
+        document.getElementById('vendor-recovery-code').value = data.resetCode;
         document.getElementById('vendor-recovery-whatsapp').href =
             `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`;
-        document.getElementById('vendor-recovery-link-section').style.display = 'block';
+        document.getElementById('vendor-recovery-code-section').style.display = 'block';
         createButton.style.display = 'none';
         message.style.color = '#10b981';
-        message.textContent = 'Kiungo kimetengenezwa. Tuma kupitia WhatsApp kwa namba iliyothibitishwa.';
+        message.textContent = 'Msimbo umetengenezwa. Bonyeza WhatsApp, kisha bonyeza Tuma ili umfikie muuzaji.';
     } catch (err) {
-        console.error('Vendor recovery link creation failed:', err);
+        console.error('Vendor recovery code creation failed:', err);
         createButton.disabled = false;
-        createButton.textContent = 'Jaribu tena kutengeneza kiungo';
+        createButton.textContent = 'Jaribu tena kutengeneza msimbo';
         message.style.color = '#ef4444';
-        message.textContent = err.message || 'Imeshindikana kutengeneza kiungo.';
+        message.textContent = err.message || 'Imeshindikana kutengeneza msimbo.';
     }
 };
 
