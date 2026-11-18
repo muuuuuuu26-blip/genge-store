@@ -55,6 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showVendorPasswordReset(resetMatch[1]);
         return;
     }
+    if (window.location.hash === '#enter-reset-code') {
+        showVendorPasswordReset();
+        return;
+    }
     checkSavedVendorSession();
 });
 
