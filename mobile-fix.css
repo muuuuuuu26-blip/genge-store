@@ -2,7 +2,7 @@
    GENGE MOBILE FIX — Inarekebisha matatizo yote ya simu
    ============================================================ */
 
-/* ---- DESKTOP (zaidi ya 768px): Header ina row moja ya logo+nav+cart, na search bar chini ---- */
+/* ---- DESKTOP (zaidi ya 768px): Header ina logo, nav, Mall na cart; search iko chini ---- */
 @media (min-width: 769px) {
     .header {
         display: flex !important;
@@ -16,6 +16,25 @@
         justify-content: space-between !important;
         align-items: center !important;
         width: 100% !important;
+        gap: 0.5rem !important;
+    }
+
+    .header-mall-link,
+    .header-top-row .cart-icon {
+        flex-shrink: 0 !important;
+    }
+
+    .header-top-row .cart-icon {
+        display: flex;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 1.8rem;
     }
     .search-bar-row {
         display: block !important;
@@ -35,10 +54,22 @@
     }
 }
 
+@media (min-width: 769px) and (max-width: 1100px) {
+    .header-quick-actions {
+        display: flex !important;
+        flex: 0 0 auto !important;
+        margin: 0 auto !important;
+    }
+
+    .header-top-row .nav-links {
+        display: none !important;
+    }
+}
+
 /* ---- MOBILE (768px na chini): Header ina column layout ---- */
 @media (max-width: 768px) {
 
-    /* === 1. HEADER: Weka kama column, onyesha logo+cart na search bar ===  */
+    /* === 1. HEADER: Onyesha logo, Mall na cart juu ya search bar ===  */
     .header {
         display: flex !important;
         flex-direction: column !important;
@@ -60,6 +91,42 @@
         justify-content: space-between !important;
         align-items: center !important;
         width: 100% !important;
+        gap: 0.5rem !important;
+    }
+
+    .header-top-row > .logo {
+        flex: 0 0 auto;
+    }
+
+    .header-quick-actions {
+        display: none !important;
+    }
+
+    .header-mall-link {
+        flex: 0 0 auto;
+        margin-left: auto;
+        min-height: 40px;
+        padding: 6px 9px;
+        font-size: 0.78rem;
+    }
+
+    .header-top-row .cart-icon {
+        display: flex;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 1.7rem;
+        animation: none;
+    }
+
+    .header-top-row .cart-count {
+        top: -3px;
+        right: -3px;
     }
 
     /* Ficha nav links za desktop kwenye simu — bottom nav inachukua nafasi */
