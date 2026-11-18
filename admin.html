@@ -373,29 +373,30 @@
                 <button onclick="closeAdminAddVendorModal()" style="background:none;border:none;color:#aaa;font-size:1.5rem;cursor:pointer;">&times;</button>
             </div>
             <form id="admin-add-vendor-form" onsubmit="submitAdminAddVendor(event)">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
-                    <div>
-                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Jina Kamili *</label>
-                        <input type="text" id="av-name" required placeholder="Juma Mwalimu" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Jina la Duka *</label>
-                        <input type="text" id="av-shop" required placeholder="Juma Electronics" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
-                    </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Jina la Duka *</label>
+                    <input type="text" id="av-shop" required placeholder="Mfano: Juma Electronics" autocomplete="organization" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                    <small style="display:block;color:#94a3b8;font-size:0.76rem;margin-top:5px;">Duka jingine la mmiliki huyu linaweza kutumia simu na NIDA zilezile; tumia jina tofauti la duka.</small>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Jina Kamili la Mmiliki *</label>
+                        <input type="text" id="av-name" required placeholder="Juma Mwalimu" autocomplete="name" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                    </div>
                     <div>
                         <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Namba ya Simu *</label>
-                        <input type="tel" id="av-phone" required placeholder="0712345678" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Neno la Siri *</label>
-                        <input type="password" id="av-password" required placeholder="Neno la siri" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                        <input type="tel" id="av-phone" required placeholder="0712345678 au +255712345678" inputmode="tel" autocomplete="tel" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
                     </div>
                 </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">NIDA / TIN Number</label>
-                    <input type="text" id="av-nida" placeholder="Hiari (optional)" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">Neno la Siri *</label>
+                        <input type="password" id="av-password" required placeholder="Neno la siri" autocomplete="new-password" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:3px;color:#cbd5e1;">NIDA / TIN Number *</label>
+                        <input type="text" id="av-nida" required placeholder="Namba ya NIDA au TIN" autocomplete="off" style="width:100%;padding:0.55rem 0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:#fff;box-sizing:border-box;">
+                    </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
                     <div>

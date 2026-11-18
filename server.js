@@ -1604,13 +1604,18 @@ app.post('/api/auth/register', async (req, res) => {
             await ensureVendorShopIndexes();
         }
 
+        const cleanShopName = (shopName || '').trim();
+        if (role === 'vendor' && !cleanShopName) {
+            return res.status(400).json({ message: 'Jina la duka linahitajika kwa usajili wa muuzaji.' });
+        }
+
         // Check if this exact shop name already registered under this phone
         const existing = await User.findOne({
             phone: { $in: getPhoneVariants(cleanPhone) },
-            shopName: (shopName || '').trim()
+            shopName: cleanShopName
         });
         if (existing) {
-            return res.status(400).json({ message: `Duka hili "${(shopName || '').trim()}" limesha sajiliwa kwa namba hii ya simu. Jaribu jina lingine la duka.` });
+            return res.status(400).json({ message: `Duka hili "${cleanShopName}" limesha sajiliwa kwa namba hii ya simu. Jaribu jina lingine la duka.` });
         }
 
         // Setup vendor package rules (30-day default subscription)
@@ -1692,7 +1697,7 @@ app.post('/api/auth/register', async (req, res) => {
             password: hashedPassword,
             role: role || 'customer',
             nidaOrTin: nidaOrTin ? nidaOrTin.trim() : '',
-            shopName: shopName ? shopName.trim() : (name + ' Shop'),
+            shopName: cleanShopName || (name + ' Shop'),
             package: userPackage
         });
 
@@ -2271,15 +2276,24 @@ app.post('/api/admin/vendors/:id/password-reset', requireAdminSession, async (re
 app.post('/api/admin/vendors', requireAdminSession, async (req, res) => {
     try {
         const { name, phone, password, nidaOrTin, shopName, packageName, durationDays } = req.body;
-        const cleanPhone = (phone || '').trim().replace(/[\s\-]/g, '');
+        const cleanPhone = normalizePhoneNumber(phone || '');
+        const cleanShopName = (shopName || '').trim();
+        const cleanNidaOrTin = (nidaOrTin || '').trim();
 
-        if (!name || !cleanPhone || !nidaOrTin || !shopName) {
+        if (!name || !cleanPhone || !cleanNidaOrTin || !cleanShopName || !password) {
             return res.status(400).json({ message: 'Tafadhali jaza taarifa zote muhimu za muuzaji.' });
         }
+        if (!isValidTanzaniaPhone(cleanPhone)) {
+            return res.status(400).json({ message: 'Namba ya simu si sahihi. Weka namba halali ya Tanzania.' });
+        }
 
-        const existing = await User.findOne({ phone: cleanPhone });
+        await ensureVendorShopIndexes();
+        const existing = await User.findOne({
+            phone: { $in: getPhoneVariants(cleanPhone) },
+            shopName: cleanShopName
+        });
         if (existing) {
-            return res.status(400).json({ message: 'Namba ya simu tayari imesajiliwa.' });
+            return res.status(400).json({ message: `Duka hili "${cleanShopName}" limeshasajiliwa kwa namba hii ya simu. Tumia jina tofauti la duka.` });
         }
 
         const days = Number(durationDays) || 30;
@@ -2291,16 +2305,13 @@ app.post('/api/admin/vendors', requireAdminSession, async (req, res) => {
         if (packageName === 'Silver') { price = 10000; maxProducts = 45; }
         else if (packageName === 'Gold') { price = 15000; maxProducts = 60; }
 
-        if (!password) {
-            return res.status(400).json({ message: 'Weka neno la siri la muuzaji.' });
-        }
         const newVendor = new User({
-            name,
+            name: name.trim(),
             phone: cleanPhone,
-            password: await hashPassword(password || '123456'),
+            password: await hashPassword(password),
             role: 'vendor',
-            nidaOrTin,
-            shopName,
+            nidaOrTin: cleanNidaOrTin,
+            shopName: cleanShopName,
             package: {
                 name: packageName || 'Basic',
                 price,

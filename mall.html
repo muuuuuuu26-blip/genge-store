@@ -480,19 +480,20 @@
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">Jiunge kama muuzaji rasmi uanze kuuza na kupakia bidhaa zako leo.</p>
 
                 <div class="auth-field">
-                    <label><ion-icon name="person-outline"></ion-icon> Majina Kamili (Yaliyo Kwenye NIDA) *</label>
-                    <input type="text" id="reg-name" placeholder="Mfano: Juma Rashid Bakari" required>
+                    <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka / Biashara Yako *</label>
+                    <input type="text" id="reg-shop-name" placeholder="Mfano: Kariakoo Classic Shoes" required autocomplete="organization">
+                    <small style="display:block;color:var(--text-muted);font-size:0.78rem;margin-top:5px;">Una maduka mengi? Sajili kila moja kwa jina lake; unaweza kutumia simu na NIDA zilezile.</small>
+                </div>
+
+                <div class="auth-field">
+                    <label><ion-icon name="person-outline"></ion-icon> Majina Kamili ya Mmiliki (Yaliyo Kwenye NIDA) *</label>
+                    <input type="text" id="reg-name" placeholder="Mfano: Juma Rashid Bakari" required autocomplete="name">
                 </div>
 
                 <div class="auth-field">
                     <label><ion-icon name="card-outline"></ion-icon> Namba ya NIDA au TIN Number *</label>
                     <input type="text" id="reg-nida" placeholder="Mfano: 19950101-XXXXX-XXXXX au TIN 123-456-789" required oninput="handleRegNidaInput(this)">
                     <div id="reg-nida-badge" style="display:none; font-size: 0.78rem; font-weight: 700; margin-top: 5px;"></div>
-                </div>
-
-                <div class="auth-field">
-                    <label><ion-icon name="storefront-outline"></ion-icon> Jina la Duka / Biashara Yako *</label>
-                    <input type="text" id="reg-shop-name" placeholder="Mfano: Kariakoo Classic Shoes" required>
                 </div>
 
                 <div class="auth-field">
