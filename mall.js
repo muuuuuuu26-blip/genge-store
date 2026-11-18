@@ -2700,25 +2700,29 @@ window.mallNavTo = function(target) {
 // ── VENDOR LOGIN WITH MULTI-SHOP SUPPORT ────────────────────────────────
 window.handleMallPasswordRecovery = function(event) {
     const phone = document.getElementById('login-phone')?.value.trim();
-    const accountDetails = phone
-        ? `Namba ya simu iliyosajiliwa: ${phone}.`
-        : 'Nitaeleza namba ya simu iliyosajiliwa.';
-    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti ya duka langu. ${accountDetails} Tafadhali nisaidieni kuthibitisha umiliki na kunitumia kiungo cha kuweka nenosiri jipya. Situmi nenosiri au PIN hapa.`;
+    const shopName = document.getElementById('login-shop-name')?.value.trim();
+    const accountDetails = [
+        shopName ? `Jina la duka: ${shopName}.` : '',
+        phone ? `Namba ya simu iliyosajiliwa: ${phone}.` : ''
+    ].filter(Boolean).join(' ') || 'Nitaeleza jina la duka na namba ya simu iliyosajiliwa.';
+    const message = `Habari Genge Mall. Nimesahau nenosiri la akaunti ya duka langu. ${accountDetails} Tafadhali nisaidieni kuthibitisha umiliki na kunitumia msimbo wa kuweka nenosiri jipya. Situmi nenosiri au PIN hapa.`;
     event.currentTarget.href = `https://wa.me/${MALL_WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
 };
 
 window.handleMallLogin = async function(e) {
     e.preventDefault();
+    const shopEl = document.getElementById('login-shop-name');
     const phoneEl = document.getElementById('login-phone');
     const passEl = document.getElementById('login-password');
     const msgDiv = document.getElementById('login-form-msg');
     const submitBtn = e.target ? e.target.querySelector('button[type="submit"]') : null;
 
+    const shopName = shopEl ? shopEl.value.trim() : '';
     const phone = phoneEl ? phoneEl.value.trim() : '';
     const password = passEl ? passEl.value : '';
 
-    if (!phone || !password) {
-        if (msgDiv) { msgDiv.textContent = '❌ Tafadhali weka namba ya simu na neno la siri.'; msgDiv.style.color = '#EF4444'; }
+    if (!shopName || !phone || !password) {
+        if (msgDiv) { msgDiv.textContent = '❌ Tafadhali weka jina la duka, namba ya simu na neno la siri.'; msgDiv.style.color = '#EF4444'; }
         return;
     }
 
@@ -2729,7 +2733,7 @@ window.handleMallLogin = async function(e) {
         const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, password })
+            body: JSON.stringify({ phone, password, shopName })
         });
         const data = await res.json();
 

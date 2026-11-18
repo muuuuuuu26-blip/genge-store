@@ -298,6 +298,10 @@ async function handleVendorLogin(e) {
     const password = document.getElementById('vlogin-password').value;
     const shopName = document.getElementById('vlogin-shop-name').value.trim();
     const errDiv = document.getElementById('vlogin-error');
+    if (!shopName) {
+        errDiv.textContent = 'Weka jina la duka kama ulivyosajili.';
+        return;
+    }
     const submitButton = e.currentTarget.querySelector('button[type="submit"]');
     errDiv.textContent = '';
     submitButton.disabled = true;
