@@ -2309,6 +2309,29 @@ window.toggleFollowVendorModal = function() {
 // ── SOCIAL SHARING & DEEP LINKING SYSTEM ─────────────────────────
 let deepLinkProcessed = false;
 
+function createMallProductShareImage(productId) {
+    const product = serverMallProducts.find(item => String(item.id) === String(productId));
+    const match = product && typeof product.icon === 'string'
+        ? product.icon.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/)
+        : null;
+    if (!match || typeof File === 'undefined' || typeof atob !== 'function') return null;
+
+    const binary = atob(match[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+
+    const extensions = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif'
+    };
+    const safeProductId = String(product.id).replace(/[^A-Za-z0-9_-]/g, '');
+    return new File([bytes], `genge-${safeProductId}.${extensions[match[1]]}`, { type: match[1] });
+}
+
 function handleMallDeepLink(productId, shopPhone) {
     if (deepLinkProcessed) return;
 
@@ -2364,15 +2387,26 @@ window.shareMallProduct = function(productId, title, shopName, price, vendorPhon
     const shareUrl = `${origin}/share/p/${encodeURIComponent(productId)}`;
     const priceFormatted = priceByAgreement ? 'Bei kwa makubaliano' : formatTZS(price);
     const action = priceByAgreement ? 'Uliza bei na upatikanaji kwenye Genge Mall:' : 'Tazama na agiza kwenye Genge Mall:';
-    const shareText = `🛍️ *${title}*\n💰 ${priceFormatted}\n🏪 Duka: ${shopName}\n\n${action}\n${shareUrl}`;
+    const shareCaption = `🛍️ *${title}*\n💰 ${priceFormatted}\n🏪 Duka: ${shopName}\n\n${action}`;
+    const shareText = `${shareCaption}\n${shareUrl}`;
 
     // Try native share sheet (mobile)
     if (navigator.share) {
-        navigator.share({
+        const shareData = {
             title: `${title} — ${shopName} | Genge Mall`,
-            text: shareText,
+            text: shareCaption,
             url: shareUrl
-        }).catch(() => {});
+        };
+        const imageFile = createMallProductShareImage(productId);
+        if (imageFile && typeof navigator.canShare === 'function' && navigator.canShare({ ...shareData, files: [imageFile] })) {
+            shareData.files = [imageFile];
+        }
+
+        navigator.share(shareData).catch(error => {
+            if (error && error.name === 'AbortError') return;
+            console.error('Product sharing failed:', error);
+            showMallSharePanel({ title, shopName, price: priceFormatted, shareUrl, shareText });
+        });
     } else {
         // Show mini share panel on desktop
         showMallSharePanel({ title, shopName, price: priceFormatted, shareUrl, shareText });
